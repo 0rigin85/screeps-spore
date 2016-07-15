@@ -3,18 +3,13 @@
     "description": "",
     "version": "0.0.1",
     "private": true,
-    "scripts": {
-        "tsc": "tsc",
-        "tsc:w": "tsc -w",
-        "lite": "lite-server",
-        "start": "concurrent \"npm run tsc:w\" \"npm run lite\" "
-    },
     "dependencies": {
 
     },
     "devDependencies": {
         "grunt": "~1.0.1",
         "grunt-screeps": "~1.2.1",
+        "grunt-ts-clean": "~0.2.0",
         "typescript": "^1.7.3"
     }
 }
