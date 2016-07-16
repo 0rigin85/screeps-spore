@@ -1,6 +1,13 @@
+/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-export interface Task {
-    id: number;
+export class Task {
 
-    getSteps(): Task[];
+    constructor() {
+
+    }
+
+    getSteps(): Task[] {
+        return [];
+    }
+
 }

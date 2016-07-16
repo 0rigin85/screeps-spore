@@ -10,6 +10,7 @@
         "grunt": "~1.0.1",
         "grunt-screeps": "~1.2.1",
         "grunt-ts-clean": "~0.2.0",
-        "typescript": "^1.7.3"
+        "typescript": "^1.7.3",
+        "screeps-typescript-declarations": "~4.2.0"
     }
 }
