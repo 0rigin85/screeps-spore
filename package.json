@@ -4,12 +4,13 @@
     "version": "0.0.1",
     "private": true,
     "dependencies": {
-
+        "typescript-collections ": "~1.1.2"
     },
     "devDependencies": {
         "grunt": "~1.0.1",
         "grunt-screeps": "~1.2.1",
         "grunt-ts-clean": "~0.2.0",
+        "grunt-contrib-copy": "~1.0.0",
         "typescript": "^1.7.3",
         "screeps-typescript-declarations": "~4.2.0"
     }
