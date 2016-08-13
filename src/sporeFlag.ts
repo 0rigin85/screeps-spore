@@ -1,10 +1,8 @@
-/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
+///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
+
 import {Task} from "./task";
 import {FlagBuildStructure} from "./flagBuildStructure";
 import {FlagDismantleStructure} from "./flagDismantleStructure";
-
-// Ensure this is treated as a module.
-export {};
 
 declare global
 {
@@ -14,62 +12,84 @@ declare global
     }
 }
 
-Flag.prototype.getTasks = function()
+export interface FlagMemory
 {
-    let tasks: Task[] = [];
 
-    if (this.color == COLOR_GREEN)
-    {
-        tasks.push(new FlagBuildStructure("", Game.flags[this.name]));
-    }
-    else if (this.color == COLOR_RED)
-    {
-        tasks.push(new FlagDismantleStructure("", Game.flags[this.name]));
-    }
-    else if (this.color == COLOR_GREY)
-    {
-        let lookResults: LookAtResult[] = this.room.lookAt(this);
+}
 
-        for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
+export class SporeFlag extends Flag
+{
+    getTasks(): Task[]
+    {
+        let tasks: Task[] = [];
+
+        if (this.color == COLOR_GREEN)
         {
-            let lookObject = lookResults[lookIndex];
+            tasks.push(new FlagBuildStructure("", Game.flags[this.name]));
+        }
+        else if (this.color == COLOR_RED)
+        {
+            tasks.push(new FlagDismantleStructure("", Game.flags[this.name]));
+        }
+        else if (this.color == COLOR_GREY)
+        {
+            let lookResults: LookAtResult[] = this.room.lookAt(this);
 
-            if (lookObject.type == LOOK_SOURCES)
+            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
             {
-                lookObject.source.getTickMemory().ignore = true;
-            }
-            else if (lookObject.type == LOOK_STRUCTURES)
-            {
-                lookObject.structure.getMemory().ignore = true;
-            }
-            else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
-            {
-                lookObject.constructionSite.getMemory().ignore = true;
+                let lookObject = lookResults[lookIndex];
+
+                if (lookObject.type == LOOK_SOURCES)
+                {
+                    lookObject.source.doIgnore = true;
+                }
+                else if (lookObject.type == LOOK_STRUCTURES)
+                {
+                    lookObject.structure.doIgnore = true;
+                }
+                else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
+                {
+                    lookObject.constructionSite.doIgnore = true;
+                }
             }
         }
-    }
-    else if (this.color == COLOR_BLUE)
-    {
-        let lookResults: LookAtResult[] = this.room.lookAt(this);
-
-        for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
+        else if (this.color == COLOR_BLUE)
         {
-            let lookObject = lookResults[lookIndex];
+            let lookResults: LookAtResult[] = this.room.lookAt(this);
 
-            if (lookObject.type == LOOK_SOURCES)
+            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
             {
-                lookObject.source.getTickMemory().favor = true;
-            }
-            else if (lookObject.type == LOOK_STRUCTURES)
-            {
-                lookObject.structure.getMemory().favor = true;
-            }
-            else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
-            {
-                lookObject.constructionSite.getMemory().favor = true;
+                let lookObject = lookResults[lookIndex];
+
+                if (lookObject.type == LOOK_SOURCES)
+                {
+                    lookObject.source.doFavor = true;
+                }
+                else if (lookObject.type == LOOK_STRUCTURES)
+                {
+                    lookObject.structure.doFavor = true;
+                }
+                else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
+                {
+                    lookObject.constructionSite.doFavor = true;
+                }
             }
         }
-    }
+        else if (this.color == COLOR_ORANGE)
+        {
+            let lookResults: LookAtResult[] = this.room.lookAt(this);
 
-    return tasks;
-};
+            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
+            {
+                let lookObject = lookResults[lookIndex];
+
+                if (lookObject.type == LOOK_SOURCES)
+                {
+                    lookObject.source.doFavor = true;
+                }
+            }
+        }
+
+        return tasks;
+    }
+}

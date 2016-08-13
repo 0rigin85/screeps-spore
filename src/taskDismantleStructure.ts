@@ -1,12 +1,12 @@
-/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
-
-import {Task, ERR_CANNOT_PERFORM_WORK} from './task';
+import {Task, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK} from './task';
 
 export class DismantleStructure extends Task
 {
     constructor(parentId: string, public structure: Structure)
     {
-        super(((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Dismantle[" + structure.id + "]", false);
+        super(false);
+        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Dismantle[" + structure.id + "]";
+        this.name = "Dismantle [" + structure + "]";
     }
 
     static deserialize(input: string): DismantleStructure
@@ -34,21 +34,23 @@ export class DismantleStructure extends Task
 
     schedule(creep: Creep): number
     {
-        console.log("dismantling structure");
+        if (this.possibleWorkers === 0)
+        {
+            return ERR_NO_WORK;
+        }
 
         if (creep.getActiveBodyparts(WORK) == 0)
         {
-            return ERR_CANNOT_PERFORM_WORK;
+            return ERR_CANNOT_PERFORM_TASK;
         }
 
-        //todo creeps without CARRY should not be favored
-        //todo creeps with full CARRY should not be favored
+        let code = this.goDismantle(creep, this.structure);
 
-        if (creep.dismantle(this.structure) == ERR_NOT_IN_RANGE)
+        if (code === OK && this.possibleWorkers > 0)
         {
-            creep.moveTo(this.structure);
+            this.possibleWorkers--;
         }
 
-        return OK;
+        return code;
     }
 }

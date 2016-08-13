@@ -1,15 +1,30 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, TaskPriority, ERR_CANNOT_PERFORM_WORK, ERR_NOWORK} from './task';
-import {EnergyManager, ENERGYLOCATION, ERR_NOENERGY} from "./energyManager";
+import {Task, TaskPriority, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK, ACTION_UPGRADE} from './task';
 
 export class UpgradeRoomController extends Task
 {
     constructor(public parentId: string, public room: Room)
     {
-        super(((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "UpgradeRoomController[" + room.name + "]", false);
-        this.possibleWorkers = 2;
-        this.priority = TaskPriority.Mandatory - 100;
+        super(false);
+        this.id = "UpgradeRoomController[" + room.name + "]";
+        this.name = "Upgrade Room [" + room.name + "] Controller";
+        this.possibleWorkers = -1;
+
+        this.priority = TaskPriority.Medium + 10;
+
+        if (room.controller.ticksToDowngrade < 2000)
+        {
+            this.priority = TaskPriority.Mandatory * 2;
+        }
+        else if (room.controller.ticksToDowngrade < 3000)
+        {
+            this.priority = TaskPriority.Mandatory;
+        }
+        else if (room.controller.level < 2)
+        {
+            this.priority = TaskPriority.Mandatory - 100;
+        }
     }
 
     static deserialize(input: string): UpgradeRoomController
@@ -39,30 +54,34 @@ export class UpgradeRoomController extends Task
     {
         if (this.possibleWorkers == 0)
         {
-            return ERR_NOWORK;
+            return ERR_NO_WORK;
         }
 
-        if(creep.memory.upgrading && creep.carry.energy == 0)
+        if (creep.getActiveBodyparts(WORK) == 0 ||
+            creep.getActiveBodyparts(CARRY) == 0)
         {
-            creep.memory.upgrading = false;
+            return ERR_CANNOT_PERFORM_TASK;
         }
 
-        if(!creep.memory.upgrading && creep.carry.energy == creep.carryCapacity)
-        {
-            creep.memory.upgrading = true;
-        }
+        let code;
 
-        let code = ERR_NOWORK;
-        if(creep.memory.upgrading)
+        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
+            (creep.action === ACTION_UPGRADE && creep.carry[RESOURCE_ENERGY] > 0))
         {
             code = this.goUpgrade(creep, this.room.controller);
         }
         else
         {
-            code = this.goCollect(creep, [ENERGYLOCATION.ANY]);
+            code = this.goCollect(
+                creep,
+                RESOURCE_ENERGY,
+                creep.carryCapacityRemaining,
+                false,
+                this.room.controller.pos,
+                [['dropped'], ['link','container'], ['source'], ['storage']]);
         }
 
-        if (code == OK)
+        if (code === OK && this.possibleWorkers > 0)
         {
             this.possibleWorkers--;
         }

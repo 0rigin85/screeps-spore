@@ -1,14 +1,15 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, ERR_CANNOT_PERFORM_WORK, ERR_NOWORK} from './task';
-import {EnergyManager} from "./energyManager";
+import {Task, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK} from './task';
 
 export class HarvestEnergy extends Task
 {
-    constructor(parentId: string, public source: Source, public slotId: number)
+    constructor(parentId: string, public source: Source, public target: Creep | Spawn | Structure)
     {
-        super(((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Harvest:" + slotId + "[" + source.id + "]", false);
+        super(false);
 
+        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Harvest:" + target.id + "[" + source.id + "]";
+        this.name = target + " Harvesting [" + source + "]";
         this.possibleWorkers = 1;
     }
 
@@ -26,98 +27,48 @@ export class HarvestEnergy extends Task
         let sourceId = input.substring(startingBraceIndex, input.length - 1);
 
         let colonIndex = input.lastIndexOf(":");
-        let slotId = input.substring(colonIndex, startingBraceIndex);
+        let targetId = input.substring(colonIndex, startingBraceIndex);
 
         let source = Game.getObjectById<Source>(sourceId);
+        let target = Game.getObjectById<Creep | Spawn | Structure>(targetId);
 
-        if (source == null)
+        if (source == null || target == null)
         {
             return null;
         }
 
-        return new HarvestEnergy(parentId, source, +slotId);
+        return new HarvestEnergy(parentId, source, target);
     }
 
     schedule(creep: Creep): number
     {
-        if (this.possibleWorkers == 0)
+        if (this.possibleWorkers === 0)
         {
-            return ERR_NOWORK;
+            return ERR_NO_WORK;
         }
 
-        if (creep.getActiveBodyparts(WORK) == 0)
+        if (creep.getActiveBodyparts(WORK) == 0 ||
+            creep.getActiveBodyparts(CARRY) == 0)
         {
-            return ERR_CANNOT_PERFORM_WORK;
+            return ERR_CANNOT_PERFORM_TASK;
         }
 
-        let code = ERR_NOWORK;
+        let code;
 
-        if (creep.carry.energy < creep.carryCapacity)
+        if (creep.carryCapacityRemaining > 0)
         {
-            code = this.goHarvest(creep);
+            code = this.goHarvest(creep, this.source);
         }
         else
         {
-            code = this.goDeposit(creep);
+            code = this.goTransfer(creep, RESOURCE_ENERGY, this.target);
         }
 
-        if (code == OK)
+        if (code === OK && this.possibleWorkers > 0)
         {
-            EnergyManager.claimSource(creep, this.source.id);
-            
-            if (this.possibleWorkers > 0)
-            {
-                this.possibleWorkers--;
-            }
+            this.possibleWorkers--;
         }
 
         return code;
-    }
-
-    goHarvest(creep: Creep): number
-    {
-        let harvestCode = creep.harvest(this.source);
-        if (harvestCode == OK)
-        {
-            return OK;
-        }
-
-        if (harvestCode == ERR_NOT_IN_RANGE)
-        {
-            return this.goMoveTo(creep, this.source);
-        }
-        else if (harvestCode == ERR_NO_PATH ||
-            harvestCode == ERR_NO_BODYPART ||
-            harvestCode == ERR_BUSY ||
-            harvestCode == ERR_NOT_OWNER)
-        {
-            return ERR_CANNOT_PERFORM_WORK;
-        }
-
-        //harvestCode == ERR_NOT_FOUND ||
-        //harvestCode == ERR_NOT_ENOUGH_RESOURCES ||
-        //harvestCode == ERR_INVALID_TARGET
-        return ERR_NOWORK
-    }
-
-    goDeposit(creep: Creep): number
-    {
-        var target = creep.pos.findClosestByRange<Structure>(FIND_STRUCTURES, {
-            filter: (structure) => {
-                return (structure.structureType == STRUCTURE_CONTAINER ||
-                    structure.structureType == STRUCTURE_EXTENSION ||
-                    structure.structureType == STRUCTURE_SPAWN ||
-                    structure.structureType == STRUCTURE_TOWER) && structure.energy < structure.energyCapacity;
-            }
-        });
-
-        let code = creep.transfer(target, RESOURCE_ENERGY);
-        if (code == ERR_NOT_IN_RANGE)
-        {
-            return this.goMoveTo(creep, target);
-        }
-
-        // @todo handle the scenario where there is no place to put the energy we collected
-        return OK;
     }
 }

@@ -11,8 +11,9 @@ export class FlagDismantleStructure extends Task
 
     constructor(parentId: string, public flag: Flag)
     {
-        super(((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "FlagDismantleStructure[" + flag.name + "]", true);
-
+        super(true);
+        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "FlagDismantleStructure[" + flag.name + "]";
+        
         if (this.flag.secondaryColor == COLOR_RED)
         {
             this.structureType = null;

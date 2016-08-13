@@ -1,90 +1,79 @@
-/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
-
-import {TransferResource} from "./taskTransferResource";
-import {Task, TaskPriority} from "./task";
-import {ENERGYLOCATION} from "./energyManager";
+import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {StructureMemory} from "./sporeStructure";
-
-// Ensure this is treated as a module.
-export {};
-
-export class SpawnTickMemory
-{
-    claims: string[] = [];
-    claimed: number = 0;
-}
-
-export class SpawnMemory extends StructureMemory
-{
-    type: number = 0;
-    availableSlots: number = 0;
-}
 
 declare global
 {
     interface Spawn
     {
-        getMemory(): SpawnMemory;
-        getTickMemory(): SpawnTickMemory;
-        getLastTickMemory(): SpawnTickMemory;
+        energyCapacityRemaining: number;
+        needsRepair: boolean;
+        dire: boolean;
 
-        getTasks(): Task[];
+        collect(collector: any, claimReceipt: ClaimReceipt): number;
+        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
-Spawn.prototype.getMemory = function()
+export interface SpawnMemory extends StructureMemory
 {
-    if (this.memory.type == null)
+
+}
+
+export class SporeSpawn extends Spawn implements Claimable
+{
+    get energyCapacityRemaining(): number
     {
-        this.memory.type = 0;
-        this.memory.availableSlots = 0;
-        Memory[this.id] = this.memory;
+        return this.energyCapacity - this.energy;
     }
 
-    return this.memory;
-};
-
-Spawn.prototype.getTickMemory = function()
-{
-    var tickMemory = this.memory[Game.time];
-
-    if (tickMemory == null)
+    collect(collector: any, claimReceipt: ClaimReceipt): number
     {
-        tickMemory = new SpawnTickMemory();
-        this.memory[Game.time] = tickMemory;
+        if (claimReceipt.target !== this)
+        {
+            return ERR_INVALID_TARGET;
+        }
+
+        if (claimReceipt.resourceType === RESOURCE_ENERGY &&
+            collector.withdraw != null &&
+            collector.carryCapacityRemaining != null)
+        {
+            return collector.withdraw(
+                this,
+                claimReceipt.resourceType,
+                Math.min(this.energy, collector.carryCapacityRemaining));
+        }
+
+        return ERR_INVALID_ARGS;
     }
 
-    return tickMemory;
-};
-
-Spawn.prototype.getLastTickMemory = function()
-{
-    var tickMemory = this.memory[Game.time - 1];
-
-    if (tickMemory == null)
+    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
     {
-        tickMemory = new SpawnTickMemory();
-        this.memory[Game.time - 1] = tickMemory;
+        if (resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
+            amount > this.energy - this.claims.energy) // ensure our remaining energy meets their claim
+        {
+            return null;
+        }
+
+        this.claims.count++;
+        this.claims.energy += amount;
+
+        return new ClaimReceipt(this, 'spawn', resourceType, amount);
     }
 
-    return tickMemory;
-};
-
-Spawn.prototype.getTasks = function()
-{
-    let memory = this.getMemory();
-
-    let tasks: Task[] = [];
-
-    tasks.push.apply(tasks, Structure.prototype.getTasks.call(this));
-
-    if (this.energy < this.energyCapacity)
+    private get claims(): Claims
     {
-        let task = new TransferResource("", this, RESOURCE_ENERGY, [ENERGYLOCATION.DROPPED, ENERGYLOCATION.STORAGE, ENERGYLOCATION.SOURCE]);
-        task.priority = TaskPriority.Mandatory;
+        let claims = new Claims(this);
 
-        tasks.push(task);
+        Object.defineProperty(this, "claims", {value: claims});
+        return claims;
     }
+}
 
-    return tasks;
-};
+class Claims
+{
+    constructor(private spawn: Spawn)
+    { }
+
+    count: number = 0;
+    energy: number = 0;
+}

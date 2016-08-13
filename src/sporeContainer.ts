@@ -1,64 +1,169 @@
-/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
+///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 
-import {TransferResource} from "./taskTransferResource";
+import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {Task, TaskPriority} from "./task";
-import {ENERGYLOCATION} from "./energyManager";
-import {RepairStructure} from "./taskRepairStructure";
-import {StructureMemory} from "./sporeStructure";
-
-// Ensure this is treated as a module.
-export {};
-
-export class ContainerMemory extends StructureMemory
-{
-    type: number = 0;
-    availableSlots: number = 0;
-}
+import {TransferResource} from "./taskTransferResource";
 
 declare global
 {
     interface StructureContainer
     {
-        getMemory(): ContainerMemory;
+        storeCount: number;
+        storeCapacityRemaining: number;
+
         getTasks(): Task[];
+
+        collect(collector: any, claimReceipt: ClaimReceipt): number;
+        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
-StructureContainer.prototype.getMemory = function()
+export class SporeContainer extends StructureContainer implements Claimable
 {
-    let memory: ContainerMemory = Memory[this.id];
-
-    if (memory == null)
+    get storeCount(): number
     {
-        memory = new ContainerMemory();
-        memory.type = ENERGYLOCATION.STORAGE;
-        memory.availableSlots = this.pos.getWalkableSurroundingArea();
-        Memory[this.id] = memory;
+        return _.sum(this.store);
+    }
 
-        //@todo replace
-        if (Memory.EnergyLocations.indexOf(this.id) == -1)
+    get storeCapacityRemaining(): number
+    {
+        return this.storeCapacity - this.storeCount;
+    }
+
+    getTasks(): Task[]
+    {
+        let tasks: Task[] = [];
+
+        if (this.storeCount < this.storeCapacity)
         {
-            Memory.EnergyLocations.push(this.id);
+            let linkFlag = null;
+            let flags = this.room.lookForAt<Flag>(LOOK_FLAGS, this.pos);
+            for (let index = 0; index < flags.length; index++)
+            {
+                let flag = flags[index];
+
+                if (flag.color == COLOR_YELLOW)
+                {
+                    linkFlag = flag;
+                    break;
+                }
+            }
+
+            if (linkFlag != null)
+            {
+                let otherFlags = this.room.find<Flag>(FIND_FLAGS, {
+                    filter: {
+                        color: COLOR_YELLOW,
+                        secondaryColor: linkFlag.secondaryColor
+                    }
+                });
+
+                for (let index = 0; index < otherFlags.length; index++)
+                {
+                    let foundMatch = false;
+                    let otherFlag = otherFlags[index];
+
+                    if (otherFlag != null)
+                    {
+                        for (let source of this.room.sources)
+                        {
+                            if (source.pos.isEqualTo(otherFlag.pos))
+                            {
+                                let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, source);
+                                transferEnergyTask.priority = TaskPriority.Mandatory;
+                                transferEnergyTask.name = "Transfer energy to " + this + " from " + source;
+                                tasks.push(transferEnergyTask);
+
+                                foundMatch = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (foundMatch)
+                    {
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                let closestSource = <Source>this.pos.findClosestInRange(this.room.sources, 2);
+
+                if (closestSource != null)
+                {
+                    let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, closestSource);
+                    transferEnergyTask.priority = TaskPriority.Mandatory;
+                    transferEnergyTask.name = "Transfer energy to " + this + " from " + closestSource;
+                    transferEnergyTask.possibleWorkers = 1;
+
+                    tasks.push(transferEnergyTask);
+                }
+                else
+                {
+                    let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, [['dropped'], ['container']]);
+                    transferEnergyTask.priority = TaskPriority.High;
+                    transferEnergyTask.name = "Transfer energy to " + this;
+                    transferEnergyTask.possibleWorkers = 1;
+
+                    tasks.push(transferEnergyTask);
+                }
+            }
         }
+
+        return tasks;
     }
 
-    return memory;
-};
-
-StructureContainer.prototype.getTasks = function()
-{
-    this.getMemory();
-
-    let tasks: Task[] = [];
-
-    tasks.push.apply(tasks, Structure.prototype.getTasks.call(this));
-
-    if (this.store.energy < this.storeCapacity)
+    collect(collector: any, claimReceipt: ClaimReceipt): number
     {
-        let transferEnergyTask = new TransferResource("", this, RESOURCE_ENERGY, [ENERGYLOCATION.SOURCE]);
-        transferEnergyTask.priority = TaskPriority.Mandatory;
-        tasks.push(transferEnergyTask);
+        if (claimReceipt.target !== this)
+        {
+            return ERR_INVALID_TARGET;
+        }
+
+        if (collector.withdraw != null && collector.carryCapacityRemaining != null)
+        {
+            return collector.withdraw(
+                this,
+                claimReceipt.resourceType,
+                Math.min(this.store[claimReceipt.resourceType], collector.carryCapacityRemaining));
+        }
+
+        return ERR_INVALID_ARGS;
     }
 
-    return tasks;
-};
+    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
+    {
+        if (this.claims[resourceType] == null)
+        {
+            this.claims[resourceType] = 0;
+        }
+
+        // ensure our remaining resource meets their claim
+        if (amount > this.store[resourceType] - this.claims[resourceType])
+        {
+            return null;
+        }
+
+        this.claims.count++;
+        this.claims[resourceType] += amount;
+
+        return new ClaimReceipt(this, 'container', resourceType, amount);
+    }
+
+    private get claims(): Claims
+    {
+        let claims = new Claims(this);
+
+        Object.defineProperty(this, "claims", {value: claims});
+        return claims;
+    }
+}
+
+class Claims
+{
+    constructor(private container: StructureContainer)
+    { }
+
+    count: number = 0;
+}

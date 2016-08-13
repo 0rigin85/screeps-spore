@@ -1,25 +1,20 @@
 ///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
+import {Task, TaskPriority} from "./task";
+import {TransferResource} from "./taskTransferResource";
 
 declare global
 {
-    interface StructureExtension
+    interface Resource
     {
-        energyCapacityRemaining: number;
-
         collect(collector: any, claimReceipt: ClaimReceipt): number;
         makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
-export class SporeExtension extends StructureExtension implements Claimable
+export class SporeResource extends Resource implements Claimable
 {
-    get energyCapacityRemaining(): number
-    {
-        return this.energyCapacity - this.energy;
-    }
-
     collect(collector: any, claimReceipt: ClaimReceipt): number
     {
         if (claimReceipt.target !== this)
@@ -27,14 +22,10 @@ export class SporeExtension extends StructureExtension implements Claimable
             return ERR_INVALID_TARGET;
         }
 
-        if (claimReceipt.resourceType === RESOURCE_ENERGY &&
-            collector.withdraw != null &&
-            collector.carryCapacityRemaining != null)
+        if (claimReceipt.resourceType === this.resourceType &&
+            collector.withdraw != null && collector.carryCapacityRemaining != null)
         {
-            return collector.withdraw(
-                this,
-                claimReceipt.resourceType,
-                Math.min(this.energy, collector.carryCapacityRemaining));
+            return collector.pickup(this);
         }
 
         return ERR_INVALID_ARGS;
@@ -42,16 +33,16 @@ export class SporeExtension extends StructureExtension implements Claimable
 
     makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
     {
-        if (resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
-            amount > this.energy - this.claims.energy) // ensure our remaining energy meets their claim
+        if (resourceType != this.resourceType || // ensure they are trying to claim the correct resource
+            amount > this.amount - this.claims.amount) // ensure our remaining energy meets their claim
         {
             return null;
         }
 
         this.claims.count++;
-        this.claims.energy += amount;
+        this.claims.amount += amount;
 
-        return new ClaimReceipt(this, 'spawn', resourceType, amount);
+        return new ClaimReceipt(this, 'dropped', resourceType, amount);
     }
 
     private get claims(): Claims
@@ -65,9 +56,9 @@ export class SporeExtension extends StructureExtension implements Claimable
 
 class Claims
 {
-    constructor(private extension: StructureExtension)
+    constructor(private resource: Resource)
     { }
 
     count: number = 0;
-    energy: number = 0;
+    amount: number = 0;
 }

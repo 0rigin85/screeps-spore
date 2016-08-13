@@ -1,19 +1,31 @@
-/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
+import {Task, ERR_NO_WORK, ACTION_BUILD, ERR_CANNOT_PERFORM_TASK, TaskPriority} from './task';
+import Dictionary = _.Dictionary;
 
-import {Task, ERR_CANNOT_PERFORM_WORK, ERR_NOWORK} from './task';
-import {EnergyManager, ENERGYLOCATION, ERR_NOENERGY} from "./energyManager";
+let STRUCTURE_BUILD_PRIORITY =
+{
+    "spawn": function(spawn: Spawn) { return TaskPriority.Mandatory },
+    "tower": function(tower: StructureTower) { return TaskPriority.Mandatory },
+    "extension": function(extension: StructureExtension) { return TaskPriority.Mandatory },
+    "container": function(container: StructureContainer) { return TaskPriority.Mandatory },
+    "link": function(link: StructureLink) { return TaskPriority.Mandatory },
+    "extractor": function(extractor: StructureExtractor) { return TaskPriority.Mandatory },
+    "lab": function(lab: StructureLab) { return TaskPriority.Mandatory },
+    "storage": function(storage: StructureStorage) { return TaskPriority.Mandatory },
+    "terminal": function(terminal: StructureTerminal) { return TaskPriority.Mandatory },
+    "rampart": function(rampart: StructureRampart) { return TaskPriority.Mandatory },
+    "road": function(road: StructureRoad) { return TaskPriority.Mandatory },
+    "wall": function(wall: StructureWall) { return TaskPriority.Mandatory },
+};
 
 export class BuildStructure extends Task
 {
-    constructor(parentId: string, public site: ConstructionSite)
+    constructor(public site: ConstructionSite)
     {
-        super(((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Build[" + site.id + "]", false);
-        this.possibleWorkers = 2;
-
-        if (site.structureType == STRUCTURE_TOWER)
-        {
-            this.possibleWorkers = -1;
-        }
+        super(false);
+        this.id = "Build " + site.structureType + " " + site.room;
+        this.name = "Build " + site + " " + site.room;;
+        this.possibleWorkers = -1;
+        this.priority = STRUCTURE_BUILD_PRIORITY[site.structureType](site);
     }
 
     static deserialize(input: string): BuildStructure
@@ -36,44 +48,45 @@ export class BuildStructure extends Task
             return null;
         }
 
-        return new BuildStructure(parentId, site);
+        return new BuildStructure(site);
     }
 
     schedule(creep: Creep): number
     {
-        if (this.possibleWorkers == 0)
+        if (this.possibleWorkers === 0)
         {
-            return ERR_NOWORK;
+            return ERR_NO_WORK;
         }
 
-        if(creep.memory.building && creep.carry.energy == 0)
+        if (creep.getActiveBodyparts(WORK) === 0)
         {
-            creep.memory.building = false;
+            return ERR_CANNOT_PERFORM_TASK;
         }
 
-        if(!creep.memory.building && creep.carry.energy == creep.carryCapacity)
-        {
-            creep.memory.building = true;
-        }
+        let code;
 
-        let code = ERR_NOWORK;
-        if(creep.memory.building)
+        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
+            (creep.action === ACTION_BUILD && creep.carry[RESOURCE_ENERGY] > 0))
         {
             code = this.goBuild(creep, this.site);
         }
         else
         {
-            code = this.goCollect(creep, [ENERGYLOCATION.DROPPED, ENERGYLOCATION.STORAGE, ENERGYLOCATION.SOURCE]);
-
-            // if (code == OK && creep.carry.energy > 0 && creep.pos.inRangeTo(this.site.pos, 3))
-            // {
-            //     code = this.goBuild(creep, this.site);
-            // }
+            code = this.goCollect(
+                creep,
+                RESOURCE_ENERGY,
+                Math.min(creep.carryCapacityRemaining, this.site.progressRemaining),
+                false,
+                this.site.pos,
+                [['dropped'], ['link','container'], ['source'], ['storage']]);
         }
 
-        if (code == OK)
+        if (code === OK)
         {
-            this.possibleWorkers--;
+            if (this.possibleWorkers > 0)
+            {
+                this.possibleWorkers--;
+            }
         }
 
         return code;

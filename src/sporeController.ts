@@ -1,28 +1,32 @@
-/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
-import {Task, TaskPriority} from "./task";
-import {UpgradeRoomController} from "./taskUpgradeRoomController";
-
-// Ensure this is treated as a module.
-export {};
+///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 
 declare global
 {
     interface StructureController
     {
-        getTasks(): Task[];
+        memory: ControllerMemory;
     }
 }
 
-StructureController.prototype.getTasks = function()
+export interface ControllerMemory
 {
-    let tasks: Task[] = [];
 
-    tasks.push.apply(tasks, Structure.prototype.getTasks.call(this));
+}
 
-    let task = new UpgradeRoomController("", this.room);
-    task.priority = TaskPriority.Medium;
+export class SporeController extends StructureController
+{
+    get memory(): ControllerMemory
+    {
+        let roomMemory = this.room.memory;
+        let memory = roomMemory.controller;
 
-    tasks.push(task);
+        if (memory == null)
+        {
+            memory = { };
+            roomMemory.controller = memory;
+        }
 
-    return tasks;
-};
+        Object.defineProperty(this, "memory", {value: memory});
+        return memory;
+    }
+}

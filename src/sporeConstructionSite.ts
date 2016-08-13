@@ -1,72 +1,80 @@
-/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
-
-import {TransferResource} from "./taskTransferResource";
 import {Task, TaskPriority} from "./task";
-import {ENERGYLOCATION} from "./energyManager";
-import {RepairStructure} from "./taskRepairStructure";
 import {BuildStructure} from "./taskBuildStructure";
-
-// Ensure this is treated as a module.
-export {};
-
-export class ConstructionSiteMemory
-{
-    ignore: boolean = false;
-    favor: boolean = false;
-}
 
 declare global
 {
     interface ConstructionSite
     {
-        getMemory(): ConstructionSiteMemory;
+        progressRemaining: number;
+        memory: ConstructionSiteMemory;
 
         getTasks(): Task[];
     }
 }
 
-ConstructionSite.prototype.getMemory = function()
+export interface ConstructionSiteMemory
 {
-    var memory = Memory[this.id];
 
-    if (memory == null)
+}
+
+var STRUCTURE_PRIORITIES = {};
+STRUCTURE_PRIORITIES[STRUCTURE_CONTAINER] = TaskPriority.High;
+STRUCTURE_PRIORITIES[STRUCTURE_TOWER] = TaskPriority.High;
+STRUCTURE_PRIORITIES[STRUCTURE_EXTENSION] = TaskPriority.High;
+STRUCTURE_PRIORITIES[STRUCTURE_ROAD] = TaskPriority.Low;
+
+// declare var STRUCTURE_LINK: string;
+// declare var STRUCTURE_KEEPER_LAIR: string;
+// declare var STRUCTURE_STORAGE: string;
+// declare var STRUCTURE_OBSERVER: string;
+// declare var STRUCTURE_POWER_BANK: string;
+// declare var STRUCTURE_POWER_SPAWN: string;
+// declare var STRUCTURE_EXTRACTOR: string;
+// declare var STRUCTURE_LAB: string;
+// declare var STRUCTURE_TERMINAL: string;
+
+export class SporeConstructionSite extends ConstructionSite
+{
+    get progressRemaining(): number
     {
-        memory = new ConstructionSiteMemory();
-        Memory[this.id] = memory;
+        return this.progressTotal - this.progress;
     }
 
-    return memory;
-};
-
-ConstructionSite.prototype.getTasks = function()
-{
-    let tasks: Task[] = [];
-
-    let structurePriorities = {};
-    structurePriorities[STRUCTURE_CONTAINER] = TaskPriority.High;
-    structurePriorities[STRUCTURE_TOWER] = TaskPriority.High;
-    structurePriorities[STRUCTURE_EXTENSION] = TaskPriority.High;
-    structurePriorities[STRUCTURE_ROAD] = TaskPriority.Low;
-
-    // declare var STRUCTURE_LINK: string;
-    // declare var STRUCTURE_KEEPER_LAIR: string;
-    // declare var STRUCTURE_STORAGE: string;
-    // declare var STRUCTURE_OBSERVER: string;
-    // declare var STRUCTURE_POWER_BANK: string;
-    // declare var STRUCTURE_POWER_SPAWN: string;
-    // declare var STRUCTURE_EXTRACTOR: string;
-    // declare var STRUCTURE_LAB: string;
-    // declare var STRUCTURE_TERMINAL: string;
-
-    let taskPriority = TaskPriority.Medium;
-    if (structurePriorities[this.structureType] != null)
+    get memory(): ConstructionSiteMemory
     {
-        taskPriority = structurePriorities[this.structureType];
+        let roomMemory = this.room.memory;
+
+        if (roomMemory.sites == null)
+        {
+            roomMemory.sites = [];
+        }
+
+        let memory = roomMemory.sites[this.id];
+
+        if (memory == null)
+        {
+            memory = { };
+            roomMemory.sites[this.id] = memory;
+        }
+
+        Object.defineProperty(this, "memory", {value: memory});
+        return memory;
     }
 
-    let task = new BuildStructure("", this);
-    task.priority = taskPriority;
-    tasks.push(task);
+    getTasks(): Task[]
+    {
+        let tasks: Task[] = [];
 
-    return tasks;
-};
+        let taskPriority = TaskPriority.Medium;
+        if (STRUCTURE_PRIORITIES[this.structureType] != null)
+        {
+            taskPriority = STRUCTURE_PRIORITIES[this.structureType];
+        }
+
+        let task = new BuildStructure(this);
+        task.priority = taskPriority;
+        tasks.push(task);
+
+        return tasks;
+    }
+}

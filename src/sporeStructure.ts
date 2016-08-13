@@ -1,84 +1,192 @@
-/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
-
-import {Task, TaskPriority} from "./task";
-import {RepairStructure} from "./taskRepairStructure";
-
-// Ensure this is treated as a module.
-export {};
-
-export class StructureMemory
-{
-    ignore: boolean;
-    favor: boolean;
-}
+///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 
 declare global
 {
     interface Structure
     {
-        getMemory(): StructureMemory;
-
-        getTasks(): Task[];
+        hitsMissing: number;
+        needsRepair: boolean;
+        dire: boolean;
     }
 }
 
-Structure.prototype.getMemory = function()
+export interface StructureMemorySet
 {
-    var memory = Memory[this.id];
+    [id: string]: StructureMemory;
+}
 
-    if (memory == null)
-    {
-        memory = new StructureMemory();
-        Memory[this.id] = memory;
-    }
-
-    return memory;
-};
-
-Structure.prototype.getTasks = function()
+export interface StructureMemory
 {
-    let tasks: Task[] = [];
+    needsRepair: boolean;
+    dire: boolean;
+}
 
-    if (this.structureType == STRUCTURE_CONTROLLER)
+export class SporeStructure extends Structure
+{
+    get hitsMissing(): number
     {
-        return tasks;
+        return this.hitsMax - this.hits;
     }
 
-    let structureValues = {};
-    structureValues[STRUCTURE_CONTAINER] = { regular: { threshold: 0.25, priority: TaskPriority.High}, dire:{threshold: 0.75, priority: TaskPriority.Mandatory} };
-    structureValues[STRUCTURE_TOWER] = { regular: { threshold: 0.15, priority: TaskPriority.High}, dire:{threshold: 0.5, priority: TaskPriority.Mandatory} };
-    structureValues[STRUCTURE_ROAD] = { regular: { threshold: 0.8, priority: TaskPriority.Low}, dire:{threshold: 0.9, priority: TaskPriority.Medium} };
-    structureValues[STRUCTURE_RAMPART] = { regular: { threshold: 0.6, priority: TaskPriority.Medium}, dire:{threshold: 0.9, priority: TaskPriority.Mandatory} };
-    structureValues[STRUCTURE_WALL] = { regular: { threshold: 0.999977, priority: TaskPriority.Low}, dire:{threshold: 0.999997, priority: TaskPriority.Medium} };
-
-    // declare var STRUCTURE_LINK: string;
-    // declare var STRUCTURE_KEEPER_LAIR: string;
-    // declare var STRUCTURE_STORAGE: string;
-    // declare var STRUCTURE_OBSERVER: string;
-    // declare var STRUCTURE_POWER_BANK: string;
-    // declare var STRUCTURE_POWER_SPAWN: string;
-    // declare var STRUCTURE_EXTRACTOR: string;
-    // declare var STRUCTURE_LAB: string;
-    // declare var STRUCTURE_TERMINAL: string;
-
-    let structureValue = { regular: { threshold: 0.5, priority: TaskPriority.Medium}, dire:{threshold: 0.85, priority: TaskPriority.Mandatory} };
-    if (structureValues[this.structureType] != null)
+    _needsRepair: boolean;
+    get needsRepair(): boolean
     {
-        structureValue = structureValues[this.structureType];
-    }
-
-    if (this.hitsMax - this.hits >= this.hitsMax * structureValue.regular.threshold)
-    {
-        let repairTask = new RepairStructure("", this);
-        repairTask.priority = structureValue.regular.priority;
-
-        if (this.hitsMax - this.hits >= this.hitsMax  * structureValue.dire.threshold)
+        if (this._needsRepair != null)
         {
-            repairTask.priority = structureValue.dire.priority;
+            return this._needsRepair === true;
         }
 
-        tasks.push(repairTask);
+        let memory = this.memory;
+
+        if (memory == null)
+        {
+            if (this.room.memory.structures == null)
+            {
+                this.room.memory.structures = {};
+            }
+
+            memory = this.room.memory.structures[this.id];
+
+            if (memory == null)
+            {
+                memory = <any>{};
+                this.room.memory.structures[this.id] = memory;
+            }
+        }
+
+        this._needsRepair = memory.needsRepair;
+        return this._needsRepair === true;
     }
 
-    return tasks;
-};
+    set needsRepair(value: boolean)
+    {
+        this._needsRepair = value;
+
+        if (this.memory != null)
+        {
+            if (value === false)
+            {
+                delete this.memory.needsRepair;
+            }
+            else
+            {
+                this.memory.needsRepair = value;
+            }
+        }
+        else
+        {
+            if (this.room.memory.structures == null)
+            {
+                this.room.memory.structures = {};
+            }
+
+            let memory = this.room.memory.structures[this.id];
+
+            if (memory == null)
+            {
+                if (value === true)
+                {
+                    this.room.memory.structures[this.id] = <any>{};
+                    memory.needsRepair = value;
+                }
+            }
+            else
+            {
+                if (value === true)
+                {
+                    memory.needsRepair = value;
+                }
+                else
+                {
+                    delete memory.needsRepair;
+
+                    if (Object.getOwnPropertyNames(memory).length === 0)
+                    {
+                        delete this.room.memory.structures[this.id];
+                    }
+                }
+            }
+        }
+    }
+
+    _dire: boolean;
+    get dire(): boolean
+    {
+        if (this._dire != null)
+        {
+            return this._dire === true;
+        }
+
+        let memory = this.memory;
+
+        if (memory == null)
+        {
+            if (this.room.memory.structures == null)
+            {
+                this.room.memory.structures = {};
+            }
+
+            memory = this.room.memory.structures[this.id];
+
+            if (memory == null)
+            {
+                memory = <any>{};
+                this.room.memory.structures[this.id] = memory;
+            }
+        }
+
+        this._dire = memory.dire;
+        return this._dire === true;
+    }
+
+    set dire(value: boolean)
+    {
+        this._dire = value;
+
+        if (this.memory != null)
+        {
+            if (value === false)
+            {
+                delete this.memory.dire;
+            }
+            else
+            {
+                this.memory.dire = value;
+            }
+        }
+        else
+        {
+            if (this.room.memory.structures == null)
+            {
+                this.room.memory.structures = {};
+            }
+
+            let memory = this.room.memory.structures[this.id];
+
+            if (memory == null)
+            {
+                if (value === true)
+                {
+                    this.room.memory.structures[this.id] = <any>{};
+                    memory.dire = value;
+                }
+            }
+            else
+            {
+                if (value === true)
+                {
+                    memory.dire = value;
+                }
+                else
+                {
+                    delete memory.dire;
+
+                    if (Object.getOwnPropertyNames(memory).length === 0)
+                    {
+                        delete this.room.memory.structures[this.id];
+                    }
+                }
+            }
+        }
+    }
+}

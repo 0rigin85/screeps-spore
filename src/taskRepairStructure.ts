@@ -1,13 +1,14 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, ERR_CANNOT_PERFORM_WORK, TaskPriority, ERR_NOWORK} from './task';
-import {EnergyManager, ENERGYLOCATION} from "./energyManager";
+import {Task, ERR_CANNOT_PERFORM_TASK, TaskPriority, ERR_NO_WORK, ACTION_REPAIR} from './task';
 
 export class RepairStructure extends Task
 {
     constructor(parentId: string, public structure: Structure)
     {
-        super(((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Repair[" + structure.id + "]", false);
+        super(false);
+        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Repair[" + structure.id + "]";
+        this.name = "Repair " + structure;
         this.priority = TaskPriority.MediumHigh;
         this.possibleWorkers = 2;
     }
@@ -39,36 +40,38 @@ export class RepairStructure extends Task
     {
         if (this.possibleWorkers == 0)
         {
-            return ERR_NOWORK;
+            return ERR_NO_WORK;
         }
 
-        if(creep.memory.repairing && creep.carry.energy == 0)
+        if (creep.getActiveBodyparts(WORK) == 0 ||
+            creep.getActiveBodyparts(CARRY) == 0)
         {
-            creep.memory.repairing = false;
+            return ERR_CANNOT_PERFORM_TASK;
         }
 
-        if(!creep.memory.repairing && creep.carry.energy == creep.carryCapacity)
-        {
-            creep.memory.repairing = true;
-        }
+        let code;
 
-        let code = ERR_NOWORK;
-
-        if(creep.memory.repairing)
+        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
+            (creep.action === ACTION_REPAIR && creep.carry[RESOURCE_ENERGY] > 0))
         {
             code = this.goRepair(creep, this.structure);
         }
         else
         {
-            code = this.goCollect(creep, [ENERGYLOCATION.DROPPED, ENERGYLOCATION.STORAGE, ENERGYLOCATION.SOURCE]);
+            code = this.goCollect(
+                creep,
+                RESOURCE_ENERGY,
+                Math.min(creep.carryCapacityRemaining, this.structure.hitsMissing / 100),
+                false,
+                this.structure.pos,
+                [['dropped'], ['link','container'], ['source'], ['storage']]);
         }
 
-        if (code == OK)
+        if (code === OK && this.possibleWorkers > 0)
         {
             this.possibleWorkers--;
-            return OK;
         }
 
-        return ERR_CANNOT_PERFORM_WORK;
+        return code;
     }
 }

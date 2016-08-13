@@ -5,13 +5,16 @@ import {BuildStructure} from "./taskBuildStructure";
 import {DismantleStructure} from "./taskDismantleStructure";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
 
+var REQUESTED_CONSTRUCTION_SITES_THIS_TICK: { [structureType: string]: number; } = { };
+
 export class FlagBuildStructure extends Task
 {
     structureType: string = null;
 
     constructor(parentId: string, public flag: Flag)
     {
-        super(((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "FlagBuildStructure[" + flag.name + "]", true);
+        super(true);
+        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "FlagBuildStructure[" + flag.name + "]";
 
         if (this.flag.secondaryColor == COLOR_GREEN)
         {
@@ -117,22 +120,41 @@ export class FlagBuildStructure extends Task
                 filter: { structureType: this.structureType }
             });
 
-            if (CONTROLLER_STRUCTURES[this.structureType][this.flag.room.controller.level] - sameStructures.length > 0)
+            let sameSites = this.flag.room.find<ConstructionSite>(FIND_CONSTRUCTION_SITES, {
+                filter: { structureType: this.structureType }
+            });
+
+            let requestedSameSites = 0;
+            if (REQUESTED_CONSTRUCTION_SITES_THIS_TICK[this.structureType] != null)
+            {
+                requestedSameSites = REQUESTED_CONSTRUCTION_SITES_THIS_TICK[this.structureType];
+            }
+
+            if (CONTROLLER_STRUCTURES[this.structureType][this.flag.room.controller.level] - (sameStructures.length + sameSites.length + requestedSameSites) > 0)
             {
                 this.flag.room.createConstructionSite(this.flag.pos, this.structureType);
+
+                if (REQUESTED_CONSTRUCTION_SITES_THIS_TICK[this.structureType] != null)
+                {
+                    REQUESTED_CONSTRUCTION_SITES_THIS_TICK[this.structureType]++;
+                }
+                else
+                {
+                    REQUESTED_CONSTRUCTION_SITES_THIS_TICK[this.structureType] = 1;
+                }
+
                 return steps;
             }
             else
             {
                 let step = new UpgradeRoomController(this.id, this.flag.room);
-                step.priority = TaskPriority.MediumHigh;
 
                 steps.push(step);
                 return steps;
             }
         }
 
-        steps.push(new BuildStructure(this.id, constructionSite));
+        steps.push(new BuildStructure(constructionSite));
         return steps;
     }
 }

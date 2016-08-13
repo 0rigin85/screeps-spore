@@ -3,6 +3,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-screeps');
     grunt.loadNpmTasks('grunt-ts-clean');
     grunt.loadNpmTasks('grunt-contrib-copy');
+    grunt.loadNpmTasks('grunt-browserify');
 
     var credentials = grunt.file.readJSON('credentials.private');
     var src = ['js/*.js','js/**/*.js'];
@@ -10,6 +11,12 @@ module.exports = function(grunt) {
 
     grunt.initConfig(
         {
+            browserify: {
+                dist: {
+                    src: ['js/*.js'],
+                    dest: 'dist/main.js'
+                }
+            },
             copy: {
                 main: {
                     files: [
@@ -55,5 +62,6 @@ module.exports = function(grunt) {
     });
 
     grunt.registerTask('default', ['screeps:experimental']);
-    grunt.registerTask('live', ['copy:main', 'ts_clean', 'screeps:live']);
+    grunt.registerTask('live', ['ts_clean', 'screeps:live']);
+    grunt.registerTask('browserify', ['browserify:dist']);
 };
