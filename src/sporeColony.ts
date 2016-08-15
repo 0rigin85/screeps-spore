@@ -60,6 +60,8 @@ export class SporeColony
         // room 2
         // room 3
 
+        this.tasksById = {};
+
         for(let room of this.myRooms)
         {
             room.tasksById = {};
@@ -81,35 +83,6 @@ export class SporeColony
             }
 
             room.tasks.push.apply(room.tasks, room.getTasks());
-
-            //@todo move this tower logic
-            if (room.towers.length > 0)
-            {
-                if (room.hostileCreeps.length > 0)
-                {
-                    for (let tower of room.towers)
-                    {
-                        if (tower.attackTarget != null && tower.attackTarget.room.name == tower.room.name)
-                        {
-                            if (tower.attackTarget.pos.inRangeTo(tower.pos, 60))
-                            {
-                                tower.attack(tower.attackTarget);
-                                continue;
-                            }
-                        }
-
-                        tower.attackTarget = null;
-
-                        let closestCreep = tower.pos.findClosestByRange<Creep>(room.hostileCreeps);
-
-                        if (closestCreep.pos.inRangeTo(tower.pos, 30))
-                        {
-                            tower.attack(closestCreep);
-                            tower.attackTarget = closestCreep;
-                        }
-                    }
-                }
-            }
 
             // Breakdown tasks
             for (let index = 0; index < room.tasks.length; index++)
@@ -222,7 +195,8 @@ export class SporeColony
                 let task = prescheduledCreeps[index].task;
 
                 // if we fail to reschedule the creep for their previous task then
-                if (task.schedule(creep) >= 0)
+                let code = task.schedule(creep);
+                if (code >= 0)
                 {
                     console.log("Pre-Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id));
                     creep.task = task;
@@ -230,6 +204,11 @@ export class SporeColony
                 }
                 else
                 {
+                    if (creep.doTrack === true)
+                    {
+                        console.log("/////////// " + creep + " failed to preschedule " + ((task.name != null) ? task.name : task.id) + " " + code);
+                    }
+
                     // add him to the list of creeps needing work
                     untaskedCreeps.push(creep);
                     prescheduledCreeps.splice(index, 1);
@@ -239,22 +218,12 @@ export class SporeColony
 
             for(let room of this.myRooms)
             {
-                // if we're out of creeps stop iterating over tasks
-                if (untaskedCreeps.length == 0)
-                {
-                    if (room.basicTasks.length > 0)
-                    {
-                        room.needsWorkers = true;
-                    }
-                    break;
-                }
-
                 let taskIndex = 0;
                 for (; taskIndex < room.basicTasks.length; taskIndex++)
                 {
                     let task = room.basicTasks[taskIndex];
 
-                    if (task.possibleWorkers == 0)
+                    if (task.possibleWorkers === 0)
                     {
                         room.basicTasks.splice(taskIndex, 1);
                         taskIndex--;
@@ -264,9 +233,13 @@ export class SporeColony
                     }
 
                     // if we're out of creeps stop iterating over tasks
-                    if (untaskedCreeps.length == 0)
+                    if (untaskedCreeps.length === 0)
                     {
-                        room.needsWorkers = true;
+                        if ((task.scheduledWorkers === 0 && task.possibleWorkers === -1) ||
+                            (task.possibleWorkers > task.scheduledWorkers))
+                        {
+                            room.needsWorkers = true;
+                        }
                         break;
                     }
 
@@ -290,13 +263,13 @@ export class SporeColony
                             console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id));
                             break;
                         }
-                        else if (code == ERR_NO_WORK)
+                        else if (code === ERR_NO_WORK)
                         {
                             room.basicTasks.splice(taskIndex, 1);
                             taskIndex--;
                             break;
                         }
-                        else if (code == ERR_CANNOT_PERFORM_TASK)
+                        else if (code === ERR_CANNOT_PERFORM_TASK)
                         {
                             //skip this creep
                         }

@@ -34,6 +34,11 @@ export class DismantleStructure extends Task
 
     schedule(creep: Creep): number
     {
+        if (Game.getObjectById(this.structure.id) == null)
+        {
+            return ERR_NO_WORK;
+        }
+
         if (this.possibleWorkers === 0)
         {
             return ERR_NO_WORK;

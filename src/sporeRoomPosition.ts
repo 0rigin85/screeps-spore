@@ -114,7 +114,6 @@ export class SporeRoomPosition extends RoomPosition
         else
         {
             let lookResults = <LookAtResultMatrix>room.lookAtArea(this.y - 1, this.x - 1, this.y + 1, this.x + 1);
-            console.log(lookResults);
 
             for (var xOffset = -1; xOffset < 2; xOffset++)
             {

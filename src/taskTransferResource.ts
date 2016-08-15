@@ -103,7 +103,7 @@ export class TransferResource extends Task
             return ERR_NO_WORK;
         }
 
-        if (creep.carryCount === creep.carryCapacity && creep.carry[this.resourceType] == 0)
+        if (creep.carryCount === creep.carryCapacity && creep.carry[this.resourceType] === 0)
         {
             return ERR_CANNOT_PERFORM_TASK;
         }
@@ -157,27 +157,35 @@ export class TransferResource extends Task
             }
         }
 
-        if (this.resourcesNeeded == 0 || this.resourcesNeeded < this.scheduledTransfer || this.needsResources.length == 0)
+        if (this.resourcesNeeded === 0 || this.resourcesNeeded < this.scheduledTransfer || this.needsResources.length === 0)
         {
+            //console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
             return ERR_NO_WORK;
         }
 
         let remainingNeededResources = this.resourcesNeeded - this.scheduledTransfer;
         let code: number;
 
-        if (creep.action == ACTION_COLLECT && creep.carryCount < creep.carryCapacity)
+        if (creep.action === ACTION_COLLECT && creep.carryCount < creep.carryCapacity)
         {
             code = this.scheduleCollect(creep, remainingNeededResources, this.needsResources);
         }
         else if (creep.carry[this.resourceType] > 0)
         {
-            if (creep.carry[this.resourceType] == creep.carryCapacity ||
+            if (creep.carry[this.resourceType] === creep.carryCapacity ||
                 creep.carry[this.resourceType] >= remainingNeededResources ||
-                (creep.action == ACTION_TRANSFER && creep.carry[this.resourceType] > 0))
+                (creep.action === ACTION_TRANSFER && creep.carry[this.resourceType] > 0))
             {
                 let closestTarget = creep.pos.findClosestByRange<any>(this.needsResources);
 
-                code = this.goTransfer(creep, this.resourceType, closestTarget);
+                if (closestTarget != null)
+                {
+                    code = this.goTransfer(creep, this.resourceType, closestTarget);
+                }
+                else
+                {
+                    code = this.goTransfer(creep, this.resourceType, this.needsResources[0]);
+                }
             }
             else
             {
@@ -198,7 +206,7 @@ export class TransferResource extends Task
             code = this.scheduleCollect(creep, remainingNeededResources, this.needsResources);
         }
 
-        if (code == OK)
+        if (code === OK)
         {
             if (this.possibleWorkers > 0)
             {

@@ -62,6 +62,11 @@ export class Task
             code = creep.moveTo(target);
         }
 
+        if (creep.doTrack)
+        {
+            console.log(creep + " goMoveTo " + code);
+        }
+
         if (code == OK ||
             code == ERR_TIRED)
         {
@@ -121,6 +126,11 @@ export class Task
         if (code == ERR_NOT_IN_RANGE)
         {
             return this.goMoveTo(creep, target);
+        }
+
+        if (creep.doTrack)
+        {
+            console.log(creep + " goTransfer " + code);
         }
 
         if (code == OK)

@@ -9,6 +9,8 @@ declare global
     interface StructureTower
     {
         attackTarget: Creep;
+        repairTarget: Structure;
+
         energyCapacityRemaining: number;
         memory: TowerMemory;
 

@@ -11,7 +11,7 @@ export class UpgradeRoomController extends Task
         this.name = "Upgrade Room [" + room.name + "] Controller";
         this.possibleWorkers = -1;
 
-        this.priority = TaskPriority.Medium + 10;
+        this.priority = TaskPriority.Low;
 
         if (room.controller.ticksToDowngrade < 2000)
         {
@@ -52,13 +52,13 @@ export class UpgradeRoomController extends Task
 
     schedule(creep: Creep): number
     {
-        if (this.possibleWorkers == 0)
+        if (this.possibleWorkers === 0)
         {
             return ERR_NO_WORK;
         }
 
-        if (creep.getActiveBodyparts(WORK) == 0 ||
-            creep.getActiveBodyparts(CARRY) == 0)
+        if (creep.getActiveBodyparts(WORK) === 0 ||
+            creep.getActiveBodyparts(CARRY) === 0)
         {
             return ERR_CANNOT_PERFORM_TASK;
         }

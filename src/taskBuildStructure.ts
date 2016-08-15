@@ -3,18 +3,18 @@ import Dictionary = _.Dictionary;
 
 let STRUCTURE_BUILD_PRIORITY =
 {
-    "spawn": function(spawn: Spawn) { return TaskPriority.Mandatory },
-    "tower": function(tower: StructureTower) { return TaskPriority.Mandatory },
-    "extension": function(extension: StructureExtension) { return TaskPriority.Mandatory },
-    "container": function(container: StructureContainer) { return TaskPriority.Mandatory },
-    "link": function(link: StructureLink) { return TaskPriority.Mandatory },
-    "extractor": function(extractor: StructureExtractor) { return TaskPriority.Mandatory },
-    "lab": function(lab: StructureLab) { return TaskPriority.Mandatory },
-    "storage": function(storage: StructureStorage) { return TaskPriority.Mandatory },
-    "terminal": function(terminal: StructureTerminal) { return TaskPriority.Mandatory },
-    "rampart": function(rampart: StructureRampart) { return TaskPriority.Mandatory },
-    "road": function(road: StructureRoad) { return TaskPriority.Mandatory },
-    "wall": function(wall: StructureWall) { return TaskPriority.Mandatory },
+    "spawn": function(site: ConstructionSite) { return TaskPriority.Mandatory },
+    "tower": function(site: ConstructionSite) { return TaskPriority.Mandatory },
+    "extension": function(site: ConstructionSite) { return TaskPriority.High },
+    "container": function(site: ConstructionSite) { return TaskPriority.High },
+    "link": function(site: ConstructionSite) { return TaskPriority.High },
+    "extractor": function(site: ConstructionSite) { return TaskPriority.High },
+    "lab": function(site: ConstructionSite) { return TaskPriority.MediumHigh },
+    "storage": function(site: ConstructionSite) { return TaskPriority.High },
+    "terminal": function(site: ConstructionSite) { return TaskPriority.MediumHigh },
+    "rampart": function(site: ConstructionSite) { return TaskPriority.MediumLow },
+    "road": function(site: ConstructionSite) { return TaskPriority.MediumHigh },
+    "constructedWall": function(site: ConstructionSite) { return TaskPriority.MediumLow },
 };
 
 export class BuildStructure extends Task
@@ -23,7 +23,7 @@ export class BuildStructure extends Task
     {
         super(false);
         this.id = "Build " + site.structureType + " " + site.room;
-        this.name = "Build " + site + " " + site.room;;
+        this.name = "Build " + site + " " + site.room;
         this.possibleWorkers = -1;
         this.priority = STRUCTURE_BUILD_PRIORITY[site.structureType](site);
     }
@@ -53,6 +53,11 @@ export class BuildStructure extends Task
 
     schedule(creep: Creep): number
     {
+        if (Game.getObjectById(this.site.id) == null)
+        {
+            return ERR_NO_WORK;
+        }
+
         if (this.possibleWorkers === 0)
         {
             return ERR_NO_WORK;

@@ -199,14 +199,6 @@ export class SporeLink extends StructureLink implements Claimable
 
             if (target == null)
             {
-                if (this.bond.targetId == null)
-                {
-                    if (this.bond.targetFlag.room != null)
-                    {
-
-                    }
-                }
-
                 target = this.bond.targetFlag.pos;
             }
 
@@ -278,7 +270,7 @@ export class SporeLink extends StructureLink implements Claimable
 
     makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
     {
-        if (this.takesTransfers && // ensure this is a pick up location
+        if (this.takesTransfers !== true || // ensure this is a pick up location
             resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
             amount > this.energy - this.claims.energy) // ensure our remaining energy meets their claim
         {
@@ -306,7 +298,7 @@ class Claims
     { }
 
     count: number = 0;
-    energy: number;
+    energy: number = 0;
 }
 
 class Bond

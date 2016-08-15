@@ -72,6 +72,7 @@ export class SporeContainer extends StructureContainer implements Claimable
                                 let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, source);
                                 transferEnergyTask.priority = TaskPriority.Mandatory;
                                 transferEnergyTask.name = "Transfer energy to " + this + " from " + source;
+                                transferEnergyTask.possibleWorkers = 1;
                                 tasks.push(transferEnergyTask);
 
                                 foundMatch = true;

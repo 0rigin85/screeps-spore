@@ -64,9 +64,21 @@ var GATHER_RESOURCE_STORES =
     },
     'dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
     {
-        let resources = claimer.pos.findInRange(FIND_DROPPED_ENERGY, 5);
+        let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_ENERGY, 5);
 
-        for (let resource of resources)
+        for (let resource of nearClaimerResources)
+        {
+            if (resource.doIgnore !== true &&
+                resource.resourceType === resourceType &&
+                resource.amount > 0)
+            {
+                collection.push(resource);
+            }
+        }
+
+        let nearTargetResources: Resource[] = <Resource[]>near.findInRange(FIND_DROPPED_ENERGY, 5);
+
+        for (let resource of nearTargetResources)
         {
             if (resource.doIgnore !== true &&
                 resource.resourceType === resourceType &&
@@ -167,8 +179,8 @@ let STRUCTURE_REPAIR_VALUES = {};
 STRUCTURE_REPAIR_VALUES[STRUCTURE_CONTAINER] = { ideal: CONTAINER_HITS, regular: { threshold: 200000, priority: TaskPriority.High}, dire:{threshold: 100000, priority: TaskPriority.Mandatory} };
 STRUCTURE_REPAIR_VALUES[STRUCTURE_TOWER] = { ideal: TOWER_HITS, regular: { threshold: 2000, priority: TaskPriority.High}, dire:{threshold: 1000, priority: TaskPriority.Mandatory} };
 STRUCTURE_REPAIR_VALUES[STRUCTURE_ROAD] = { ideal: ROAD_HITS, regular: { threshold: 2500, priority: TaskPriority.High}, dire:{threshold: 500, priority: TaskPriority.Medium} };
-STRUCTURE_REPAIR_VALUES[STRUCTURE_RAMPART] = { ideal: 20000, regular: { threshold: 10000, priority: TaskPriority.High}, dire:{threshold: 1000, priority: TaskPriority.Mandatory} };
-STRUCTURE_REPAIR_VALUES[STRUCTURE_WALL] = { ideal: 10000, regular: { threshold: 10000, priority: TaskPriority.Medium}, dire:{threshold: 1000, priority: TaskPriority.Medium} };
+STRUCTURE_REPAIR_VALUES[STRUCTURE_RAMPART] = { ideal: 20000, regular: { threshold: 15000, priority: TaskPriority.High}, dire:{threshold: 10000, priority: TaskPriority.Medium} };
+STRUCTURE_REPAIR_VALUES[STRUCTURE_WALL] = { ideal: 20000, regular: { threshold: 20000, priority: TaskPriority.Medium}, dire:{threshold: 10000, priority: TaskPriority.MediumLow} };
 STRUCTURE_REPAIR_VALUES[STRUCTURE_LINK] = { ideal: LINK_HITS_MAX, regular: { threshold: LINK_HITS_MAX * 0.8, priority: TaskPriority.High}, dire:{threshold: LINK_HITS_MAX * 0.3, priority: TaskPriority.Mandatory} };
 
 // declare var STRUCTURE_KEEPER_LAIR: string;
@@ -421,7 +433,7 @@ export class SporeRoom extends Room
             let sitesOrderedByProgress = _.sortBy(this.constructionSites, function(site: ConstructionSite){ return site.progressRemaining; });
             for (let site of sitesOrderedByProgress)
             {
-                if (site.doIgnore && !site.my)
+                if (site.doIgnore || !site.my)
                 {
                     continue;
                 }
@@ -438,8 +450,39 @@ export class SporeRoom extends Room
         }
 
         //////////////////////////////////////////////////////////////////////////////
+        // Towers
+        if (this.towers.length > 0)
+        {
+            if (this.hostileCreeps.length > 0)
+            {
+                for (let tower of this.towers)
+                {
+                    if (tower.attackTarget != null &&
+                        tower.attackTarget.room != null &&
+                        tower.attackTarget.room.name === tower.room.name &&
+                        tower.attackTarget.pos.inRangeTo(tower.pos, 40))
+                    {
+                        tower.attack(tower.attackTarget);
+                        continue;
+                    }
+
+                    tower.attackTarget = null;
+
+                    let closestCreep = tower.pos.findClosestByRange<Creep>(this.hostileCreeps);
+
+                    if (closestCreep.pos.inRangeTo(tower.pos, 30))
+                    {
+                        tower.attack(closestCreep);
+                        tower.attackTarget = closestCreep;
+                    }
+                }
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////////////
         // Structures
         {
+            let hasTowersForRepair = this.towers.length > 0 && this.hostileCreeps.length === 0;
             for (let structure of this.structures)
             {
                 if (structure.doIgnore)
@@ -474,18 +517,40 @@ export class SporeRoom extends Room
 
                 if ((structure.needsRepair && structure.hits < structureValue.ideal) || structure.hits < structureValue.regular.threshold)
                 {
-                    let repairTask = new RepairStructure("", structure);
-                    repairTask.priority = structureValue.regular.priority;
-
-                    if (structure.dire == true || structure.hits < structureValue.dire.threshold)
+                    let wasTowerRepaired = false;
+                    if (hasTowersForRepair)
                     {
-                        structure.dire = true;
-                        repairTask.priority = structureValue.dire.priority;
-                        repairTask.name = "Repair " + structure;
+                        for (let tower of this.towers)
+                        {
+                            if (tower.repairTarget == null &&
+                                tower.attackTarget == null &&
+                                tower.energyCapacityRemaining < 300)
+                            {
+                                tower.repair(structure);
+                                tower.repairTarget = structure;
+                                wasTowerRepaired = true;
+                                break;
+                            }
+                        }
                     }
 
-                    structure.needsRepair = true;
-                    tasks.push(repairTask);
+                    if (wasTowerRepaired === false)
+                    {
+                        hasTowersForRepair = false;
+
+                        let repairTask = new RepairStructure("", structure);
+                        repairTask.priority = structureValue.regular.priority;
+
+                        if (structure.dire == true || structure.hits < structureValue.dire.threshold)
+                        {
+                            structure.dire = true;
+                            repairTask.priority = structureValue.dire.priority;
+                            repairTask.name = "Repair " + structure;
+                        }
+
+                        structure.needsRepair = true;
+                        tasks.push(repairTask);
+                    }
                 }
                 else
                 {
