@@ -1,54 +1,144 @@
 
+import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
+
 declare global
 {
     interface RoomPosition
     {
-        sortByRangeTo(targets: RoomObject[]): void;
+        sortByRangeTo(targets: RoomObjectLike[]): void;
         getWalkableSurroundingArea(): number;
-        findFirstInRange(targets: RoomObject[], range: number): RoomObject;
-        findClosestInRange(targets: RoomObject[], range: number): RoomObject;
+        findFirstInRange(targets: RoomObjectLike[], range: number): RoomObjectLike;
+        findClosestInRange(targets: RoomObjectLike[], range: number): RoomObjectLike;
+        findDistanceByPathTo(other: RoomPosition | RoomObjectLike, opts?: FindPathOpts): number;
     }
+}
+
+export class RouteMemory
+{
+    [toRoom: string]: any[];
 }
 
 export class SporeRoomPosition extends RoomPosition
 {
-    sortByRangeTo(targets: RoomObject[]): void
+    sortByRangeTo(targets: RoomObjectLike[]): void
     {
         let cachedRange = {};
 
         targets.sort(function(a, b)
         {
-            let rangeA = cachedRange[a];
+            let rangeA = cachedRange[a.id];
 
             if (rangeA == null)
             {
                 rangeA = this.getRangeTo(a);
-                cachedRange[a] = rangeA;
+                cachedRange[a.id] = rangeA;
             }
 
-            let rangeB = cachedRange[a];
+            let rangeB = cachedRange[b.id];
 
             if (rangeB == null)
             {
                 rangeB = this.getRangeTo(b);
-                cachedRange[b] = rangeB;
+                cachedRange[b.id] = rangeB;
             }
 
             if (rangeA < rangeB)
             {
-                return 1;
+                return -1;
             }
 
             if (rangeA > rangeB)
             {
-                return -1;
+                return 1;
             }
 
             return 0;
         }.bind(this));
     }
 
-    findFirstInRange(targets: RoomObject[], range: number): RoomObject
+    getRouteTo(toRoom: string): any[]
+    {
+        let routeMemory = Memory.routes[this.roomName];
+        if (routeMemory == null)
+        {
+            routeMemory = <RouteMemory>{};
+            Memory.routes[this.roomName] = routeMemory;
+        }
+
+        if (routeMemory[toRoom] === undefined)
+        {
+            routeMemory[toRoom] = Game.map.findRoute(this.roomName, toRoom);
+
+            if (routeMemory[toRoom] === ERR_NO_PATH)
+            {
+                routeMemory[toRoom] = null;
+            }
+        }
+
+        return routeMemory[toRoom];
+    }
+
+    findDistanceByPathTo(other: RoomPosition | RoomObjectLike, opts?: FindPathOpts): number
+    {
+        let rangeToSite = 0;
+        let toRoomName = '';
+
+        if (other instanceof RoomPosition)
+        {
+            toRoomName = other.roomName;
+        }
+        else
+        {
+            toRoomName = other.pos.roomName;
+        }
+
+        if (this.roomName != toRoomName)
+        {
+            if (Game.rooms[this.roomName] == null)
+            {
+                return 0;
+            }
+
+            let route = this.getRouteTo(toRoomName);
+
+            if (route.length === 0)
+            {
+                // creep can't navigate to this room
+                return 0;
+            }
+
+            let closestExit = this.findClosestByRange<RoomPosition>(route[0].exit);
+
+            rangeToSite = this.findPathTo(closestExit, opts).length;
+
+            if (route.length >= 2)
+            {
+                rangeToSite += (route.length - 1) * 50;
+            }
+
+            let lastExit = route[route.length - 1];
+            if (lastExit < 4)
+            {
+                lastExit += 4;
+            }
+            else
+            {
+                lastExit -= 4;
+            }
+
+            let closestLastExit = this.findClosestByRange<RoomPosition>(lastExit);
+            rangeToSite += this.findPathTo(closestLastExit, opts).length;
+        }
+        else
+        {
+            let path = this.findPathTo(other, opts);
+            rangeToSite = path.length;
+        }
+
+        return rangeToSite;
+    }
+
+    findFirstInRange(targets: RoomObjectLike[], range: number): RoomObjectLike
     {
         for (let index = 0; index < targets.length; index++)
         {
@@ -63,7 +153,7 @@ export class SporeRoomPosition extends RoomPosition
         return null;
     }
 
-    findClosestInRange(targets: RoomObject[], range: number): RoomObject
+    findClosestInRange(targets: RoomObjectLike[], range: number): RoomObjectLike
     {
         let closestTargetRange = 500;
         let closestTarget = null;

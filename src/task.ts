@@ -1,4 +1,8 @@
 import {Claimable} from "./sporeClaimable";
+import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
+import {BodyDefinition} from "./bodyDefinition";
+import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
+import Dictionary = _.Dictionary;
 
 export const enum TaskPriority
 {
@@ -16,28 +20,36 @@ export const enum TaskPriority
 export var ERR_NO_WORK: number = -400;
 export var ERR_CANNOT_PERFORM_TASK: number = -401;
 
-export var ACTION_TRANSFER: string = "transfer";
-export var ACTION_RECYCLE: string = "recycle";
-export var ACTION_COLLECT: string = "collect";
-export var ACTION_UPGRADE: string = "upgrade";
-export var ACTION_BUILD: string = "build";
-export var ACTION_DISMANTLE: string = "dismantle";
-export var ACTION_REPAIR: string = "repair";
-export var ACTION_MOVE: string = "move";
-
-export class TaskSet
+export class LaborDemandType
 {
-    [taskId: string]: Task;
+    constructor(
+        public parts: { [name: string]: number },
+        public min: number,
+        public max: number)
+    {
+        for (let name in BODYPART_COST)
+        {
+            if (parts[name] == null)
+            {
+                parts[name] = 0;
+            }
+        }
+    }
+}
+
+export class LaborDemand
+{
+    types: Dictionary<LaborDemandType> = {};
 }
 
 export class Task
 {
     id: string = "UNKNOWN";
     name: string;
-    say: string;
     possibleWorkers: number = -1; //defaults to infinite
-    scheduledWorkers: number = 0;
     priority: number = 50;
+    roomName: string;
+    labor: LaborDemand = new LaborDemand();
 
     constructor(public isComplex: boolean)
     { }
@@ -47,288 +59,153 @@ export class Task
         return [];
     }
 
-    schedule(creep: Creep): number
+    createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
+    {
+        return null;
+    }
+
+    protected createBasicAppointment(spawn: Spawn, request: SpawnRequest, near: RoomObjectLike): SpawnAppointment
+    {
+        let spawnPriority: number = -1;
+        let ticksTillRequired: number = 0;
+        let spawnDistanceFromNear: number = 0;
+
+        if (near != null)
+        {
+            if (near.pos.x != -1 && near.pos.y != -1)
+            {
+                spawnDistanceFromNear = (new RoomPosition(spawn.pos.x, spawn.pos.y - 1, spawn.pos.roomName)).findDistanceByPathTo(near, { ignoreCreeps: true });
+            }
+            else
+            {
+                spawnDistanceFromNear = (<any>Map).getRoomLinearDistance(spawn.pos.roomName, near.pos.roomName) * 50;
+            }
+        }
+
+        if (spawnDistanceFromNear < 250)
+        {
+            spawnPriority = 1 - (spawnDistanceFromNear / 250);
+        }
+
+        let creep = request.replacingCreep;
+
+        if (creep != null)
+        {
+            let body = spawn.getBody(request.creepBody);
+            let moveTotal = 0;
+
+            for(let part of body)
+            {
+                if (part === MOVE)
+                {
+                    moveTotal++;
+                }
+            }
+
+            let moveRate = Math.max(1, (body.length - moveTotal) / moveTotal);
+
+            //console.log(creep + ' ' + creep.ticksToLive + ' - ((' + spawnDistanceFromNear + ' * ' + moveRate + ') + (' + spawn.getBody(request.creepBody).length + ' * ' + CREEP_SPAWN_TIME + '))');
+            ticksTillRequired = Math.ceil(Math.max(0, creep.ticksToLive - ((spawnDistanceFromNear * moveRate) + (body.length * CREEP_SPAWN_TIME))));
+        }
+
+        return new SpawnAppointment(
+            request.id,
+            request.task,
+            spawnPriority,
+            spawn,
+            ticksTillRequired,
+            request.replacingCreep,
+            request.creepBody
+        );
+    }
+
+    prioritize(object: RoomObjectLike): number
+    {
+        return 0;
+    }
+
+    protected basicPrioritizeCreep(creep: Creep, near: RoomObjectLike, idealBody: BodyDefinition): number
+    {
+        let objectPriority = 0;
+
+        if (creep.spawnRequest != null && creep.spawnRequest.id != null && creep.spawnRequest.id.length > 0)
+        {
+            if (creep.spawnRequest.task == this ||
+                (creep.spawnRequest.replacingCreep != null && creep.spawnRequest.replacingCreep.task == this))
+            {
+                // this creep is intended for this task
+                return 1;
+            }
+            else
+            {
+                // this creep is intended for a different task
+                return 0;
+            }
+        }
+
+        // 1 - 40
+        if (near != null && creep.pos.roomName == near.pos.roomName)
+        {
+            objectPriority += 0.40;
+        }
+
+        // 41 - 60
+        if (creep.type === idealBody.name)
+        {
+            objectPriority += 0.2;
+
+            // 61 - 70
+            if (creep.task == this)
+            {
+                objectPriority += 0.1;
+            }
+        }
+        else if (creep.task != null && creep.task != this)
+        {
+            objectPriority = Math.max(0, objectPriority - .1);
+        }
+
+        // 71 - 90 : objectPriority
+        let taskEfficiency = creep.getEfficiencyAs(idealBody);
+        if (taskEfficiency === 0)
+        {
+            return 0;
+        }
+
+        objectPriority += (20 * taskEfficiency) / 100;
+        //console.log(object + ' objectPriority as ' + this.idealCreepBody.name + ' ' + objectPriority);
+
+        if (near != null)
+        {
+            // 91 - 100 : distance
+            let distance = creep.pos.findDistanceByPathTo(near);
+
+            if (distance < 150)
+            {
+                let modifier = ((Math.max(0, 150 - distance) / 150) * 10) / 100;
+                objectPriority += modifier;
+
+                //console.log(object + ' distance ' + distance);
+                //console.log(object + ' objectPriority modifier ' + modifier);
+                //console.log(object + ' final objectPriority ' + objectPriority);
+            }
+        }
+
+        return objectPriority;
+    }
+
+    beginScheduling(): void
+    {
+
+    }
+
+    schedule(object: RoomObjectLike): number
     {
         return ERR_NO_WORK;
     }
 
-    goMoveTo(creep: Creep, target: RoomObject | RoomPosition | Source | Claimable): number
+    endScheduling(): void
     {
-        let code = creep.moveTo(target, {noPathFinding: true});
 
-        // Perform pathfinding only if we have enough CPU
-        if (code == ERR_NOT_FOUND && Game.cpu.tickLimit - Game.cpu.getUsed() > 20)
-        {
-            code = creep.moveTo(target);
-        }
-
-        if (creep.doTrack)
-        {
-            console.log(creep + " goMoveTo " + code);
-        }
-
-        if (code == OK ||
-            code == ERR_TIRED)
-        {
-            creep.action = ACTION_MOVE;
-            creep.actionTarget = target;
-            return OK;
-        }
-
-        if (code == ERR_INVALID_TARGET)
-        {
-            return ERR_NO_WORK;
-        }
-
-        // ERR_NO_PATH
-        // ERR_NO_BODYPART
-        // ERR_BUSY
-        // ERR_NOT_OWNER
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goHarvest(creep: Creep, source: Source): number
-    {
-        let claimReceipt = source.makeClaim(creep, RESOURCE_ENERGY, creep.carryCapacityRemaining, true);
-
-        if (claimReceipt === null)
-        {
-            return ERR_NO_WORK;
-        }
-
-        let code = claimReceipt.target.collect(creep, claimReceipt);
-
-        if (code === ERR_NOT_IN_RANGE)
-        {
-            code = this.goMoveTo(creep, claimReceipt.target);
-        }
-
-        if (code === OK)
-        {
-            creep.action = ACTION_COLLECT;
-            creep.actionTarget = claimReceipt.target;
-            return OK;
-        }
-
-        if (code === ERR_NOT_ENOUGH_RESOURCES ||
-            code === ERR_INVALID_TARGET)
-        {
-            return ERR_NO_WORK;
-        }
-
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goTransfer(creep: Creep, resourceType: string, target: Spawn | Structure | Creep): number
-    {
-        let code = creep.transfer(target, resourceType);
-
-        if (code == ERR_NOT_IN_RANGE)
-        {
-            return this.goMoveTo(creep, target);
-        }
-
-        if (creep.doTrack)
-        {
-            console.log(creep + " goTransfer " + code);
-        }
-
-        if (code == OK)
-        {
-            creep.action = ACTION_TRANSFER;
-            creep.actionTarget = target;
-            return OK;
-        }
-
-        if (code == ERR_FULL)
-        {
-            return ERR_NO_WORK;
-        }
-
-        if (code == ERR_NOT_OWNER)
-        {
-            console.log("ERROR: Attempted to transfer '" + resourceType + "' to another players creeps");
-            return ERR_NO_WORK;
-        }
-
-        if (code == ERR_INVALID_TARGET)
-        {
-            console.log("ERROR: Attempted to transfer '" + resourceType + "' to an invalid target " + target);
-            return ERR_NO_WORK;
-        }
-
-        if (code == ERR_BUSY)
-        {
-            console.log("ERROR: Attempted to transfer '" + resourceType + "' to a creep that hasn't spawned yet");
-            return ERR_NO_WORK;
-        }
-
-        if (code == ERR_INVALID_ARGS)
-        {
-            console.log("ERROR: Attempted to transfer an invalid amount of '" + resourceType + "' to a target");
-            return ERR_NO_WORK;
-        }
-
-        //ERR_NOT_ENOUGH_RESOURCES	-6	The creep does not have the given amount of resources.
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goBuild(creep: Creep, site: ConstructionSite): number
-    {
-        let code = creep.build(site);
-
-        if (code === ERR_NOT_IN_RANGE)
-        {
-            code = this.goMoveTo(creep, site);
-        }
-
-        if (code === OK)
-        {
-            creep.action = ACTION_BUILD;
-            creep.actionTarget = site;
-            return OK;
-        }
-
-        if (code == ERR_NOT_ENOUGH_RESOURCES ||
-            code == ERR_INVALID_TARGET ||
-            code == ERR_RCL_NOT_ENOUGH)
-        {
-            return ERR_NO_WORK;
-        }
-
-        // ERR_NOT_OWNER
-        // ERR_BUSY
-        // ERR_NO_BODYPART
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goDismantle(creep: Creep, structure: Structure): number
-    {
-        structure.notifyWhenAttacked(false);
-
-        let code = creep.dismantle(structure);
-
-        if (code === ERR_NOT_IN_RANGE)
-        {
-            code = this.goMoveTo(creep, structure);
-        }
-
-        if (code === OK)
-        {
-            creep.action = ACTION_DISMANTLE;
-            creep.actionTarget = structure;
-            return OK;
-        }
-
-        if (code == ERR_INVALID_TARGET)
-        {
-            return ERR_NO_WORK;
-        }
-
-        // ERR_NOT_OWNER
-        // ERR_BUSY
-        // ERR_NO_BODYPART
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goRepair(creep: Creep, structure: Structure): number
-    {
-        let code = creep.repair(structure);
-
-        if(code === ERR_NOT_IN_RANGE)
-        {
-            return this.goMoveTo(creep, structure);
-        }
-
-        if (code === OK)
-        {
-            creep.action = ACTION_REPAIR;
-            creep.actionTarget = structure;
-            return OK;
-        }
-
-        if (code === ERR_INVALID_TARGET)
-        {
-            return ERR_NO_WORK;
-        }
-
-        console.log("Creep " + creep.name + " goRepair error code: " + code);
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goCollect(creep: Creep, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][]): number
-    {
-        let claimReceipt = Game.rooms[near.roomName].claimResource(creep, resourceType, amount, isExtended, near, storePriorities, creep.claimReceipt);
-
-        if (claimReceipt == null)
-        {
-            return ERR_NO_WORK;
-        }
-
-        creep.claimReceipt = claimReceipt;
-
-        let code = claimReceipt.target.collect(creep, claimReceipt);
-
-        if (code === ERR_NOT_IN_RANGE)
-        {
-            code = this.goMoveTo(creep, claimReceipt.target);
-        }
-
-        if (code === OK)
-        {
-            creep.action = ACTION_COLLECT;
-            creep.actionTarget = claimReceipt.target;
-            return OK;
-        }
-
-        if (code === ERR_NOT_ENOUGH_RESOURCES)
-        {
-            console.log("FAILED TO CONFIRM AVAILABLE RESOURCES BEFORE COLLECTING. " + creep + " " + claimReceipt.target + " " + claimReceipt.amount + " " + claimReceipt.resourceType);
-            creep.claimReceipt = null;
-
-            return ERR_NO_WORK;
-        }
-
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goUpgrade(creep: Creep, controller: Controller): number
-    {
-        let code = creep.upgradeController(controller);
-
-        if(code === ERR_NOT_IN_RANGE)
-        {
-            return this.goMoveTo(creep, controller);
-        }
-
-        if (code === OK)
-        {
-            creep.action = ACTION_UPGRADE;
-            creep.actionTarget = controller;
-            return OK;
-        }
-
-        console.log("goUpgrade error code: " + code);
-        return ERR_CANNOT_PERFORM_TASK;
-    }
-
-    goRecycle(creep: Creep, spawn: Spawn): number
-    {
-        let code = spawn.recycleCreep(creep);
-
-        if(code === ERR_NOT_IN_RANGE)
-        {
-            return this.goMoveTo(creep, spawn);
-        }
-
-        if (code === OK)
-        {
-            creep.action = ACTION_RECYCLE;
-            creep.actionTarget = spawn;
-            return OK;
-        }
-
-        console.log("goRecycle error code: " + code);
-        return ERR_CANNOT_PERFORM_TASK;
     }
 }

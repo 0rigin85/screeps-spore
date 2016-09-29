@@ -10,11 +10,6 @@ declare global
     }
 }
 
-export interface StructureMemorySet
-{
-    [id: string]: StructureMemory;
-}
-
 export interface StructureMemory
 {
     needsRepair: boolean;

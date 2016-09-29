@@ -1,93 +1,105 @@
-import {Task, ERR_NO_WORK, ACTION_BUILD, ERR_CANNOT_PERFORM_TASK, TaskPriority} from './task';
+import {Task, ERR_NO_WORK, TaskPriority} from './task';
 import Dictionary = _.Dictionary;
+import {SporeCreep, ACTION_BUILD, CREEP_TYPE} from "./sporeCreep";
+import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
+import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
+import {BodyDefinition} from "./bodyDefinition";
 
 let STRUCTURE_BUILD_PRIORITY =
 {
-    "spawn": function(site: ConstructionSite) { return TaskPriority.Mandatory },
-    "tower": function(site: ConstructionSite) { return TaskPriority.Mandatory },
-    "extension": function(site: ConstructionSite) { return TaskPriority.High },
-    "container": function(site: ConstructionSite) { return TaskPriority.High },
-    "link": function(site: ConstructionSite) { return TaskPriority.High },
-    "extractor": function(site: ConstructionSite) { return TaskPriority.High },
-    "lab": function(site: ConstructionSite) { return TaskPriority.MediumHigh },
-    "storage": function(site: ConstructionSite) { return TaskPriority.High },
-    "terminal": function(site: ConstructionSite) { return TaskPriority.MediumHigh },
-    "rampart": function(site: ConstructionSite) { return TaskPriority.MediumLow },
-    "road": function(site: ConstructionSite) { return TaskPriority.MediumHigh },
-    "constructedWall": function(site: ConstructionSite) { return TaskPriority.MediumLow },
+    "spawn": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.Mandatory },
+    "tower": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.Mandatory },
+    "extension": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.High },
+    "container": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.High },
+    "link": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.High },
+    "extractor": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.High },
+    "lab": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumHigh },
+    "storage": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.High },
+    "terminal": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumHigh },
+    "rampart": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumLow },
+    "road": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumHigh },
+    "constructedWall": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumLow },
 };
 
 export class BuildStructure extends Task
 {
-    constructor(public site: ConstructionSite)
+    idealCreepBody: BodyDefinition;
+    scheduledWork: number;
+    desiredWork: number;
+
+    constructor(public site: ScreepsPtr<ConstructionSite>)
     {
         super(false);
-        this.id = "Build " + site.structureType + " " + site.room;
-        this.name = "Build " + site + " " + site.room;
+
+        this.id = 'Build [structure (' + site.lookTypeModifier + ') {room ' + this.site.pos.roomName + '}]';
+        this.name = 'Build [structure (' + site.lookTypeModifier + ') {room ' + this.site.pos.roomName + ' pos ' + this.site.pos.x + ',' + this.site.pos.y + '}]';
         this.possibleWorkers = -1;
-        this.priority = STRUCTURE_BUILD_PRIORITY[site.structureType](site);
+        this.priority = STRUCTURE_BUILD_PRIORITY[site.lookTypeModifier](site);
+        this.idealCreepBody = CREEP_TYPE.CITIZEN;
+        this.scheduledWork = 0;
+        this.desiredWork = 5;
     }
 
-    static deserialize(input: string): BuildStructure
+    createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
     {
-        let parentId = "";
-        let parentSplitIndex = input.lastIndexOf(">");
-
-        if (parentSplitIndex >= 0)
+        if (request.replacingCreep != null)
         {
-            parentId = input.substring(0, parentSplitIndex);
+            return super.createBasicAppointment(spawn, request, request.replacingCreep);
         }
 
-        let startingBraceIndex = input.lastIndexOf("[");
-        let siteId = input.substring(startingBraceIndex, input.length - 1);
-
-        let site = Game.getObjectById<ConstructionSite>(siteId);
-
-        if (site == null)
-        {
-            return null;
-        }
-
-        return new BuildStructure(site);
+        return super.createBasicAppointment(spawn, request, this.site);
     }
 
-    schedule(creep: Creep): number
+    prioritize(object: RoomObjectLike): number
     {
-        if (Game.getObjectById(this.site.id) == null)
+        if (object instanceof Creep)
+        {
+            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            {
+                return 0;
+            }
+
+            return super.basicPrioritizeCreep(object, this.site, this.idealCreepBody);
+        }
+
+        return 0;
+    }
+
+    schedule(object: RoomObjectLike): number
+    {
+        if (this.possibleWorkers === 0 || !this.site.isValid || !(object instanceof Creep) || this.scheduledWork >= this.desiredWork)
         {
             return ERR_NO_WORK;
         }
 
-        if (this.possibleWorkers === 0)
-        {
-            return ERR_NO_WORK;
-        }
-
-        if (creep.getActiveBodyparts(WORK) === 0)
-        {
-            return ERR_CANNOT_PERFORM_TASK;
-        }
-
+        let creep = <Creep>object;
         let code;
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             (creep.action === ACTION_BUILD && creep.carry[RESOURCE_ENERGY] > 0))
         {
-            code = this.goBuild(creep, this.site);
+            code = creep.goBuild(this.site);
         }
         else
         {
-            code = this.goCollect(
-                creep,
+            let amount = creep.carryCapacityRemaining;
+            if (!this.site.isShrouded)
+            {
+                Math.min(creep.carryCapacityRemaining, this.site.instance.progressRemaining);
+            }
+
+            code = creep.goCollect(
                 RESOURCE_ENERGY,
-                Math.min(creep.carryCapacityRemaining, this.site.progressRemaining),
+                amount,
                 false,
                 this.site.pos,
-                [['dropped'], ['link','container'], ['source'], ['storage']]);
+                [['near_dropped'], ['link','container','storage'], ['dropped']]);
         }
 
         if (code === OK)
         {
+            this.scheduledWork += creep.getActiveBodyparts(WORK);
+
             if (this.possibleWorkers > 0)
             {
                 this.possibleWorkers--;

@@ -1,34 +1,37 @@
-import {Task, ERR_NO_WORK, ACTION_COLLECT, ACTION_TRANSFER, ERR_CANNOT_PERFORM_TASK} from './task';
+import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, LaborDemandType} from './task';
+import Dictionary = _.Dictionary;
+import {RoomObjectLike, ScreepsPtr, EnergyContainerLike, StoreContainerLike, CarryContainerLike} from "./screepsPtr";
+import {ACTION_COLLECT, ACTION_TRANSFER, SporeCreep, CREEP_TYPE} from "./sporeCreep";
+import {BodyDefinition} from "./bodyDefinition";
+import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 
 export class TransferResource extends Task
 {
     scheduledTransfer: number = 0;
+    scheduledCarry: number = 0;
+    reserveWorkers: boolean = false;
 
-    constructor(parentId: string,
-                public targets: RoomObject[],
+    idealCreepBody: BodyDefinition = CREEP_TYPE.COURIER;
+
+    private resourcesNeeded = -1;
+    private needsResources: any[] = [];
+    private resourceCapacity = -1;
+
+    constructor(public targets: ScreepsPtr<EnergyContainerLike | StoreContainerLike | CarryContainerLike>[],
                 public resourceType: string,
-                public storePriorities: string[][] | Source | RoomPosition)
+                public source: ScreepsPtr<Source>,
+                public storePriorities: string[][])
     {
         super(false);
 
-        if (parentId != null && parentId.length > 0)
-        {
-            this.id = parentId + ">";
-        }
-        else
-        {
-            this.id = "";
-        }
+        this.id = "Transfer:" + resourceType + " " + targets.map(function(t) { return t.id;}).join(',');
 
-        this.id += "Transfer:" + resourceType + " " + targets.map(function(t) { return t.id;}).join(',');
-
-        if ((<Source>storePriorities).id != null)
+        let room = null;
+        if (source != null)
         {
-            this.id += " " + (<Source>storePriorities).pos.toString();
-        }
-        else if ((<RoomPosition>storePriorities).roomName != null)
-        {
-            this.id += " " + (<RoomPosition>storePriorities).toString();
+            this.id += " " + source;
+            this.roomName = source.pos.roomName;
+            room = source.room;
         }
         else
         {
@@ -36,156 +39,214 @@ export class TransferResource extends Task
             {
                 this.id += storePriorities[index].join(',');
             }
+
+            this.roomName = targets[0].pos.roomName;
+            room = targets[0].room;
         }
 
         this.name = "Transfer " + resourceType + " to " + targets.length + " objects";
+
+        this.calculateRequirements();
+
+        if (room.economy.resources[RESOURCE_ENERGY] > 0)
+        {
+            this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((this.resourceCapacity / CARRY_CAPACITY) * 0.8) }, 1, 50);
+        }
     }
 
-    static deserialize(input: string): TransferResource
+    calculateRequirements(): void
     {
-        let parentId = "";
-        let parentSplitIndex = input.lastIndexOf(">");
+        this.needsResources.length = 0;
+        this.resourcesNeeded = -1;
+        this.resourceCapacity = -1;
 
-        if (parentSplitIndex >= 0)
+        for (let index = 0; index < this.targets.length; index++)
         {
-            parentId = input.substring(0, parentSplitIndex);
+            let target = this.targets[index];
+
+            if (!target.isValid)
+            {
+                continue;
+            }
+
+            if (target.isShrouded)
+            {
+                this.needsResources.push(this.targets[index]);
+                continue;
+            }
+
+            if ((<EnergyContainerLike><any>target.instance).energyCapacity != null && this.resourceType === RESOURCE_ENERGY)
+            {
+                let energyContainer = <EnergyContainerLike><any>target.instance;
+                let remainingStore = energyContainer.energyCapacityRemaining;
+                this.resourceCapacity += energyContainer.energyCapacity;
+
+                if (remainingStore > 0)
+                {
+                    this.needsResources.push(target);
+                    this.resourcesNeeded += remainingStore;
+                }
+            }
+            else if ((<StoreContainerLike><any>target.instance).storeCapacity != null)
+            {
+                let storeContainer = <StoreContainerLike><any>target.instance;
+                let remainingStore = storeContainer.storeCapacityRemaining;
+
+                if (storeContainer instanceof StructureStorage)
+                {
+                    this.resourceCapacity += 300000;
+                }
+                else
+                {
+                    this.resourceCapacity += (remainingStore + storeContainer.store[this.resourceType]);
+                }
+
+                if (remainingStore > 0)
+                {
+                    this.needsResources.push(target);
+                    this.resourcesNeeded += remainingStore;
+                }
+            }
+            else if ((<CarryContainerLike><any>target.instance).carryCapacity != null)
+            {
+                let carryContainer = <CarryContainerLike><any>target.instance;
+                let remainingStore = carryContainer.carryCapacityRemaining;
+                this.resourceCapacity += (remainingStore + carryContainer.carry[this.resourceType]);
+
+                if (remainingStore > 0)
+                {
+                    this.needsResources.push(target);
+                    this.resourcesNeeded += remainingStore;
+                }
+            }
+            else
+            {
+                console.log("UNKNOWN TransferResource Target Type");
+            }
         }
-
-        let startingBraceIndex = input.lastIndexOf("[");
-        let targetIdsStr = input.substring(startingBraceIndex, input.length - 1);
-        let targetIds = targetIdsStr.split(',');
-
-        let targets;// = _.map<any>(targetIds, function(id){return Game.getObjectById(id);});
-
-        if (targets == null || targets.length == 0)
-        {
-            return null;
-        }
-
-        let colonIndex = input.lastIndexOf(":");
-        let argsString = input.substring(colonIndex, startingBraceIndex);
-        let args: any[] = argsString.split(",");
-
-        let resourceType = <string>args.shift();
-        let storePriorities: string[][] | Source = null;
-        //
-        // if (args.length == 2)
-        // {
-        //     let source = Game.getObjectById<Source>(args[1]);
-        //
-        //     if (source != null)
-        //     {
-        //         location = source;
-        //     }
-        //     else
-        //     {
-        //         location = [];
-        //         (<ENERGYLOCATION[]>location).push(args[1]);
-        //     }
-        // }
-        // else if (args.length > 2)
-        // {
-        //     args.splice(0, 1);
-        //     location = [];
-        //     for(var i=args.length; i--;) (<ENERGYLOCATION[]>location).unshift(<ENERGYLOCATION>(args[i]|0));
-        // }
-
-        return new TransferResource(parentId, targets, resourceType, storePriorities);
     }
 
-    private resourcesNeeded;
-    private needsResources: any[];
-
-    schedule(creep: Creep): number
+    createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
     {
+        if (request.replacingCreep != null)
+        {
+            return super.createBasicAppointment(spawn, request, request.replacingCreep);
+        }
+
+        if (this.source != null)
+        {
+            return super.createBasicAppointment(spawn, request, this.source);
+        }
+
+        return super.createBasicAppointment(spawn, request, this.targets[0]);
+    }
+
+    prioritize(object: RoomObjectLike): number
+    {
+        if (object instanceof Creep)
+        {
+            if (object.carryCount === object.carryCapacity && object.carry[this.resourceType] === 0)
+            {
+                return 0;
+            }
+
+            return super.basicPrioritizeCreep(object, this.source, this.idealCreepBody);
+        }
+
+        return 0;
+    }
+
+    beginScheduling(): void
+    {
+        this.scheduledTransfer = 0;
+        this.scheduledCarry = 0;
+    }
+
+    schedule(object: RoomObjectLike): number
+    {
+        let room = null;
+        if (this.source != null)
+        {
+            room = this.source.room;
+        }
+        else
+        {
+            room = this.targets[0].room;
+        }
+
         if (this.possibleWorkers === 0)
         {
             return ERR_NO_WORK;
         }
 
-        if (creep.carryCount === creep.carryCapacity && creep.carry[this.resourceType] === 0)
+        if (!(object instanceof Creep))
         {
+            console.log('ERROR: Attempted to harvest with a non-creep room object. ' + object);
             return ERR_CANNOT_PERFORM_TASK;
         }
 
-        if (this.resourcesNeeded == null)
+        let creep = <Creep>object;
+
+        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null)
         {
-            this.resourcesNeeded = 0;
-            this.needsResources = [];
-
-            for (let index = 0; index < this.targets.length; index++)
-            {
-                let target = this.targets[index];
-
-                if ((<Spawn>target).energyCapacity != null && this.resourceType === RESOURCE_ENERGY)
-                {
-                    let spawn = <Spawn>target;
-                    let remainingStore = spawn.energyCapacityRemaining;
-
-                    if (remainingStore > 0)
-                    {
-                        this.needsResources.push(spawn);
-                        this.resourcesNeeded += remainingStore;
-                    }
-                }
-                else if ((<StructureStorage>target).storeCapacity != null)
-                {
-                    let structure = <StructureStorage>target;
-                    let remainingStore = structure.storeCapacityRemaining;
-
-                    if (remainingStore > 0)
-                    {
-                        this.needsResources.push(structure);
-                        this.resourcesNeeded += remainingStore;
-                    }
-                }
-                else if ((<Creep>target).carryCapacity != null)
-                {
-                    let creepTarget = <Creep>target;
-                    let remainingStore = creepTarget.carryCapacityRemaining;
-
-                    if (remainingStore > 0)
-                    {
-                        this.needsResources.push(creepTarget);
-                        this.resourcesNeeded += remainingStore;
-                    }
-                }
-                else
-                {
-                    console.log("UNKNOWN TransferResource Target Type");
-                }
-            }
+            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+            return OK;
         }
 
-        if (this.resourcesNeeded === 0 || this.resourcesNeeded < this.scheduledTransfer || this.needsResources.length === 0)
+        //if (this.resourcesNeeded === 0 || this.resourcesNeeded < this.scheduledTransfer || this.needsResources.length === 0)
+        let maxCarryReached = false;
+        if (this.labor.types[this.idealCreepBody.name] != null)
+        {
+            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
+            maxCarryReached = this.scheduledCarry >= this.labor.types[this.idealCreepBody.name].parts[CARRY];
+        }
+
+        if (this.scheduledTransfer >= this.resourceCapacity || maxCarryReached)
         {
             //console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
             return ERR_NO_WORK;
         }
 
-        let remainingNeededResources = this.resourcesNeeded - this.scheduledTransfer;
+        if (creep.type === CREEP_TYPE.MINER.name && this.scheduledTransfer > 0)
+        {
+            return ERR_CANNOT_PERFORM_TASK;
+        }
+
+        let remainingNeededResources = Math.max(0, this.resourcesNeeded - this.scheduledTransfer);
         let code: number;
 
-        if (creep.action === ACTION_COLLECT && creep.carryCount < creep.carryCapacity)
+        if (this.resourcesNeeded <= 0)
+        {
+            if (creep.carryCount < creep.carryCapacity)
+            {
+                code = this.scheduleCollect(creep, creep.carryCapacityRemaining, this.needsResources);
+            }
+            else
+            {
+                code = this.scheduleTransfer(creep, this.needsResources);
+
+                if (code === ERR_NO_WORK)
+                {
+                    code = creep.goMoveTo(this.targets[0]);
+                }
+            }
+        }
+        else if (creep.action === ACTION_COLLECT && creep.carryCount < creep.carryCapacity)
         {
             code = this.scheduleCollect(creep, remainingNeededResources, this.needsResources);
+
+            if (code === ERR_NO_WORK && creep.carry[this.resourceType] > 0)
+            {
+                code = this.scheduleTransfer(creep, this.needsResources);
+            }
         }
         else if (creep.carry[this.resourceType] > 0)
         {
-            if (creep.carry[this.resourceType] === creep.carryCapacity ||
+            if (creep.carryCount === creep.carryCapacity ||
                 creep.carry[this.resourceType] >= remainingNeededResources ||
                 (creep.action === ACTION_TRANSFER && creep.carry[this.resourceType] > 0))
             {
-                let closestTarget = creep.pos.findClosestByRange<any>(this.needsResources);
-
-                if (closestTarget != null)
-                {
-                    code = this.goTransfer(creep, this.resourceType, closestTarget);
-                }
-                else
-                {
-                    code = this.goTransfer(creep, this.resourceType, this.needsResources[0]);
-                }
+                code = this.scheduleTransfer(creep, this.needsResources);
             }
             else
             {
@@ -193,7 +254,8 @@ export class TransferResource extends Task
 
                 if (inRangeTarget != null)
                 {
-                    code = this.goTransfer(creep, this.resourceType, inRangeTarget);
+                    code = creep.goTransfer(this.resourceType, inRangeTarget);
+                    console.log(code);
                 }
                 else
                 {
@@ -206,42 +268,71 @@ export class TransferResource extends Task
             code = this.scheduleCollect(creep, remainingNeededResources, this.needsResources);
         }
 
-        if (code === OK)
+        if (this.reserveWorkers && creep.type === this.idealCreepBody.name)
         {
+            code = OK;
+        }
+
+        if (code === OK && creep.spawnRequest == null)
+        {
+            let compatibleTransfer = creep.carryCapacityRemaining + creep.carry[this.resourceType];
+
+            this.scheduledTransfer += compatibleTransfer;
+            this.scheduledCarry += Math.floor((creep.carryCapacity / compatibleTransfer) / CARRY_CAPACITY);
+
             if (this.possibleWorkers > 0)
             {
                 this.possibleWorkers--;
             }
-
-            this.scheduledTransfer += creep.carryCapacity;
         }
 
         return code;
     }
 
-    scheduleCollect(creep: Creep, remainingNeededResources: number, needsResources: any[])
+    scheduleTransfer(creep: Creep, needsResources: any[]): number
     {
-        let code: number;
+        let code: number = ERR_NO_WORK;
+        let closestTarget = creep.pos.findClosestByRange<any>(needsResources);
 
-        if ((<Source>this.storePriorities).id != null)
+        if (closestTarget != null)
         {
-            code = this.goHarvest(creep, <Source>this.storePriorities);
+            code = creep.goTransfer(this.resourceType, closestTarget);
         }
-        else if ((<RoomPosition>this.storePriorities).roomName != null)
+        else if (needsResources.length > 0)
         {
-            code = this.goMoveTo(creep, <RoomPosition>this.storePriorities);
+            code = creep.goTransfer(this.resourceType, needsResources[0]);
         }
-        else
+        else if (this.targets.length > 0)
         {
-            code = this.goCollect(
-                creep,
-                this.resourceType,
-                Math.min(creep.carryCapacityRemaining, remainingNeededResources),
-                false,
-                needsResources[0].pos,
-                <string[][]>this.storePriorities);
+            code = creep.goTransfer(this.resourceType, this.targets[0]);
         }
 
         return code;
+    }
+
+    scheduleCollect(creep: Creep, remainingNeededResources: number, needsResources: any[]): number
+    {
+        let code: number;
+
+        if (this.source != null)
+        {
+            code = creep.goHarvest(this.source);
+        }
+        else
+        {
+            code = creep.goCollect(
+                this.resourceType,
+                Math.min(creep.carryCapacityRemaining, remainingNeededResources),
+                false,
+                ((needsResources.length > 0) ? needsResources[0].pos : creep.pos),
+                this.storePriorities);
+        }
+
+        return code;
+    }
+
+    endScheduling(): void
+    {
+
     }
 }

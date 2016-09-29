@@ -1,55 +1,46 @@
-import {Task, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK} from './task';
+import {Task, ERR_NO_WORK} from './task';
+import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
+import {SporeCreep, CREEP_TYPE} from "./sporeCreep";
+import {BodyDefinition} from "./bodyDefinition";
 
 export class DismantleStructure extends Task
 {
-    constructor(parentId: string, public structure: Structure)
+    idealCreepBody: BodyDefinition;
+    structure: ScreepsPtr<Structure>;
+
+    constructor(structure: ScreepsPtr<Structure>)
     {
         super(false);
-        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Dismantle[" + structure.id + "]";
-        this.name = "Dismantle [" + structure + "]";
+
+        this.id = 'Dismantle ' + this.structure;
+        this.name = 'Dismantle ' + this.structure;
+        this.idealCreepBody = CREEP_TYPE.CITIZEN;
     }
 
-    static deserialize(input: string): DismantleStructure
+    prioritize(object: RoomObjectLike): number
     {
-        let parentId = "";
-        let parentSplitIndex = input.lastIndexOf(">");
-
-        if (parentSplitIndex >= 0)
+        if (object instanceof Creep)
         {
-            parentId = input.substring(0, parentSplitIndex);
+            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            {
+                return 0;
+            }
+
+            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
         }
 
-        let startingBraceIndex = input.lastIndexOf("[");
-        let structureId = input.substring(startingBraceIndex, input.length - 1);
-
-        let structure = Game.getObjectById<Structure>(structureId);
-
-        if (structure == null)
-        {
-            return null;
-        }
-
-        return new DismantleStructure(parentId, structure);
+        return 0;
     }
 
-    schedule(creep: Creep): number
+    schedule(object: RoomObjectLike): number
     {
-        if (Game.getObjectById(this.structure.id) == null)
+        if (this.possibleWorkers === 0 || !this.structure.isValid || !(object instanceof Creep))
         {
             return ERR_NO_WORK;
         }
 
-        if (this.possibleWorkers === 0)
-        {
-            return ERR_NO_WORK;
-        }
-
-        if (creep.getActiveBodyparts(WORK) == 0)
-        {
-            return ERR_CANNOT_PERFORM_TASK;
-        }
-
-        let code = this.goDismantle(creep, this.structure);
+        let creep = <Creep>object;
+        let code = creep.goDismantle(this.structure);
 
         if (code === OK && this.possibleWorkers > 0)
         {

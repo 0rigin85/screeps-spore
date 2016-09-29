@@ -3,6 +3,7 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {Task, TaskPriority} from "./task";
 import {TransferResource} from "./taskTransferResource";
+import {StoreContainerLike, ScreepsPtr, EnergyContainerLike} from "./screepsPtr";
 
 declare global
 {
@@ -187,52 +188,52 @@ export class SporeLink extends StructureLink implements Claimable
 
         let transferTarget = null;
         let tasks: Task[] = [];
-
-        if (this.bond == null)
-        {
-            this.bond = Bond.discover(this, LOOK_SOURCES);
-        }
-
-        if (this.bond != null)
-        {
-            let target: any = this.bond.target;
-
-            if (target == null)
-            {
-                target = this.bond.targetFlag.pos;
-            }
-
-            let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, target);
-            transferEnergyTask.priority = TaskPriority.Mandatory;
-            transferEnergyTask.name = "Transfer energy to " + this + " from " + target;
-            transferEnergyTask.possibleWorkers = 1;
-            tasks.push(transferEnergyTask);
-        }
-        else
-        {
-            if (this.nearBySource != null)
-            {
-                let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, this.nearBySource);
-                transferEnergyTask.priority = TaskPriority.Mandatory;
-                transferEnergyTask.name = "Transfer energy to " + this + " from " + this.nearBySource;
-                transferEnergyTask.possibleWorkers = 1;
-                tasks.push(transferEnergyTask);
-            }
-            else
-            {
-                this.takesTransfers = true;
-            }
-        }
-
-        if (this.energy > 0)
-        {
-            transferTarget = this.findLinkTakingTransfers();
-
-            if (transferTarget != null)
-            {
-                this.transferEnergy(transferTarget);
-            }
-        }
+        //
+        // if (this.bond == null)
+        // {
+        //     this.bond = Bond.discover(this, LOOK_SOURCES);
+        // }
+        //
+        // if (this.bond != null)
+        // {
+        //     let target: any = this.bond.target;
+        //
+        //     if (target == null)
+        //     {
+        //         target = this.bond.targetFlag.pos;
+        //     }
+        //
+        //     let transferEnergyTask = new TransferResource([ScreepsPtr.from<EnergyContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(target), null);
+        //     transferEnergyTask.priority = TaskPriority.Mandatory;
+        //     transferEnergyTask.name = "Transfer energy to " + this + " from " + target;
+        //     transferEnergyTask.possibleWorkers = 1;
+        //     tasks.push(transferEnergyTask);
+        // }
+        // else
+        // {
+        //     if (this.nearBySource != null)
+        //     {
+        //         let transferEnergyTask = new TransferResource([ScreepsPtr.from<EnergyContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(this.nearBySource), null);
+        //         transferEnergyTask.priority = TaskPriority.Mandatory;
+        //         transferEnergyTask.name = "Transfer energy to " + this + " from " + this.nearBySource;
+        //         transferEnergyTask.possibleWorkers = 1;
+        //         tasks.push(transferEnergyTask);
+        //     }
+        //     else
+        //     {
+        //         this.takesTransfers = true;
+        //     }
+        // }
+        //
+        // if (this.energy > 0)
+        // {
+        //     transferTarget = this.findLinkTakingTransfers();
+        //
+        //     if (transferTarget != null)
+        //     {
+        //         this.transferEnergy(transferTarget);
+        //     }
+        // }
 
         return tasks;
     }

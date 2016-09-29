@@ -1,25 +1,31 @@
-import {Task, TaskPriority, TaskSet} from "./task";
+import {Task, TaskPriority} from "./task";
 import {SourceMemory} from "./sporeSource";
 import {Claimable, ClaimReceipt} from "./sporeClaimable";
 import {TransferResource} from "./taskTransferResource";
 import {StorageMemory} from "./sporeStorage";
-import {StructureMemory, StructureMemorySet} from "./sporeStructure";
+import {StructureMemory} from "./sporeStructure";
 import {ConstructionSiteMemory} from "./sporeConstructionSite";
 import {ControllerMemory} from "./sporeController";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
 import {RepairStructure} from "./taskRepairStructure";
+import Dictionary = _.Dictionary;
+import {ScreepsPtr, EnergyContainerLike, StoreContainerLike, CarryContainerLike} from "./screepsPtr";
+import {SporeCreep} from "./sporeCreep";
+import {HarvestEnergy} from "./taskHarvestEnergy";
+import {BuildBarrier} from "./taskBuildBarrier";
 
 declare global
 {
     interface Room
     {
         getTasks(): Task[];
+        trackEconomy(): void;
         claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], receipt?: ClaimReceipt): ClaimReceipt;
+        getRouteTo(roomName: string): any[];
 
-        tasksById: TaskSet;
+        tasksById: Dictionary<Task>;
         tasks: Task[];
         basicTasks: Task[];
-        needsWorkers: boolean;
 
         sources: Source[];
         links: StructureLink[];
@@ -28,18 +34,24 @@ declare global
         containers: StructureContainer[];
         extensions: StructureExtension[];
         towers: StructureTower[];
+        ramparts: StructureRampart[];
         mySpawns: Spawn[];
+        myCreeps: Creep[];
         hostileCreeps: Creep[];
+        friendlyCreeps: Creep[];
+
+        economy: Economy;
 
         my: boolean;
+        priority: number;
     }
 
     interface RoomMemory
     {
         sources: SourceMemory[];
         spawns: SpawnMemory[];
-        structures: StructureMemorySet;
-        sites: ConstructionSiteMemory[];
+        structures: Dictionary<StructureMemory>;
+        sites: Dictionary<ConstructionSiteMemory>;
         controller: ControllerMemory;
         storage: StorageMemory;
     }
@@ -54,6 +66,15 @@ var GATHER_RESOURCE_STORES =
             return;
         }
 
+        if (!(claimer instanceof Creep))
+        {
+            return;
+        }
+        else if (claimer.getActiveBodyparts(WORK) === 0)
+        {
+            return;
+        }
+
         for (let source of this.sources)
         {
             if (source.doIgnore !== true && source.energy > 0)
@@ -62,9 +83,9 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'near_dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
     {
-        let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_ENERGY, 5);
+        let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
 
         for (let resource of nearClaimerResources)
         {
@@ -76,9 +97,24 @@ var GATHER_RESOURCE_STORES =
             }
         }
 
-        let nearTargetResources: Resource[] = <Resource[]>near.findInRange(FIND_DROPPED_ENERGY, 5);
+        if (near != null)
+        {
+            let nearTargetResources: Resource[] = <Resource[]>near.findInRange(FIND_DROPPED_RESOURCES, 5);
 
-        for (let resource of nearTargetResources)
+            for (let resource of nearTargetResources)
+            {
+                if (resource.doIgnore !== true &&
+                    resource.resourceType === resourceType &&
+                    resource.amount > 0)
+                {
+                    collection.push(resource);
+                }
+            }
+        }
+    },
+    'dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    {
+        for (let resource of this.resources)
         {
             if (resource.doIgnore !== true &&
                 resource.resourceType === resourceType &&
@@ -175,6 +211,17 @@ var GATHER_RESOURCE_STORES =
     }
 };
 
+// List of allies, name must be lower case.
+const USERNAME_WHITELIST =
+    [
+        'pcakecysote', // Jacob
+        'barney',      // Mr McBarnabas
+        'pcakecysote', // Jacob
+        'swifty',      // Leigh
+        'yeurch',       // Richard
+        '0xdeadfeed'    // Wes
+    ];
+
 let STRUCTURE_REPAIR_VALUES = {};
 STRUCTURE_REPAIR_VALUES[STRUCTURE_CONTAINER] = { ideal: CONTAINER_HITS, regular: { threshold: 200000, priority: TaskPriority.High}, dire:{threshold: 100000, priority: TaskPriority.Mandatory} };
 STRUCTURE_REPAIR_VALUES[STRUCTURE_TOWER] = { ideal: TOWER_HITS, regular: { threshold: 2000, priority: TaskPriority.High}, dire:{threshold: 1000, priority: TaskPriority.Mandatory} };
@@ -193,18 +240,80 @@ STRUCTURE_REPAIR_VALUES[STRUCTURE_LINK] = { ideal: LINK_HITS_MAX, regular: { thr
 // declare var STRUCTURE_TERMINAL: string;
 
 
+export class Economy
+{
+    resources: StoreDefinition = <any>{};
+    demand: StoreDefinition = <any>{};
+
+    constructor()
+    {
+        for (let name of RESOURCES_ALL)
+        {
+            this.resources[name] = 0;
+            this.demand[name] = 0;
+        }
+    }
+
+    countStoreResources(store: StoreDefinition): void
+    {
+        for (let prop in store)
+        {
+            if (this.resources[prop] == null)
+            {
+                this.resources[prop] = 0;
+            }
+
+            this.resources[prop] += store[prop];
+        }
+    }
+}
+
+export class Budget
+{
+    construction: number;
+    upgrading: number;
+    repair: number;
+    savings: number;
+}
+
 export class SporeRoom extends Room
 {
-    tasksById: TaskSet = {};
+    untaskedCreepsByName: Dictionary<Creep> = {};
+    tasksById: Dictionary<Task> = {};
     tasks: Task[] = [];
     basicTasks: Task[] = [];
-    needsWorkers: boolean = false;
+
+    economy: Economy;
+    budget: Budget;
 
     get my(): boolean
     {
         let my = this.controller != null && (this.controller.my || (this.controller.reservation != null && this.controller.reservation.username == 'PCake0rigin'));
         Object.defineProperty(this, "my", {value: my});
         return my;
+    }
+
+    get priority(): number
+    {
+        let memory = Memory.rooms[this.name];
+        if (memory == null)
+        {
+            memory = <RoomMemory>{};
+            Memory.rooms[this.name] = memory;
+        }
+
+        if (memory.priority == null)
+        {
+            memory.priority = 100;
+        }
+
+        if (this.my && memory.priority <= 100)
+        {
+            memory.priority = 500;
+        }
+
+        Object.defineProperty(this, "priority", {value: memory.priority});
+        return memory.priority;
     }
 
     get sources(): Source[]
@@ -268,7 +377,7 @@ export class SporeRoom extends Room
             }
         });
 
-        Object.defineProperty(this, "extensions", {value: extensions});
+        //Object.defineProperty(this, "extensions", {value: extensions});
         return extensions;
     }
 
@@ -282,6 +391,18 @@ export class SporeRoom extends Room
 
         Object.defineProperty(this, "containers", {value: containers});
         return containers;
+    }
+
+    get ramparts(): StructureRampart[]
+    {
+        let ramparts = this.find<any>(FIND_STRUCTURES, {
+            filter: {
+                structureType: STRUCTURE_RAMPART
+            }
+        });
+
+        Object.defineProperty(this, "ramparts", {value: ramparts});
+        return ramparts;
     }
 
     get towers(): StructureTower[]
@@ -308,12 +429,19 @@ export class SporeRoom extends Room
         return links;
     }
 
+    _resources: Resource[] = null;
+    _resourcesFindTick: number = -1;
     get resources(): Resource[]
     {
-        let resources = this.find<Resource>(FIND_DROPPED_RESOURCES);
+        if (this._resources != null && this._resourcesFindTick === Game.time)
+        {
+            return this._resources;
+        }
 
-        Object.defineProperty(this, "resources", {value: resources});
-        return resources;
+        this._resources = this.find<Resource>(FIND_DROPPED_RESOURCES);
+        this._resourcesFindTick = Game.time;
+
+        return this._resources;
     }
 
     get constructionSites(): ConstructionSite[]
@@ -324,12 +452,84 @@ export class SporeRoom extends Room
         return constructionSites;
     }
 
+    get myCreeps(): Creep[]
+    {
+        let myCreeps = this.find<Creep>(FIND_MY_CREEPS);
+
+        Object.defineProperty(this, "myCreeps", {value: myCreeps});
+        return myCreeps;
+    }
+
     get hostileCreeps(): Creep[]
     {
-        let hostileCreeps = this.find<Creep>(FIND_HOSTILE_CREEPS);
+        let hostilesCreeps = this.find<Creep>(FIND_HOSTILE_CREEPS,
+            {
+                filter: (creep) =>
+                {
+                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
+                }
+            });
 
-        Object.defineProperty(this, "hostileCreeps", {value: hostileCreeps});
-        return hostileCreeps;
+        Object.defineProperty(this, "hostileCreeps", { value: hostilesCreeps });
+        return hostilesCreeps;
+    }
+
+    get friendlyCreeps() : Creep[]
+    {
+        let friendlyCreeps = this.find<Creep>(FIND_HOSTILE_CREEPS,
+            {
+                filter: (creep) =>
+                {
+                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+                }
+            });
+
+        Object.defineProperty(this, "friendlyCreeps", { value: friendlyCreeps });
+        return friendlyCreeps;
+    }
+
+    trackEconomy(): void
+    {
+        this.economy = new Economy();
+        this.budget = new Budget();
+
+        if (this.storage != null && this.storage.storeCapacityRemaining > 0)
+        {
+            this.budget.savings = 0.1;
+        }
+
+        for (let structure of this.containers)
+        {
+            if (structure.structureType === STRUCTURE_CONTAINER)
+            {
+                this.economy.countStoreResources((<StructureContainer>structure).store);
+            }
+        }
+
+        for (let structure of this.links)
+        {
+            if (structure.structureType === STRUCTURE_LINK)
+            {
+                this.economy.resources[RESOURCE_ENERGY] += (<StructureLink>structure).energy;
+            }
+        }
+
+        if (this.storage != null)
+        {
+            this.economy.countStoreResources(this.storage.store);
+        }
+
+        for (let resource of this.resources)
+        {
+            this.economy.resources[resource.resourceType] += resource.amount;
+        }
+
+        // for (let creep of this.myCreeps)
+        // {
+        //     this.economy.countStoreResources(creep.carry);
+        // }
+
+        console.log(this + ' economy energy ' + this.economy.resources.energy);
     }
 
     claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], receipt?: ClaimReceipt): ClaimReceipt
@@ -387,19 +587,50 @@ export class SporeRoom extends Room
         let tasks: Task[] = [];
 
         //////////////////////////////////////////////////////////////////////////////
+        // Harvest energy
+        {
+            for (let source of this.sources)
+            {
+                if (source.doIgnore)
+                {
+                    continue;
+                }
+
+                let task = new HarvestEnergy(ScreepsPtr.from<Source>(source));
+                task.priority = TaskPriority.Mandatory + 25;
+
+                let spawn = source.pos.findClosestByPath<Spawn>(this.mySpawns, <any>{ ignoreCreeps:true });
+                if (spawn != null)
+                {
+                    task.priority += Math.max(0, 150 - source.pos.findPathTo(spawn.pos, { ignoreCreeps:true }).length);
+                }
+
+                tasks.push(task);
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////////////
         // Fill Spawn and Extensions
         {
-            let transferTargets: RoomObject[] = [];
+            let transferTargets: ScreepsPtr<EnergyContainerLike | StoreContainerLike | CarryContainerLike>[] = [];
 
-            transferTargets.push.apply(transferTargets, this.mySpawns);
-            transferTargets.push.apply(transferTargets, this.extensions);
+            for (let spawn of this.mySpawns)
+            {
+                transferTargets.push(ScreepsPtr.from<Spawn>(spawn));
+            }
+
+            for (let extension of this.extensions)
+            {
+                transferTargets.push(ScreepsPtr.from<StructureExtension>(extension));
+            }
 
             if (transferTargets.length > 0)
             {
-                let task = new TransferResource("", transferTargets, RESOURCE_ENERGY, [['dropped'], ['link', 'container'], ['source'], ['storage']]);
-                task.priority = TaskPriority.Mandatory + 100;
-                task.name = "Transfer energy to all Spawns and Extensions";
-                task.possibleWorkers = 4;
+                let task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped'], ['source']]);
+                task.priority = TaskPriority.Mandatory + 200;
+                task.id = "Fill Spawns and Extensions " + this;
+                task.name = task.id;
+                //task.reserveWorkers = true;
 
                 tasks.push(task);
             }
@@ -411,7 +642,7 @@ export class SporeRoom extends Room
         {
             if (this.storage != null && this.storage.storeCapacityRemaining)
             {
-                let transferEnergyTask = new TransferResource("", [this.storage], RESOURCE_ENERGY, [['dropped'], ['link', 'container']]);
+                let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureStorage>(this.storage)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container'], ['dropped']]);
                 transferEnergyTask.priority = TaskPriority.High;
                 transferEnergyTask.name = "Transfer energy to " + this;
                 transferEnergyTask.possibleWorkers = 1;
@@ -423,8 +654,60 @@ export class SporeRoom extends Room
         //////////////////////////////////////////////////////////////////////////////
         // Upgrade room controller
         {
-            let task = new UpgradeRoomController("", this);
+            let task = new UpgradeRoomController(ScreepsPtr.from<Controller>(this.controller));
             tasks.push(task);
+        }
+
+        //////////////////////////////////////////////////////////////////////////////
+        // Reinforce barriers
+        {
+            let sites = _.filter(this.constructionSites, function(site:ConstructionSite)
+            {
+                if (site.structureType === STRUCTURE_RAMPART || site.structureType === STRUCTURE_WALL)
+                {
+                    return true;
+                }
+
+                return false;
+            });
+
+            let structures = _.filter(this.structures, function(structure:Structure)
+            {
+                if (structure.structureType === STRUCTURE_WALL &&
+                    (structure.pos.x === 0 || structure.pos.x === 49 ||
+                    structure.pos.y === 0 || structure.pos.y === 49))
+                {
+                    // don't repair newbie walls
+                    return false;
+                }
+
+                if (structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL)
+                {
+                    return true;
+                }
+
+                return false;
+            });
+
+            let barriers: ScreepsPtr<ConstructionSite | StructureWall | StructureRampart>[] =
+                _.map(sites, function(site: ConstructionSite)
+                {
+                    return ScreepsPtr.from<ConstructionSite>(site);
+                }).concat(
+                    _.map(structures, function(structure: Structure)
+                    {
+                        return ScreepsPtr.from<any>(structure);
+                    }));
+
+            let task = new BuildBarrier(barriers);
+            task.roomName = this.name;
+            tasks.push(task);
+        }
+
+        {
+            this.ramparts.forEach(x => {
+                x.setPublic(x.pos.findInRange(this.hostileCreeps, 2).length === 0);
+            });
         }
 
         //////////////////////////////////////////////////////////////////////////////
@@ -504,7 +787,12 @@ export class SporeRoom extends Room
 
                 //////////////////////////////////////////////////////////////////////////////
                 // Repair structures
-                if (structure.structureType == STRUCTURE_CONTROLLER)
+                if (structure.structureType === STRUCTURE_CONTROLLER)
+                {
+                    continue;
+                }
+
+                if (structure.structureType === STRUCTURE_WALL || structure.structureType === STRUCTURE_RAMPART)
                 {
                     continue;
                 }
@@ -517,6 +805,8 @@ export class SporeRoom extends Room
 
                 if ((structure.needsRepair && structure.hits < structureValue.ideal) || structure.hits < structureValue.regular.threshold)
                 {
+                    structure.needsRepair = true;
+
                     let wasTowerRepaired = false;
                     if (hasTowersForRepair)
                     {
@@ -538,7 +828,7 @@ export class SporeRoom extends Room
                     {
                         hasTowersForRepair = false;
 
-                        let repairTask = new RepairStructure("", structure);
+                        let repairTask = new RepairStructure(ScreepsPtr.from<Structure>(structure));
                         repairTask.priority = structureValue.regular.priority;
 
                         if (structure.dire == true || structure.hits < structureValue.dire.threshold)
@@ -548,7 +838,6 @@ export class SporeRoom extends Room
                             repairTask.name = "Repair " + structure;
                         }
 
-                        structure.needsRepair = true;
                         tasks.push(repairTask);
                     }
                 }

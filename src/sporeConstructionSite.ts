@@ -1,5 +1,6 @@
 import {Task, TaskPriority} from "./task";
 import {BuildStructure} from "./taskBuildStructure";
+import {ScreepsPtr} from "./screepsPtr";
 
 declare global
 {
@@ -30,7 +31,7 @@ export class SporeConstructionSite extends ConstructionSite
 
         if (roomMemory.sites == null)
         {
-            roomMemory.sites = [];
+            roomMemory.sites = {};
         }
 
         let memory = roomMemory.sites[this.id];
@@ -49,8 +50,11 @@ export class SporeConstructionSite extends ConstructionSite
     {
         let tasks: Task[] = [];
 
-        let task = new BuildStructure(this);
-        tasks.push(task);
+        if (this.structureType !== STRUCTURE_RAMPART && this.structureType !== STRUCTURE_WALL)
+        {
+            let task = new BuildStructure(ScreepsPtr.from<ConstructionSite>(this));
+            tasks.push(task);
+        }
 
         return tasks;
     }

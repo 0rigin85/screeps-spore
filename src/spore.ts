@@ -17,12 +17,21 @@ import {SporeColony} from "./sporeColony";
 import {SporeResource} from "./sporeResource";
 import {SporeLink} from "./sporeLink";
 
+declare global
+{
+    interface Memory {
+        routes: {
+            [fromRoom: string]: any;
+        };
+    }
+}
+
 export class Spore
 {
     constructor()
     { }
 
-    static colony: SporeColony = new SporeColony();
+    static colony: SporeColony = null;
 
     static inject(): void
     {

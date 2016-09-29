@@ -1,39 +1,37 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, ERR_CANNOT_PERFORM_TASK, TaskPriority, ERR_NO_WORK, ACTION_REPAIR} from './task';
+import {Task, TaskPriority, ERR_NO_WORK} from './task';
+import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
+import {ACTION_REPAIR, SporeCreep, CREEP_TYPE} from "./sporeCreep";
+import {BodyDefinition} from "./bodyDefinition";
 
 export class RepairStructure extends Task
 {
-    constructor(parentId: string, public structure: Structure)
+    idealCreepBody: BodyDefinition;
+
+    constructor(public structure: ScreepsPtr<Structure>)
     {
         super(false);
-        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Repair[" + structure.id + "]";
+        this.id = "Repair " + structure;
         this.name = "Repair " + structure;
         this.priority = TaskPriority.MediumHigh;
         this.possibleWorkers = 2;
+        this.idealCreepBody = CREEP_TYPE.CITIZEN;
     }
 
-    static deserialize(input: string): RepairStructure
+    prioritize(object: RoomObjectLike): number
     {
-        let parentId = "";
-        let parentSplitIndex = input.lastIndexOf(">");
-
-        if (parentSplitIndex >= 0)
+        if (object instanceof Creep)
         {
-            parentId = input.substring(0, parentSplitIndex);
+            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            {
+                return 0;
+            }
+
+            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
         }
 
-        let startingBraceIndex = input.lastIndexOf("[");
-        let structureId = input.substring(startingBraceIndex, input.length - 1);
-
-        let structure = Game.getObjectById<Structure>(structureId);
-
-        if (structure == null)
-        {
-            return null;
-        }
-
-        return new RepairStructure(parentId, structure);
+        return 0;
     }
 
     schedule(creep: Creep): number
@@ -43,28 +41,27 @@ export class RepairStructure extends Task
             return ERR_NO_WORK;
         }
 
-        if (creep.getActiveBodyparts(WORK) == 0 ||
-            creep.getActiveBodyparts(CARRY) == 0)
-        {
-            return ERR_CANNOT_PERFORM_TASK;
-        }
-
         let code;
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             (creep.action === ACTION_REPAIR && creep.carry[RESOURCE_ENERGY] > 0))
         {
-            code = this.goRepair(creep, this.structure);
+            code = creep.goRepair(this.structure);
         }
         else
         {
-            code = this.goCollect(
-                creep,
+            let amount = creep.carryCapacityRemaining;
+            if (!this.structure.isShrouded)
+            {
+                Math.min(creep.carryCapacityRemaining, this.structure.instance.hitsMissing / 100);
+            }
+
+            code = creep.goCollect(
                 RESOURCE_ENERGY,
-                Math.min(creep.carryCapacityRemaining, this.structure.hitsMissing / 100),
+                amount,
                 false,
                 this.structure.pos,
-                [['dropped'], ['link','container'], ['source'], ['storage']]);
+                [['near_dropped'], ['link','container','storage'], ['dropped']]);
         }
 
         if (code === OK && this.possibleWorkers > 0)

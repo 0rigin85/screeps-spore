@@ -3,6 +3,8 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {Task, TaskPriority} from "./task";
 import {TransferResource} from "./taskTransferResource";
+import {StoreContainerLike, ScreepsPtr} from "./screepsPtr";
+import {SporeCreep} from "./sporeCreep";
 
 declare global
 {
@@ -34,83 +36,86 @@ export class SporeContainer extends StructureContainer implements Claimable
     {
         let tasks: Task[] = [];
 
-        if (this.storeCount < this.storeCapacity)
-        {
-            let linkFlag = null;
-            let flags = this.room.lookForAt<Flag>(LOOK_FLAGS, this.pos);
-            for (let index = 0; index < flags.length; index++)
-            {
-                let flag = flags[index];
-
-                if (flag.color == COLOR_YELLOW)
-                {
-                    linkFlag = flag;
-                    break;
-                }
-            }
-
-            if (linkFlag != null)
-            {
-                let otherFlags = this.room.find<Flag>(FIND_FLAGS, {
-                    filter: {
-                        color: COLOR_YELLOW,
-                        secondaryColor: linkFlag.secondaryColor
-                    }
-                });
-
-                for (let index = 0; index < otherFlags.length; index++)
-                {
-                    let foundMatch = false;
-                    let otherFlag = otherFlags[index];
-
-                    if (otherFlag != null)
-                    {
-                        for (let source of this.room.sources)
-                        {
-                            if (source.pos.isEqualTo(otherFlag.pos))
-                            {
-                                let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, source);
-                                transferEnergyTask.priority = TaskPriority.Mandatory;
-                                transferEnergyTask.name = "Transfer energy to " + this + " from " + source;
-                                transferEnergyTask.possibleWorkers = 1;
-                                tasks.push(transferEnergyTask);
-
-                                foundMatch = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (foundMatch)
-                    {
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                let closestSource = <Source>this.pos.findClosestInRange(this.room.sources, 2);
-
-                if (closestSource != null)
-                {
-                    let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, closestSource);
-                    transferEnergyTask.priority = TaskPriority.Mandatory;
-                    transferEnergyTask.name = "Transfer energy to " + this + " from " + closestSource;
-                    transferEnergyTask.possibleWorkers = 1;
-
-                    tasks.push(transferEnergyTask);
-                }
-                else
-                {
-                    let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, [['dropped'], ['container']]);
-                    transferEnergyTask.priority = TaskPriority.High;
-                    transferEnergyTask.name = "Transfer energy to " + this;
-                    transferEnergyTask.possibleWorkers = 1;
-
-                    tasks.push(transferEnergyTask);
-                }
-            }
-        }
+        // if (this.storeCount < this.storeCapacity)
+        // {
+        //     let linkFlag = null;
+        //     let flags = this.room.lookForAt<Flag>(LOOK_FLAGS, this.pos);
+        //     for (let index = 0; index < flags.length; index++)
+        //     {
+        //         let flag = flags[index];
+        //
+        //         if (flag.color == COLOR_YELLOW)
+        //         {
+        //             linkFlag = flag;
+        //             break;
+        //         }
+        //     }
+        //
+        //     if (linkFlag != null)
+        //     {
+        //         let otherFlags = this.room.find<Flag>(FIND_FLAGS, {
+        //             filter: {
+        //                 color: COLOR_YELLOW,
+        //                 secondaryColor: linkFlag.secondaryColor
+        //             }
+        //         });
+        //
+        //         for (let index = 0; index < otherFlags.length; index++)
+        //         {
+        //             let foundMatch = false;
+        //             let otherFlag = otherFlags[index];
+        //
+        //             if (otherFlag != null)
+        //             {
+        //                 for (let source of this.room.sources)
+        //                 {
+        //                     if (source.pos.isEqualTo(otherFlag.pos))
+        //                     {
+        //                         let transferEnergyTask = new TransferResource([ScreepsPtr.from<StoreContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(source), null);
+        //                         transferEnergyTask.priority = TaskPriority.Mandatory;
+        //                         transferEnergyTask.name = "Transfer energy to " + this + " from " + source;
+        //                         transferEnergyTask.possibleWorkers = 1;
+        //                         transferEnergyTask.idealCreepBody = CREEP_TYPE.CITIZEN;
+        //                         tasks.push(transferEnergyTask);
+        //
+        //                         foundMatch = true;
+        //                         break;
+        //                     }
+        //                 }
+        //             }
+        //
+        //             if (foundMatch)
+        //             {
+        //                 break;
+        //             }
+        //         }
+        //     }
+        //     else
+        //     {
+        //         let closestSource = <Source>this.pos.findClosestInRange(this.room.sources, 2);
+        //
+        //         if (closestSource != null)
+        //         {
+        //             let transferEnergyTask = new TransferResource([ScreepsPtr.from<StoreContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(closestSource), null);
+        //             transferEnergyTask.priority = TaskPriority.Mandatory;
+        //             transferEnergyTask.name = "Transfer energy to " + this + " from " + closestSource;
+        //             transferEnergyTask.possibleWorkers = 1;
+        //             transferEnergyTask.idealCreepBody = CREEP_TYPE.MINER;
+        //
+        //             tasks.push(transferEnergyTask);
+        //         }
+        //         else
+        //         {
+        //             let transferEnergyTask = new TransferResource([ScreepsPtr.from<StoreContainerLike>(this)], RESOURCE_ENERGY, null, [['dropped'], ['container']]);
+        //             transferEnergyTask.priority = TaskPriority.High;
+        //             transferEnergyTask.name = "Transfer energy to " + this;
+        //             transferEnergyTask.possibleWorkers = 1;
+        //             transferEnergyTask.idealCreepBody = CREEP_TYPE.COURIER;
+        //
+        //             tasks.push(transferEnergyTask);
+        //         }
+        //     }
+        // }
 
         return tasks;
     }

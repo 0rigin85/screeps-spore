@@ -3,6 +3,7 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {Task, TaskPriority} from "./task";
 import {TransferResource} from "./taskTransferResource";
+import {ScreepsPtr} from "./screepsPtr";
 
 declare global
 {
@@ -90,7 +91,7 @@ export class SporeTower extends StructureTower implements Claimable
 
         if (this.energy < this.energyCapacity)
         {
-            let transferEnergyTask = new TransferResource("", [this], RESOURCE_ENERGY, [['dropped'], ['link', 'container'], ['source'], ['storage']]);
+            let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureTower>(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container'], ['storage'], ['dropped']]);
             transferEnergyTask.priority = TaskPriority.Mandatory;
             transferEnergyTask.name = "Fill " + this;
             tasks.push(transferEnergyTask);

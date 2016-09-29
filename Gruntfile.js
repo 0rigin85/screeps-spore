@@ -26,6 +26,17 @@ module.exports = function(grunt) {
                 }
             },
             screeps: {
+            new: {
+                options: {
+                    email: credentials.email,
+                    password: credentials.password,
+                    branch: 'new',
+                    ptr: false
+                },
+                files: {
+                    src: devsrc
+                }
+            },
             experimental: {
                 options: {
                     email: credentials.email,
@@ -61,7 +72,8 @@ module.exports = function(grunt) {
         }
     });
 
-    grunt.registerTask('default', ['screeps:experimental']);
-    grunt.registerTask('live', ['ts_clean', 'screeps:live']);
-    grunt.registerTask('browserify', ['browserify:dist']);
+    //grunt.registerTask('default', ['screeps:experimental']);
+    grunt.registerTask('new', ['screeps:new']);
+    //grunt.registerTask('live', ['ts_clean', 'screeps:live']);
+    //grunt.registerTask('browserify', ['browserify:dist']);
 };

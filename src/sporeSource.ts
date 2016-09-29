@@ -1,4 +1,5 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
+import {ScreepsPtr} from "./screepsPtr";
 
 declare global
 {
@@ -9,10 +10,12 @@ declare global
         doTrack: boolean;
 
         memory: SourceMemory;
+        slots: number;
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
 
         makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+        claims: SourceClaims;
     }
 }
 
@@ -21,6 +24,16 @@ export interface SourceMemory
     track: boolean;
 
     claimSlots: number;
+}
+
+export class SourceClaims
+{
+    constructor(private source: Source)
+    { }
+
+    count: number = 0;
+    work: number = 0;
+    energy: number = 0;
 }
 
 // unused mirror class of the screeps Source class used to make Typescript happy
@@ -38,10 +51,12 @@ class ScreepsSource implements Source
     doFavor: boolean;
     doTrack: boolean;
     memory: SourceMemory;
+    slots: number;
 
     collect(collector: any, claimReceipt: ClaimReceipt): number { return 0; }
 
     makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt  { return null; }
+    claims: SourceClaims;
 }
 
 export class SporeSource extends ScreepsSource implements Claimable
@@ -54,6 +69,50 @@ export class SporeSource extends ScreepsSource implements Claimable
     }
 
     doFavor: boolean;
+
+    static getSlots(source: ScreepsPtr<Source>): number
+    {
+        let roomMemory = Memory.rooms[source.pos.roomName];
+
+        if (roomMemory == null)
+        {
+            return -1;
+        }
+
+        if (roomMemory.sources == null)
+        {
+            roomMemory.sources = [];
+        }
+
+        let sourceMemory = roomMemory.sources[source.id];
+
+        if (sourceMemory == null)
+        {
+            sourceMemory = {};
+            roomMemory.sources[source.id] = sourceMemory;
+        }
+
+        if (sourceMemory.claimSlots == null)
+        {
+            sourceMemory.claimSlots = source.pos.getWalkableSurroundingArea();
+        }
+
+        return sourceMemory.claimSlots;
+    }
+
+    get slots(): number
+    {
+        let slots = this.memory.claimSlots;
+
+        if (slots == null)
+        {
+            slots = this.pos.getWalkableSurroundingArea();
+            this.memory.claimSlots = slots;
+        }
+
+        Object.defineProperty(this, "slots", {value: slots});
+        return slots;
+    }
 
     get memory(): SourceMemory
     {
@@ -93,54 +152,47 @@ export class SporeSource extends ScreepsSource implements Claimable
 
     makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
     {
+        //console.log('makeClaim ' + claimer);
         if (resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
-            amount > this.energy - this.claims.energy || // ensure our remaining energy meets their claim
-            this.claims.count >= this.claims.slots || //ensure we have open slots
+            (amount > this.energy - this.claims.energy && isExtended === false) || // ensure our remaining energy meets their claim
+            this.claims.count >= this.slots || //ensure we have open slots
             (this.claims.work >= 1 && isExtended === true)) // ensure for extended claims we have open work
         {
+            //console.log('makeClaim energy ' + (amount > this.energy - this.claims.energy && isExtended === false));
+            //console.log('makeClaim slots ' + (this.claims.count >= this.claims.slots));
+            //console.log('   makeClaim count ' + this.claims.count);
+            //console.log('   makeClaim slots ' + this.claims.slots);
+            //console.log('makeClaim work ' + (this.claims.work >= 1 && isExtended === true));
+
             return null;
         }
 
         this.claims.count++;
-        this.claims.energy += amount;
+        this.claims.energy += amount; // extended claims ignore the resource amount request on sources
 
         if (isExtended === true && claimer.getActiveBodyparts != null)
         {
             this.claims.work += claimer.getActiveBodyparts(WORK) / 5;
         }
 
+        //console.log('makeClaim success');
         return new ClaimReceipt(this, 'source', resourceType, amount);
     }
 
-    private get claims(): Claims
+    private _claimTick: number;
+    private _claims: SourceClaims;
+    get claims(): SourceClaims
     {
-        let claims = new Claims(this);
-
-        Object.defineProperty(this, "claims", {value: claims});
-        return claims;
-    }
-}
-
-class Claims
-{
-    constructor(private source: Source)
-    { }
-
-    count: number = 0;
-    work: number = 0;
-    energy: number = 0;
-
-    get slots(): number
-    {
-        let slots = this.source.memory.claimSlots;
-
-        if (slots == null)
+        if (this._claims != null && this._claimTick == Game.time)
         {
-            slots = this.source.pos.getWalkableSurroundingArea();
-            this.source.memory.claimSlots = slots;
+            return this._claims;
         }
 
-        Object.defineProperty(this, "slots", {value: slots});
-        return slots;
+        this._claimTick = Game.time;
+        this._claims = new SourceClaims(this);
+
+        //Object.defineProperty(this, "claims", {value: claims, configurable: true, enumerable: true});
+        return this._claims;
     }
 }
+

@@ -4,6 +4,7 @@ import {Task, TaskPriority} from './task';
 import {BuildStructure} from "./taskBuildStructure";
 import {DismantleStructure} from "./taskDismantleStructure";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
+import {ScreepsPtr} from "./screepsPtr";
 
 export class FlagDismantleStructure extends Task
 {
@@ -78,7 +79,7 @@ export class FlagDismantleStructure extends Task
 
                 if (this.structureType == null || this.structureType == type)
                 {
-                    steps.push(new DismantleStructure(this.id, structuresUnderFlag[index]));
+                    steps.push(new DismantleStructure(ScreepsPtr.from<Structure>(structuresUnderFlag[index])));
                 }
             }
         }

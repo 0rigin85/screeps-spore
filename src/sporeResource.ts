@@ -34,7 +34,7 @@ export class SporeResource extends Resource implements Claimable
     makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
     {
         if (resourceType != this.resourceType || // ensure they are trying to claim the correct resource
-            amount > this.amount - this.claims.amount) // ensure our remaining energy meets their claim
+            this.amount - this.claims.amount <= 0) // ensure there is remaining resources
         {
             return null;
         }

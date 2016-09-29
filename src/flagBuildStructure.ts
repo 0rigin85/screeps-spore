@@ -4,6 +4,7 @@ import {Task, TaskPriority} from './task';
 import {BuildStructure} from "./taskBuildStructure";
 import {DismantleStructure} from "./taskDismantleStructure";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
+import {ScreepsPtr} from "./screepsPtr";
 
 var REQUESTED_CONSTRUCTION_SITES_THIS_TICK: { [structureType: string]: number; } = { };
 
@@ -108,7 +109,7 @@ export class FlagBuildStructure extends Task
                 else if (type != STRUCTURE_RAMPART && type != STRUCTURE_ROAD)
                 {
                     // create tasks to dismantle it to make room for the extension
-                    steps.push(new DismantleStructure(this.id, structuresUnderFlag[index]));
+                    steps.push(new DismantleStructure(ScreepsPtr.from<Structure>(structuresUnderFlag[index])));
                     return steps;
                 }
             }
@@ -147,14 +148,14 @@ export class FlagBuildStructure extends Task
             }
             else
             {
-                let step = new UpgradeRoomController(this.id, this.flag.room);
+                let step = new UpgradeRoomController(ScreepsPtr.from<Controller>(this.flag.room.controller));
 
                 steps.push(step);
                 return steps;
             }
         }
 
-        steps.push(new BuildStructure(constructionSite));
+        steps.push(new BuildStructure(ScreepsPtr.from<ConstructionSite>(constructionSite)));
         return steps;
     }
 }

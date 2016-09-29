@@ -1,48 +1,38 @@
 
-import {Task, ERR_CANNOT_PERFORM_TASK, TaskPriority, ERR_NO_WORK} from './task';
+import {Task, TaskPriority, ERR_NO_WORK} from './task';
+import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
 
 export class RecycleCreep extends Task
 {
-    constructor(parentId: string, public spawn: Spawn)
+    constructor(public spawn: ScreepsPtr<Spawn>)
     {
         super(false);
-        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "Recycle[" + spawn.name + "]";
+        this.id = "Recycle " + spawn;
         this.priority = TaskPriority.MediumHigh;
-        this.name = "Recycling at Spawn[" + spawn.name + "]";
+        this.name = "Recycling at " + spawn;
         this.possibleWorkers = -1;
     }
 
-    static deserialize(input: string): RecycleCreep
+    prioritize(object: RoomObjectLike): number
     {
-        let parentId = "";
-        let parentSplitIndex = input.lastIndexOf(">");
-
-        if (parentSplitIndex >= 0)
+        if (object instanceof Creep)
         {
-            parentId = input.substring(0, parentSplitIndex);
+            let creep = <Creep>object;
+            return (50 - creep.body.length) / 50;
         }
 
-        let startingBraceIndex = input.lastIndexOf("[");
-        let spawnName = input.substring(startingBraceIndex, input.length - 1);
-
-        let spawn = Game.spawns[spawnName];
-
-        if (spawn == null)
-        {
-            return null;
-        }
-
-        return new RecycleCreep(parentId, spawn);
+        return 0;
     }
 
-    schedule(creep: Creep): number
+    schedule(object: RoomObjectLike): number
     {
-        if (this.possibleWorkers == 0)
+        if (this.possibleWorkers === 0 || !this.spawn.isValid || !(object instanceof Creep))
         {
             return ERR_NO_WORK;
         }
 
-        let code = this.goRecycle(creep, this.spawn);
+        let creep = <Creep>object;
+        let code = creep.goRecycle(this.spawn);
 
         if (code == OK && this.possibleWorkers > 0)
         {

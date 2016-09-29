@@ -1,5 +1,6 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {StructureMemory} from "./sporeStructure";
+import {BodyDefinition} from "./bodyDefinition";
 
 declare global
 {
@@ -8,6 +9,8 @@ declare global
         energyCapacityRemaining: number;
         needsRepair: boolean;
         dire: boolean;
+
+        getBody(creepBody: BodyDefinition, energyCapacityAvailable?: number): string[];
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
         makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
@@ -24,6 +27,82 @@ export class SporeSpawn extends Spawn implements Claimable
     get energyCapacityRemaining(): number
     {
         return this.energyCapacity - this.energy;
+    }
+
+    getBody(creepBody: BodyDefinition, energyCapacityAvailable?: number): string[]
+    {
+        if (energyCapacityAvailable == null)
+        {
+            energyCapacityAvailable = this.room.energyCapacityAvailable;
+        }
+
+        let body: string[] = [];
+        let bodyCost = 0;
+
+        let totalRequirements = creepBody.requirements.length;
+        let startingRequirementIndex = 0;
+        let requiredPartsAdded: number[] = [];
+        for (let index = 0; index < 50; ++index)
+        {
+            let cost = null;
+            let requirementIndex = startingRequirementIndex;
+
+            if (requirementIndex >= totalRequirements)
+            {
+                requirementIndex = 0;
+                startingRequirementIndex = totalRequirements - 1;
+            }
+
+            do
+            {
+                let requirement = creepBody.requirements[requirementIndex];
+
+                if (requiredPartsAdded[requirementIndex] == null || requiredPartsAdded[requirementIndex] < requirement.max)
+                {
+                    cost = BODYPART_COST[requirement.type] * requirement.increment;
+                    startingRequirementIndex = requirementIndex + 1;
+                    break;
+                }
+
+                requirementIndex++;
+                if (requirementIndex >= totalRequirements)
+                {
+                    requirementIndex = 0;
+                }
+            }
+            while (startingRequirementIndex != requirementIndex);
+
+            if (cost == null)
+            {
+                break;
+            }
+            else if ((bodyCost + cost) <= energyCapacityAvailable)
+            {
+                bodyCost += cost;
+
+                let requirement = creepBody.requirements[startingRequirementIndex - 1];
+
+                if (requiredPartsAdded[startingRequirementIndex - 1] == null)
+                {
+                    requiredPartsAdded[startingRequirementIndex - 1] = 0;
+                }
+
+                let originalRequiredPartsAdded = Math.floor(requiredPartsAdded[startingRequirementIndex - 1]);
+                requiredPartsAdded[startingRequirementIndex - 1] += requirement.increment;
+                let totalIncrement = Math.floor(requiredPartsAdded[startingRequirementIndex - 1]) - originalRequiredPartsAdded;
+
+                for (let increment = 0; increment < totalIncrement; ++increment)
+                {
+                    body.push(requirement.type);
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return body;
     }
 
     collect(collector: any, claimReceipt: ClaimReceipt): number

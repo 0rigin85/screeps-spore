@@ -1,6 +1,7 @@
 /// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
 import {Spore} from "./spore";
+import {SporeColony} from "./sporeColony";
 
 declare var module: any;
 
@@ -16,7 +17,9 @@ module.exports.loop = function() {
     }
 
     Spore.inject();
+    Spore.colony = new SporeColony();
     Spore.colony.run();
+
 
     // for(let name in Memory.creeps)
     // {

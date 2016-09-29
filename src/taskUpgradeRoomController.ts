@@ -1,91 +1,109 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, TaskPriority, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK, ACTION_UPGRADE} from './task';
+import {Task, TaskPriority, ERR_NO_WORK, LaborDemandType} from './task';
+import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
+import {ACTION_UPGRADE, SporeCreep, CREEP_TYPE} from "./sporeCreep";
+import {BodyDefinition} from "./bodyDefinition";
+import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 
 export class UpgradeRoomController extends Task
 {
-    constructor(public parentId: string, public room: Room)
+    idealCreepBody: BodyDefinition;
+
+    constructor(public controller: ScreepsPtr<Controller>)
     {
         super(false);
-        this.id = "UpgradeRoomController[" + room.name + "]";
-        this.name = "Upgrade Room [" + room.name + "] Controller";
+        this.id = "Upgrade " + controller;
+        this.name = "Upgrade " + controller;
         this.possibleWorkers = -1;
-
+        this.idealCreepBody = CREEP_TYPE.CITIZEN;
+        this.roomName = controller.pos.roomName;
         this.priority = TaskPriority.Low;
 
-        if (room.controller.ticksToDowngrade < 2000)
+        if (!controller.isShrouded)
         {
-            this.priority = TaskPriority.Mandatory * 2;
+            if (controller.instance.ticksToDowngrade < 2000)
+            {
+                this.priority = TaskPriority.Mandatory * 2;
+            }
+            else if (controller.instance.ticksToDowngrade < 3000)
+            {
+                this.priority = TaskPriority.Mandatory;
+            }
+            else if (controller.instance.level < 2)
+            {
+                console.log('////////////////// ' + controller.instance.level);
+                this.priority = TaskPriority.Mandatory - 100;
+            }
         }
-        else if (room.controller.ticksToDowngrade < 3000)
-        {
-            this.priority = TaskPriority.Mandatory;
-        }
-        else if (room.controller.level < 2)
-        {
-            this.priority = TaskPriority.Mandatory - 100;
-        }
+
+        let carryDemand = 24;//Math.ceil((controller.room.economy.resources.energy * controller.room.budget.upgrade) / CARRY_CAPACITY);
+        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: carryDemand }, 1, 50);
     }
 
-    static deserialize(input: string): UpgradeRoomController
+    createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
     {
-        let parentId = "";
-        let parentSplitIndex = input.lastIndexOf(">");
-
-        if (parentSplitIndex >= 0)
-        {
-            parentId = input.substring(0, parentSplitIndex);
-        }
-
-        let startingBraceIndex = input.lastIndexOf("[");
-        let roomName = input.substring(startingBraceIndex, input.length - 1);
-
-        let room = Game.rooms[roomName];
-
-        if (room == null)
-        {
-            return null;
-        }
-
-        return new UpgradeRoomController(parentId, room);
+        return super.createBasicAppointment(spawn, request, this.controller);
     }
 
-    schedule(creep: Creep): number
+    prioritize(object: RoomObjectLike): number
     {
-        if (this.possibleWorkers === 0)
+        if (object instanceof Creep)
+        {
+            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            {
+                return 0;
+            }
+
+            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+        }
+
+        return 0;
+    }
+
+    beginScheduling(): void
+    {
+
+    }
+
+    schedule(object: RoomObjectLike): number
+    {
+        if (this.possibleWorkers === 0 || !this.controller.isValid || !(object instanceof Creep))
         {
             return ERR_NO_WORK;
         }
 
-        if (creep.getActiveBodyparts(WORK) === 0 ||
-            creep.getActiveBodyparts(CARRY) === 0)
-        {
-            return ERR_CANNOT_PERFORM_TASK;
-        }
-
+        let creep = <Creep>object;
         let code;
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             (creep.action === ACTION_UPGRADE && creep.carry[RESOURCE_ENERGY] > 0))
         {
-            code = this.goUpgrade(creep, this.room.controller);
+            code = creep.goUpgrade(this.controller);
         }
         else
         {
-            code = this.goCollect(
-                creep,
+            code = creep.goCollect(
                 RESOURCE_ENERGY,
                 creep.carryCapacityRemaining,
                 false,
-                this.room.controller.pos,
-                [['dropped'], ['link','container'], ['source'], ['storage']]);
+                this.controller.pos,
+                [['near_dropped'], ['link','container','storage'], ['dropped']]);
         }
 
-        if (code === OK && this.possibleWorkers > 0)
+        if (code === OK)
         {
-            this.possibleWorkers--;
+            if (this.possibleWorkers > 0)
+            {
+                this.possibleWorkers--;
+            }
         }
 
         return code;
+    }
+
+    endScheduling(): void
+    {
+
     }
 }
