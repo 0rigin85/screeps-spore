@@ -11,6 +11,7 @@ export class RecycleCreep extends Task
         this.priority = TaskPriority.MediumHigh;
         this.name = "Recycling at " + spawn;
         this.possibleWorkers = -1;
+        this.near = spawn;
     }
 
     prioritize(object: RoomObjectLike): number

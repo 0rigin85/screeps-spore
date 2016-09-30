@@ -17,6 +17,7 @@ export const enum TaskPriority
     ExtraDemandBoost = 10,
 }
 
+export var NO_MORE_WORK: number = 123;
 export var ERR_NO_WORK: number = -400;
 export var ERR_CANNOT_PERFORM_TASK: number = -401;
 
@@ -50,6 +51,7 @@ export class Task
     priority: number = 50;
     roomName: string;
     labor: LaborDemand = new LaborDemand();
+    near: RoomObjectLike = null;
 
     constructor(public isComplex: boolean)
     { }
@@ -157,7 +159,14 @@ export class Task
             // 61 - 70
             if (creep.task == this)
             {
-                objectPriority += 0.1;
+                if (creep.taskPriority >= 0)
+                {
+                    objectPriority += 0.1 + (((100 - creep.taskPriority) / 100) * 0.01);
+                }
+                else
+                {
+                    objectPriority += 0.1;
+                }
             }
         }
         else if (creep.task != null && creep.task != this)
@@ -174,22 +183,6 @@ export class Task
 
         objectPriority += (20 * taskEfficiency) / 100;
         //console.log(object + ' objectPriority as ' + this.idealCreepBody.name + ' ' + objectPriority);
-
-        if (near != null)
-        {
-            // 91 - 100 : distance
-            let distance = creep.pos.findDistanceByPathTo(near);
-
-            if (distance < 150)
-            {
-                let modifier = ((Math.max(0, 150 - distance) / 150) * 10) / 100;
-                objectPriority += modifier;
-
-                //console.log(object + ' distance ' + distance);
-                //console.log(object + ' objectPriority modifier ' + modifier);
-                //console.log(object + ' final objectPriority ' + objectPriority);
-            }
-        }
 
         return objectPriority;
     }

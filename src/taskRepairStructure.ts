@@ -1,6 +1,6 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, TaskPriority, ERR_NO_WORK} from './task';
+import {Task, TaskPriority, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK} from './task';
 import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
 import {ACTION_REPAIR, SporeCreep, CREEP_TYPE} from "./sporeCreep";
 import {BodyDefinition} from "./bodyDefinition";
@@ -17,6 +17,7 @@ export class RepairStructure extends Task
         this.priority = TaskPriority.MediumHigh;
         this.possibleWorkers = 2;
         this.idealCreepBody = CREEP_TYPE.CITIZEN;
+        this.near = structure;
     }
 
     prioritize(object: RoomObjectLike): number
@@ -34,14 +35,21 @@ export class RepairStructure extends Task
         return 0;
     }
 
-    schedule(creep: Creep): number
+    schedule(object: RoomObjectLike): number
     {
         if (this.possibleWorkers == 0)
         {
             return ERR_NO_WORK;
         }
 
+        if (!(object instanceof Creep))
+        {
+            console.log('ERROR: Attempted to harvest with a non-creep room object. ' + object);
+            return ERR_CANNOT_PERFORM_TASK;
+        }
+
         let code;
+        let creep = <Creep>object;
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             (creep.action === ACTION_REPAIR && creep.carry[RESOURCE_ENERGY] > 0))
@@ -61,7 +69,8 @@ export class RepairStructure extends Task
                 amount,
                 false,
                 this.structure.pos,
-                [['near_dropped'], ['link','container','storage'], ['dropped']]);
+                [['near_dropped'], ['link','container','storage'], ['dropped']],
+                {});
         }
 
         if (code === OK && this.possibleWorkers > 0)

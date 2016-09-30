@@ -75,20 +75,6 @@ export class SporeFlag extends Flag
                 }
             }
         }
-        else if (this.color == COLOR_ORANGE)
-        {
-            let lookResults: LookAtResult[] = this.room.lookAt(this);
-
-            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
-            {
-                let lookObject = lookResults[lookIndex];
-
-                if (lookObject.type == LOOK_SOURCES)
-                {
-                    lookObject.source.doFavor = true;
-                }
-            }
-        }
 
         return tasks;
     }

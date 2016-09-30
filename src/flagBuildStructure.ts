@@ -29,6 +29,14 @@ export class FlagBuildStructure extends Task
         {
             this.structureType = STRUCTURE_TOWER;
         }
+        else if (this.flag.secondaryColor == COLOR_CYAN)
+        {
+            this.structureType = STRUCTURE_LINK;
+        }
+        else if (this.flag.secondaryColor == COLOR_BLUE)
+        {
+            this.structureType = STRUCTURE_STORAGE;
+        }
     }
 
     static deserialize(input: string): FlagBuildStructure

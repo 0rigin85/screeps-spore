@@ -1,4 +1,4 @@
-import {Task, ERR_NO_WORK, TaskPriority, LaborDemandType} from './task';
+import {Task, ERR_NO_WORK, TaskPriority, LaborDemandType, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK} from './task';
 import Dictionary = _.Dictionary;
 import {SporeCreep, ACTION_BUILD, CREEP_TYPE, ACTION_REPAIR, ACTION_MOVE} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
@@ -8,7 +8,10 @@ import {BodyDefinition} from "./bodyDefinition";
 export class BuildBarrier extends Task
 {
     idealCreepBody: BodyDefinition;
-    minimumRampartHits: number = RAMPART_DECAY_AMOUNT * 10;
+    workers: number = 0;
+    direRampartHits: number = RAMPART_DECAY_AMOUNT * 10;
+    averageHits: number = 0;
+    averageDelta: number = 1000;
     requiredCarryPerBarrier: number = 0.25;
     scheduledCarry: number = 0;
 
@@ -21,6 +24,19 @@ export class BuildBarrier extends Task
         this.possibleWorkers = -1;
         this.priority = TaskPriority.Medium;
         this.idealCreepBody = CREEP_TYPE.CITIZEN;
+
+        let totalHits = 0;
+        let total = 0;
+        for (let barrier of barriers)
+        {
+            if (barrier.isValid && !barrier.isShrouded && barrier.lookType === LOOK_STRUCTURES)
+            {
+                total++;
+                totalHits += (<Structure><any>barrier.instance).hits;
+            }
+        }
+
+        this.averageHits = totalHits / total;
 
         this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((this.requiredCarryPerBarrier * this.barriers.length) / CARRY_CAPACITY) }, 1, 10);
     }
@@ -38,8 +54,8 @@ export class BuildBarrier extends Task
             let aIsShrouded = a.isShrouded;
             let bIsShrouded = b.isShrouded;
 
-            let aIsDireRampart = aIsRampart && !aIsShrouded && (<Structure><any>a.instance).hits < this.minimumRampartHits;
-            let bIsDireRampart = bIsRampart && !bIsShrouded && (<Structure><any>b.instance).hits < this.minimumRampartHits;
+            let aIsDireRampart = aIsRampart && !aIsShrouded && (<Structure><any>a.instance).hits < this.direRampartHits;
+            let bIsDireRampart = bIsRampart && !bIsShrouded && (<Structure><any>b.instance).hits < this.direRampartHits;
 
             if (aIsDireRampart && bIsDireRampart)
             {
@@ -102,9 +118,23 @@ export class BuildBarrier extends Task
             let aHits = (<Structure><any>a.instance).hits;
             let bHits = (<Structure><any>b.instance).hits;
 
-            if (aHits === bHits)
+            let ideal = this.averageHits + this.averageDelta;
+            let aIsIdeal = aHits >= ideal;
+            let bIsIdeal = bHits >= ideal;
+
+            if (aIsIdeal && bIsIdeal)
             {
                 return this.comparePosition(a, b);
+            }
+
+            if (!aIsIdeal && bIsIdeal)
+            {
+                return -1;
+            }
+
+            if (aIsIdeal && !bIsIdeal)
+            {
+                return 1;
             }
 
             if (aHits < bHits)
@@ -112,7 +142,12 @@ export class BuildBarrier extends Task
                 return -1;
             }
 
-            return 1;
+            if (aHits > bHits)
+            {
+                return 1;
+            }
+
+            return this.comparePosition(a, b);
         }.bind(this));
 
         // for (let ptr of this.barriers)
@@ -179,24 +214,31 @@ export class BuildBarrier extends Task
 
     schedule(object: RoomObjectLike): number
     {
-        if (this.possibleWorkers === 0 || !(object instanceof Creep) || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length)
+        if (this.possibleWorkers === 0 || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length)
         {
             return ERR_NO_WORK;
         }
 
+        if (!(object instanceof Creep))
+        {
+            console.log('ERROR: Attempted to reinforce barriers with a non-creep room object. ' + object);
+            return ERR_CANNOT_PERFORM_TASK;
+        }
+
+        let nextBarrier = 0;//Math.min(this.workers, this.barriers.length);
         let creep = <Creep>object;
         let code;
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             ((creep.action === ACTION_BUILD || creep.action === ACTION_REPAIR || creep.action === ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0))
         {
-            if (this.barriers[0].lookType === LOOK_CONSTRUCTION_SITES)
+            if (this.barriers[nextBarrier].lookType === LOOK_CONSTRUCTION_SITES)
             {
-                code = creep.goBuild(<ScreepsPtr<ConstructionSite>>this.barriers[0]);
+                code = creep.goBuild(<ScreepsPtr<ConstructionSite>>this.barriers[nextBarrier]);
             }
             else
             {
-                code = creep.goRepair(<ScreepsPtr<Structure>><any>this.barriers[0]);
+                code = creep.goRepair(<ScreepsPtr<Structure>><any>this.barriers[nextBarrier]);
             }
         }
         else
@@ -207,18 +249,25 @@ export class BuildBarrier extends Task
                 RESOURCE_ENERGY,
                 amount,
                 false,
-                this.barriers[0].pos,
-                [['near_dropped'], ['link','container','storage'], ['dropped']]);
+                this.barriers[nextBarrier].pos,
+                [['near_dropped'], ['link','container','storage'], ['dropped']],
+                {});
         }
 
         if (code === OK)
         {
+            this.workers++;
             this.scheduledCarry += creep.getActiveBodyparts(CARRY);
 
             if (this.possibleWorkers > 0)
             {
                 this.possibleWorkers--;
             }
+        }
+
+        if (this.possibleWorkers === 0 || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length)
+        {
+            return NO_MORE_WORK;
         }
 
         return code;

@@ -1,6 +1,6 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, LaborDemandType} from './task';
+import {Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, LaborDemandType, NO_MORE_WORK} from './task';
 import {CREEP_TYPE} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
 import {SpawnAppointment, SpawnRequest} from "./spawnRequest";
@@ -18,11 +18,12 @@ export class HarvestEnergy extends Task
         super(false);
 
         this.id = 'Harvesting ' + this.source;
-        this.name = 'Harvesting ' + this.source;
+        this.name = 'Harvesting ' + this.source.toHtml();
         this.possibleWorkers = -1;
         this.priority = TaskPriority.Mandatory;
         this.idealCreepBody = CREEP_TYPE.MINER;
         this.roomName = this.source.pos.roomName;
+        this.near = source;
 
         let slots = SporeSource.getSlots(this.source);
 
@@ -180,6 +181,12 @@ export class HarvestEnergy extends Task
             {
                 this.possibleWorkers--;
             }
+        }
+
+        if (this.possibleWorkers === 0 || this.scheduledWork >= 1 || !this.source.isValid ||
+            (!this.source.isShrouded && this.scheduledWorkers.length >= this.source.instance.slots))
+        {
+            return NO_MORE_WORK;
         }
 
         return code;

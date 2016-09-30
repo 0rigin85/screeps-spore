@@ -1,11 +1,15 @@
 
 import Dictionary = _.Dictionary;
-import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK} from "./task";
+import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK} from "./task";
 import {RecycleCreep} from "./taskRecycleCreep";
 import {ScreepsPtr} from "./screepsPtr";
 import {SpawnAppointment, SpawnRequest} from "./spawnRequest";
 import {SporeCreep, CREEP_TYPE} from "./sporeCreep";
 import {Economy} from "./sporeRoom";
+import {HarvestEnergy} from "./taskHarvestEnergy";
+import {TransferResource} from "./taskTransferResource";
+import {UpgradeRoomController} from "./taskUpgradeRoomController";
+import {BuildBarrier} from "./taskBuildBarrier";
 
 export class LaborPoolType
 {
@@ -158,55 +162,87 @@ export class SporeColony
                 taskLaborPools[task.id] = new LaborPool();
 
                 task.beginScheduling();
-                let prioritizedCreeps = this.getCreepsByPriority(task, creeps, priorityCache);
+                let prioritizedCreeps = this.getCreepsByTier(task, creeps, priorityCache);
 
                 let code = OK;
+                let creepTaskPriority = 0;
 
-                //console.log(task.name);
-                for (let creep of prioritizedCreeps)
+                for (let index = 0; index < prioritizedCreeps.length; index++)
                 {
-                    //console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
+                    let tierCreeps = prioritizedCreeps[index];
 
-                    if (creep.type != null && task.labor.types[creep.type] != null)
+                    if (tierCreeps.length > 1)
                     {
-                        taskLaborPools[task.id].addCreep(creep);
+                        console.log('//////  Sorting Tier ' + index + ' for ' + task.name);
+                        this.sortCreepsBySecondPriority(task, tierCreeps);
                     }
 
-                    if (code === ERR_NO_WORK)
+                    for (let creep of tierCreeps)
                     {
-                        continue;
-                    }
-
-                    code = task.schedule(creep);
-                    if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task))
-                    {
-                        creep.task = task;
-
-                        // remove creep now that it's been scheduled
-                        creeps[creep.name] = null;
-                        delete creeps[creep.name];
-                        console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
-
-                        if (creep.ticksToLive < 300 && CREEP_TYPE[creep.type] != null && creep.task != null)
+                        if (creep.type != null && task.labor.types[creep.type] != null)
                         {
-                            this.spawnRequests.push(new SpawnRequest('replace_' + creep.name, null, creep, CREEP_TYPE[creep.type]));
+                            taskLaborPools[task.id].addCreep(creep);
+                        }
+
+                        if (code === ERR_NO_WORK)
+                        {
+                            break;
+                        }
+
+                        code = task.schedule(creep);
+                        if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task))
+                        {
+                            creep.task = task;
+                            creep.taskPriority = creepTaskPriority;
+                            creepTaskPriority++;
+
+                            // remove creep now that it's been scheduled
+                            creeps[creep.name] = null;
+                            delete creeps[creep.name];
+                            console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
+
+                            if (creep.ticksToLive < 300 && CREEP_TYPE[creep.type] != null && creep.task != null)
+                            {
+                                this.spawnRequests.push(new SpawnRequest('replace_' + creep.name, null, creep, CREEP_TYPE[creep.type]));
+                            }
+
+                            if (code === NO_MORE_WORK)
+                            {
+                                break;
+                            }
+                        }
+                        else if (code === ERR_NO_WORK)
+                        {
+
+                        }
+                        else if (code === ERR_CANNOT_PERFORM_TASK)
+                        {
+                            //skip this creep
+                            console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
+                        }
+                        else
+                        {
+                            console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
                         }
                     }
-                    else if (code === ERR_NO_WORK)
-                    {
 
-                    }
-                    else if (code === ERR_CANNOT_PERFORM_TASK)
+                    if (code === NO_MORE_WORK || code === ERR_NO_WORK)
                     {
-                        //skip this creep
-                        console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
-                    }
-                    else
-                    {
-                        console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
+                        break;
                     }
                 }
                 task.endScheduling();
+
+                // for (let index = 0; index < prioritizedCreeps.length; index++)
+                // {
+                //     for (let creep of prioritizedCreeps[index])
+                //     {
+                //         if (task instanceof UpgradeRoomController)
+                //         {
+                //             console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
+                //         }
+                //     }
+                // }
 
                 for(let name in task.labor.types)
                 {
@@ -262,7 +298,10 @@ export class SporeColony
         }
 
         this.spawnCreeps();
-        this.recycleCreeps(creeps);
+
+        let totalSurplusCreeps = _.size(creeps);
+        console.log("Surplus Creeps: " + totalSurplusCreeps);
+        //this.recycleCreeps(creeps);
     }
 
     collectTasks(): void
@@ -375,6 +414,8 @@ export class SporeColony
             }
         }
 
+        let distanceCache: Dictionary<number> = {};
+
         creepsByPriority.sort(function (a, b)
         {
             let priorityA = priorityCache[a.id];
@@ -390,6 +431,120 @@ export class SporeColony
                 return -1;
             }
 
+            return 0;
+        });
+
+        // if (_.size(creepsByPriority) > 0)
+        // {
+        //     console.log(task.name + ' creep priority: ' + _.size(creepsByPriority));
+        //     for (let creep of creepsByPriority)
+        //     {
+        //         console.log('   ' + creep.name + ' ' + priorityCache[creep.id]);
+        //     }
+        // }
+
+        return creepsByPriority;
+    }
+
+    getCreepsByTier(task: Task, creeps: Dictionary<Creep>, priorityCache?: Dictionary<number>): Creep[][]
+    {
+        if (priorityCache == null)
+        {
+            priorityCache = {};
+        }
+
+        let creepsByPriority: Creep[] = [];
+
+        for (let name in creeps)
+        {
+            let creep = creeps[name];
+            let priority = task.prioritize(creep);
+
+            if (priority > 0)
+            {
+                priorityCache[creep.id] = priority;
+                creepsByPriority.push(creep);
+            }
+        }
+
+        creepsByPriority.sort(function (a, b)
+        {
+            let priorityA = priorityCache[a.id];
+            let priorityB = priorityCache[b.id];
+
+            if (priorityA < priorityB)
+            {
+                return 1;
+            }
+
+            if (priorityA > priorityB)
+            {
+                return -1;
+            }
+
+            return 0;
+        });
+
+        let tier = -1;
+        let creepsByTier = [];
+        let lastPriority = -1;
+        for (let creep of creepsByPriority)
+        {
+            if (priorityCache[creep.id] != lastPriority)
+            {
+                lastPriority = priorityCache[creep.id];
+                tier++;
+                creepsByTier.push([]);
+            }
+
+            creepsByTier[tier].push(creep);
+        }
+
+        // if (_.size(creepsByPriority) > 0)
+        // {
+        //     console.log(task.name + ' creep priority: ' + _.size(creepsByPriority));
+        //     for (let creep of creepsByPriority)
+        //     {
+        //         console.log('   ' + creep.name + ' ' + priorityCache[creep.id]);
+        //     }
+        // }
+
+        return creepsByTier;
+    }
+
+    sortCreepsBySecondPriority(task: Task, creeps: Creep[]): void
+    {
+        let distanceCache: Dictionary<number> = {};
+
+        creeps.sort(function (a, b)
+        {
+            if (task.near != null)
+            {
+                let aDistance = distanceCache[a.pos.toString()];
+                if (aDistance == null)
+                {
+                    aDistance = a.pos.findDistanceByPathTo(task.near);
+                    distanceCache[a.pos.toString()] = aDistance;
+                }
+
+                let bDistance = distanceCache[b.pos.toString()];
+                if (bDistance == null)
+                {
+                    bDistance = b.pos.findDistanceByPathTo(task.near);
+                    distanceCache[b.pos.toString()] = bDistance;
+                }
+
+                if (aDistance < bDistance)
+                {
+                    return 1;
+                }
+
+                if (aDistance > bDistance)
+                {
+                    return -1;
+                }
+            }
+
             if (a.name < b.name)
             {
                 return 1;
@@ -402,18 +557,6 @@ export class SporeColony
 
             return 0;
         });
-
-
-        // if (_.size(creepsByPriority) > 0)
-        // {
-        //     console.log(task.name + ' creep priority: ' + _.size(creepsByPriority));
-        //     for (let creep of creepsByPriority)
-        //     {
-        //         console.log('   ' + creep.name + ' ' + priorityCache[creep.id]);
-        //     }
-        // }
-
-        return creepsByPriority;
     }
 
     sortAppointments(appointments: SpawnAppointment[]): void
@@ -617,15 +760,15 @@ export class SporeColony
         for (let name in Game.spawns)
         {
             let spawn = Game.spawns[name];
-            if (spawn.spawning != null)
-            {
-                let creep = Game.creeps[spawn.spawning.name];
-                if (creep.spawnRequest != null)
-                {
-                    this.requestsCurrentlySpawning.push(creep.spawnRequest.id);
-                }
-            }
-            else
+            // if (spawn.spawning != null)
+            // {
+            //     let creep = Game.creeps[spawn.spawning.name];
+            //     if (creep.spawnRequest != null)
+            //     {
+            //         this.requestsCurrentlySpawning.push(creep.spawnRequest.id);
+            //     }
+            // }
+            // else
             {
                 hasNonWorkingSpawn = true;
                 appointmentsBySpawn[spawn.name] = [];

@@ -1,6 +1,6 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, TaskPriority, ERR_NO_WORK, LaborDemandType} from './task';
+import {Task, TaskPriority, ERR_NO_WORK, LaborDemandType, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK} from './task';
 import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
 import {ACTION_UPGRADE, SporeCreep, CREEP_TYPE} from "./sporeCreep";
 import {BodyDefinition} from "./bodyDefinition";
@@ -14,11 +14,12 @@ export class UpgradeRoomController extends Task
     {
         super(false);
         this.id = "Upgrade " + controller;
-        this.name = "Upgrade " + controller;
+        this.name = "Upgrade " + controller.toHtml();
         this.possibleWorkers = -1;
         this.idealCreepBody = CREEP_TYPE.CITIZEN;
         this.roomName = controller.pos.roomName;
         this.priority = TaskPriority.Low;
+        this.near = controller;
 
         if (!controller.isShrouded)
         {
@@ -32,7 +33,6 @@ export class UpgradeRoomController extends Task
             }
             else if (controller.instance.level < 2)
             {
-                console.log('////////////////// ' + controller.instance.level);
                 this.priority = TaskPriority.Mandatory - 100;
             }
         }
@@ -68,9 +68,15 @@ export class UpgradeRoomController extends Task
 
     schedule(object: RoomObjectLike): number
     {
-        if (this.possibleWorkers === 0 || !this.controller.isValid || !(object instanceof Creep))
+        if (this.possibleWorkers === 0 || !this.controller.isValid)
         {
             return ERR_NO_WORK;
+        }
+
+        if (!(object instanceof Creep))
+        {
+            console.log('ERROR: Attempted to upgrade a room controller with a non-creep room object. ' + object);
+            return ERR_CANNOT_PERFORM_TASK;
         }
 
         let creep = <Creep>object;
@@ -88,7 +94,8 @@ export class UpgradeRoomController extends Task
                 creep.carryCapacityRemaining,
                 false,
                 this.controller.pos,
-                [['near_dropped'], ['link','container','storage'], ['dropped']]);
+                [['near_dropped'], ['link','container','storage'], ['dropped']],
+                {});
         }
 
         if (code === OK)
@@ -97,6 +104,11 @@ export class UpgradeRoomController extends Task
             {
                 this.possibleWorkers--;
             }
+        }
+
+        if (this.possibleWorkers === 0)
+        {
+            return NO_MORE_WORK;
         }
 
         return code;

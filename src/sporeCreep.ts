@@ -6,6 +6,7 @@ import {SporeColony} from "./sporeColony";
 import {RoomObjectLike, ScreepsPtr, CarryContainerLike, StoreContainerLike, EnergyContainerLike} from "./screepsPtr";
 import {BodyDefinition, BodyPartRequirements} from "./bodyDefinition";
 import {SpawnRequest} from "./spawnRequest";
+import Dictionary = _.Dictionary;
 
 declare global
 {
@@ -13,6 +14,7 @@ declare global
     {
         carryCount: number;
         task: Task;
+        taskPriority: number;
         action: string;
         actionTarget: string;
         claimReceipt: ClaimReceipt;
@@ -32,7 +34,7 @@ declare global
         goBuild(site: ScreepsPtr<ConstructionSite>): number;
         goDismantle(structure: ScreepsPtr<Structure>): number;
         goRepair(structure: ScreepsPtr<Structure>): number;
-        goCollect(resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][]): number;
+        goCollect(resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number;
         goUpgrade(controller: ScreepsPtr<Controller>): number;
         goRecycle(spawn: ScreepsPtr<Spawn>): number;
     }
@@ -48,6 +50,7 @@ interface SpawnRequestMemory
 export interface CreepMemory
 {
     taskId: string;
+    taskPriority: number;
     spawnRequest: SpawnRequestMemory;
 
     action: string;
@@ -76,7 +79,7 @@ export var CREEP_TYPE: {
 } = <any>{};
 
 var bodyDefinition = new BodyDefinition('MINER');
-bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 6, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 5, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 1, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 1, 1, 1));
 CREEP_TYPE.MINER = bodyDefinition;
@@ -177,7 +180,7 @@ export class SporeCreep extends Creep
             }
 
             totalMaxRequiredParts += requirement.max;
-            totalRequiredParts += bodyParts.length;
+            totalRequiredParts += Math.min(bodyParts.length, requirement.max);
         }
 
         return totalRequiredParts / totalMaxRequiredParts;
@@ -292,6 +295,45 @@ export class SporeCreep extends Creep
         else
         {
             memory.taskId = value.id;
+        }
+    }
+
+    private _taskPriority: number;
+    get taskPriority(): number
+    {
+        if (this._taskPriority != null)
+        {
+            return this._taskPriority;
+        }
+
+        let memory = <CreepMemory>this.memory;
+
+        if (memory.taskPriority != null)
+        {
+            this._taskPriority = memory.taskPriority;
+        }
+        else
+        {
+            this._taskPriority = -1;
+        }
+
+        return this._taskPriority;
+    }
+
+    set taskPriority(value: number)
+    {
+        this._taskPriority = value;
+
+        let memory = <CreepMemory>this.memory;
+
+        if (value == null || value < 0)
+        {
+            delete memory.taskPriority;
+            this._taskPriority = -1;
+        }
+        else
+        {
+            memory.taskPriority = value;
         }
     }
 
@@ -704,14 +746,14 @@ export class SporeCreep extends Creep
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goCollect(resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][]): number
+    goCollect(resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number
     {
         if (this.action != ACTION_COLLECT && this.action != ACTION_MOVE)
         {
             this.claimReceipt = null;
         }
 
-        let claimReceipt = Game.rooms[near.roomName].claimResource(this, resourceType, amount, isExtended, near, storePriorities, this.claimReceipt);
+        let claimReceipt = Game.rooms[near.roomName].claimResource(this, resourceType, amount, isExtended, near, storePriorities, excludes, this.claimReceipt);
 
         if (claimReceipt == null)
         {

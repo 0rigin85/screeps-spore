@@ -1,4 +1,4 @@
-import {Task, ERR_NO_WORK, TaskPriority} from './task';
+import {Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK} from './task';
 import Dictionary = _.Dictionary;
 import {SporeCreep, ACTION_BUILD, CREEP_TYPE} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
@@ -32,12 +32,13 @@ export class BuildStructure extends Task
         super(false);
 
         this.id = 'Build [structure (' + site.lookTypeModifier + ') {room ' + this.site.pos.roomName + '}]';
-        this.name = 'Build [structure (' + site.lookTypeModifier + ') {room ' + this.site.pos.roomName + ' pos ' + this.site.pos.x + ',' + this.site.pos.y + '}]';
+        this.name = 'Build ' + site.toHtml();
         this.possibleWorkers = -1;
         this.priority = STRUCTURE_BUILD_PRIORITY[site.lookTypeModifier](site);
         this.idealCreepBody = CREEP_TYPE.CITIZEN;
         this.scheduledWork = 0;
         this.desiredWork = 5;
+        this.near = site;
     }
 
     createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
@@ -67,9 +68,15 @@ export class BuildStructure extends Task
 
     schedule(object: RoomObjectLike): number
     {
-        if (this.possibleWorkers === 0 || !this.site.isValid || !(object instanceof Creep) || this.scheduledWork >= this.desiredWork)
+        if (this.possibleWorkers === 0 || !this.site.isValid || this.scheduledWork >= this.desiredWork)
         {
             return ERR_NO_WORK;
+        }
+
+        if (!(object instanceof Creep))
+        {
+            console.log('ERROR: Attempted to build a structure with a non-creep room object. ' + object);
+            return ERR_CANNOT_PERFORM_TASK;
         }
 
         let creep = <Creep>object;
@@ -93,7 +100,8 @@ export class BuildStructure extends Task
                 amount,
                 false,
                 this.site.pos,
-                [['near_dropped'], ['link','container','storage'], ['dropped']]);
+                [['near_dropped'], ['link','container','storage'], ['dropped']],
+                {});
         }
 
         if (code === OK)
@@ -104,6 +112,11 @@ export class BuildStructure extends Task
             {
                 this.possibleWorkers--;
             }
+        }
+
+        if (this.possibleWorkers === 0 || this.scheduledWork >= this.desiredWork)
+        {
+            return NO_MORE_WORK;
         }
 
         return code;

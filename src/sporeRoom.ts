@@ -20,7 +20,7 @@ declare global
     {
         getTasks(): Task[];
         trackEconomy(): void;
-        claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], receipt?: ClaimReceipt): ClaimReceipt;
+        claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt;
         getRouteTo(roomName: string): any[];
 
         tasksById: Dictionary<Task>;
@@ -59,7 +59,7 @@ declare global
 
 var GATHER_RESOURCE_STORES =
 {
-    'source': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'source': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -77,13 +77,13 @@ var GATHER_RESOURCE_STORES =
 
         for (let source of this.sources)
         {
-            if (source.doIgnore !== true && source.energy > 0)
+            if (source.doIgnore !== true && source.energy > 0 && excludes[source.id] == null)
             {
                 collection.push(source);
             }
         }
     },
-    'near_dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'near_dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
 
@@ -91,7 +91,8 @@ var GATHER_RESOURCE_STORES =
         {
             if (resource.doIgnore !== true &&
                 resource.resourceType === resourceType &&
-                resource.amount > 0)
+                resource.amount > 0 &&
+                excludes[resource.id] == null)
             {
                 collection.push(resource);
             }
@@ -105,37 +106,40 @@ var GATHER_RESOURCE_STORES =
             {
                 if (resource.doIgnore !== true &&
                     resource.resourceType === resourceType &&
-                    resource.amount > 0)
+                    resource.amount > 0 &&
+                    excludes[resource.id] == null)
                 {
                     collection.push(resource);
                 }
             }
         }
     },
-    'dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         for (let resource of this.resources)
         {
             if (resource.doIgnore !== true &&
                 resource.resourceType === resourceType &&
-                resource.amount > 0)
+                resource.amount > 0 &&
+                excludes[resource.id] == null)
             {
                 collection.push(resource);
             }
         }
     },
-    'container': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'container': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         for (let container of this.containers)
         {
             if (container.doIgnore !== true &&
-                container.store[resourceType] > 0)
+                container.store[resourceType] > 0 &&
+                excludes[container.id] == null)
             {
                 collection.push(container);
             }
         }
     },
-    'link': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'link': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -146,22 +150,24 @@ var GATHER_RESOURCE_STORES =
         {
             if (link.doIgnore !== true &&
                 link.energy > 0 &&
-                link.takesTransfers)
+                link.takesTransfers &&
+                excludes[link.id] == null)
             {
                 collection.push(link);
             }
         }
     },
-    'storage': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'storage': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (this.storage != null &&
             this.storage.doIgnore !== true &&
-            this.storage.store[resourceType] > 0)
+            this.storage.store[resourceType] > 0 &&
+            excludes[this.storage.id] == null)
         {
             collection.push(this.storage);
         }
     },
-    'extension': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'extension': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -171,13 +177,14 @@ var GATHER_RESOURCE_STORES =
         for (let extension of this.extensions)
         {
             if (extension.doIgnore !== true &&
-                extension.energy > 0)
+                extension.energy > 0 &&
+                excludes[extension.id] == null)
             {
                 collection.push(extension);
             }
         }
     },
-    'spawn': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'spawn': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -187,13 +194,14 @@ var GATHER_RESOURCE_STORES =
         for (let spawn of this.mySpawns)
         {
             if (spawn.doIgnore !== true &&
-                spawn.energy > 0)
+                spawn.energy > 0 &&
+                excludes[spawn.id] == null)
             {
                 collection.push(spawn);
             }
         }
     },
-    'tower': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition)
+    'tower': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -203,7 +211,8 @@ var GATHER_RESOURCE_STORES =
         for (let tower of this.towers)
         {
             if (tower.doIgnore !== true &&
-                tower.energy > 0)
+                tower.energy > 0 &&
+                excludes[tower.id] == null)
             {
                 collection.push(tower);
             }
@@ -532,9 +541,9 @@ export class SporeRoom extends Room
         console.log(this + ' economy energy ' + this.economy.resources.energy);
     }
 
-    claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], receipt?: ClaimReceipt): ClaimReceipt
+    claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt
     {
-        if (receipt != null && receipt.target != null)
+        if (receipt != null && receipt.target != null && excludes[receipt.target.id] == null)
         {
             let flatStorePriorities = _.flattenDeep<string>(storePriorities);
             if (_.includes(flatStorePriorities, receipt.type) ||
@@ -555,7 +564,7 @@ export class SporeRoom extends Room
 
             for (let index = 0; index < group.length; index++)
             {
-                GATHER_RESOURCE_STORES[group[index]].bind(this)(claimables, resourceType, claimer, near);
+                GATHER_RESOURCE_STORES[group[index]].bind(this)(claimables, resourceType, claimer, near, excludes);
             }
 
             if (claimables.length > 0)
@@ -566,7 +575,7 @@ export class SporeRoom extends Room
                 {
                     if (claimable.makeClaim == null)
                     {
-                        console.log(claimable);
+                        continue;
                     }
 
                     let newReceipt = claimable.makeClaim(claimer, resourceType, amount, isExtended);
@@ -585,6 +594,29 @@ export class SporeRoom extends Room
     getTasks(): Task[]
     {
         let tasks: Task[] = [];
+
+        //////////////////////////////////////////////////////////////////////////////
+        // Activate safe mode
+        {
+            if (this.controller.safeModeAvailable > 0 && this.controller.safeMode == null)
+            {
+                let structures = _.filter(this.structures, function(structure: Structure)
+                {
+                    return !!(structure.structureType !== STRUCTURE_RAMPART &&
+                        structure.structureType !== STRUCTURE_WALL &&
+                        structure.structureType !== STRUCTURE_CONTAINER &&
+                        structure.structureType !== STRUCTURE_LINK);
+                });
+
+                for (let creep of this.hostileCreeps)
+                {
+                    if (creep.pos.findFirstInRange(structures, 2))
+                    {
+                        this.controller.activateSafeMode();
+                    }
+                }
+            }
+        }
 
         //////////////////////////////////////////////////////////////////////////////
         // Harvest energy
@@ -663,7 +695,7 @@ export class SporeRoom extends Room
         {
             let sites = _.filter(this.constructionSites, function(site:ConstructionSite)
             {
-                if (site.structureType === STRUCTURE_RAMPART || site.structureType === STRUCTURE_WALL)
+                if (!site.doIgnore && site.structureType === STRUCTURE_RAMPART || site.structureType === STRUCTURE_WALL)
                 {
                     return true;
                 }
@@ -681,7 +713,7 @@ export class SporeRoom extends Room
                     return false;
                 }
 
-                if (structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL)
+                if (!structure.doIgnore && structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL)
                 {
                     return true;
                 }
@@ -699,14 +731,27 @@ export class SporeRoom extends Room
                         return ScreepsPtr.from<any>(structure);
                     }));
 
-            let task = new BuildBarrier(barriers);
-            task.roomName = this.name;
-            tasks.push(task);
+            if (barriers.length > 0)
+            {
+                let task = new BuildBarrier(barriers);
+                task.roomName = this.name;
+                tasks.push(task);
+            }
         }
 
+        //////////////////////////////////////////////////////////////////////////////
+        // Manage Ramparts
         {
             this.ramparts.forEach(x => {
-                x.setPublic(x.pos.findInRange(this.hostileCreeps, 2).length === 0);
+                let site = x.pos.lookFor<ConstructionSite>(LOOK_CONSTRUCTION_SITES);
+                if (site == null || site.length === 0)
+                {
+                    x.setPublic(x.pos.findInRange(this.hostileCreeps, 2).length === 0);
+                }
+                else
+                {
+                    x.setPublic(false);
+                }
             });
         }
 

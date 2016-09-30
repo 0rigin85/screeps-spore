@@ -72,6 +72,37 @@ export class ScreepsPtr<T extends RoomObjectLike> implements RoomObjectLike
         return result + ']';
     };
 
+    public toHtml = () : string =>
+    {
+        let result = "<font color='#ff4500'>[";
+
+        if (this.lookType != null)
+        {
+            result += this.lookType;
+
+            if (this.lookTypeModifier != null)
+            {
+                result += ' (' + this.lookTypeModifier + ')';
+            }
+        }
+
+        if (this.pos != null && this.lookType !== LOOK_FLAGS)
+        {
+            if (result.length > 1)
+            {
+                result += ' ';
+            }
+
+            result += '{room ' + this.pos.roomName + ' pos ' + this.pos.x + ',' + this.pos.y + '}';
+        }
+
+        // [structure (container) {room E53S36 20,30}]
+        // [flag (Flag01)]
+        // [source {room E53S36 20,30}]
+
+        return result + ']</font>';
+    }
+
     get room(): Room
     {
         if (this.resolve().isValid)

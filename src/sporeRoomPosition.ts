@@ -80,6 +80,8 @@ export class SporeRoomPosition extends RoomPosition
 
     findDistanceByPathTo(other: RoomPosition | RoomObjectLike, opts?: FindPathOpts): number
     {
+        console.log('///////////////////// ' + this + " -> " + other);
+
         let rangeToSite = 0;
         let toRoomName = '';
 

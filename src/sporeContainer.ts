@@ -117,6 +117,16 @@ export class SporeContainer extends StructureContainer implements Claimable
         //     }
         // }
 
+        let closestSource = <Source>this.pos.findClosestInRange(this.room.sources, 2);
+
+        if (closestSource == null)
+        {
+            let transferEnergyTask = new TransferResource([ScreepsPtr.from<StoreContainerLike>(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['container'], ['dropped']]);
+            transferEnergyTask.priority = TaskPriority.Low;
+            transferEnergyTask.name = "Fill " + ScreepsPtr.from<StructureContainer>(this).toHtml();
+            tasks.push(transferEnergyTask);
+        }
+
         return tasks;
     }
 

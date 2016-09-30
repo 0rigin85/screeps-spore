@@ -1,4 +1,4 @@
-import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, LaborDemandType} from './task';
+import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, LaborDemandType, NO_MORE_WORK} from './task';
 import Dictionary = _.Dictionary;
 import {RoomObjectLike, ScreepsPtr, EnergyContainerLike, StoreContainerLike, CarryContainerLike} from "./screepsPtr";
 import {ACTION_COLLECT, ACTION_TRANSFER, SporeCreep, CREEP_TYPE} from "./sporeCreep";
@@ -45,6 +45,7 @@ export class TransferResource extends Task
         }
 
         this.name = "Transfer " + resourceType + " to " + targets.length + " objects";
+        this.near = source;
 
         this.calculateRequirements();
 
@@ -181,7 +182,7 @@ export class TransferResource extends Task
 
         if (!(object instanceof Creep))
         {
-            console.log('ERROR: Attempted to harvest with a non-creep room object. ' + object);
+            console.log('ERROR: Attempted to transfer resources with a non-creep room object. ' + object);
             return ERR_CANNOT_PERFORM_TASK;
         }
 
@@ -203,7 +204,7 @@ export class TransferResource extends Task
 
         if (this.scheduledTransfer >= this.resourceCapacity || maxCarryReached)
         {
-            //console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
+            // console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
             return ERR_NO_WORK;
         }
 
@@ -255,7 +256,6 @@ export class TransferResource extends Task
                 if (inRangeTarget != null)
                 {
                     code = creep.goTransfer(this.resourceType, inRangeTarget);
-                    console.log(code);
                 }
                 else
                 {
@@ -284,6 +284,11 @@ export class TransferResource extends Task
             {
                 this.possibleWorkers--;
             }
+        }
+
+        if (this.possibleWorkers === 0 || this.scheduledTransfer >= this.resourceCapacity || maxCarryReached)
+        {
+            return NO_MORE_WORK;
         }
 
         return code;
@@ -325,7 +330,8 @@ export class TransferResource extends Task
                 Math.min(creep.carryCapacityRemaining, remainingNeededResources),
                 false,
                 ((needsResources.length > 0) ? needsResources[0].pos : creep.pos),
-                this.storePriorities);
+                this.storePriorities,
+                (<any>_).indexBy(this.targets, 'id'));
         }
 
         return code;

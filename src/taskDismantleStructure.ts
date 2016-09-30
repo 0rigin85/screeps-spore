@@ -15,6 +15,7 @@ export class DismantleStructure extends Task
         this.id = 'Dismantle ' + this.structure;
         this.name = 'Dismantle ' + this.structure;
         this.idealCreepBody = CREEP_TYPE.CITIZEN;
+        this.near = structure;
     }
 
     prioritize(object: RoomObjectLike): number
