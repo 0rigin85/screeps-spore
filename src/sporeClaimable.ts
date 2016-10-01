@@ -18,5 +18,5 @@ export interface Claimable extends RoomObject
 
     collect(collector: any, claimReceipt: ClaimReceipt): number;
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
 }

@@ -233,16 +233,16 @@ export class SporeColony
                 }
                 task.endScheduling();
 
-                // for (let index = 0; index < prioritizedCreeps.length; index++)
-                // {
-                //     for (let creep of prioritizedCreeps[index])
-                //     {
-                //         if (task instanceof UpgradeRoomController)
-                //         {
-                //             console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
-                //         }
-                //     }
-                // }
+                for (let index = 0; index < prioritizedCreeps.length; index++)
+                {
+                    for (let creep of prioritizedCreeps[index])
+                    {
+                        if (task instanceof UpgradeRoomController)
+                        {
+                            console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
+                        }
+                    }
+                }
 
                 for(let name in task.labor.types)
                 {
@@ -273,7 +273,7 @@ export class SporeColony
                         {
                             if (type.parts[partName] > typePool.parts[partName])
                             {
-                                //console.log(partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
+                                console.log(partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
                                 doSpawn = true;
                                 break;
                             }
@@ -282,6 +282,7 @@ export class SporeColony
 
                     if (doSpawn && type.max > typePool.count)
                     {
+                        //console.log(type.max + ' > ' + typePool.count);
                         this.spawnRequests.push(new SpawnRequest('new_: ' + task.id, task, null, CREEP_TYPE[name]));
                     }
                 }

@@ -18,7 +18,7 @@ declare global
         getTasks(): Task[];
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
-        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
@@ -91,7 +91,7 @@ export class SporeTower extends StructureTower implements Claimable
 
         if (this.energy < this.energyCapacity)
         {
-            let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureTower>(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container'], ['storage'], ['dropped']]);
+            let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureTower>(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped']]);
             transferEnergyTask.priority = TaskPriority.Mandatory;
             transferEnergyTask.name = "Fill " + this;
             tasks.push(transferEnergyTask);
@@ -120,18 +120,31 @@ export class SporeTower extends StructureTower implements Claimable
         return ERR_INVALID_ARGS;
     }
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt
     {
-        if (resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
-            amount > this.energy - this.claims.energy) // ensure our remaining energy meets their claim
+        if (resourceType != RESOURCE_ENERGY) // ensure they are trying to claim energy
         {
             return null;
         }
 
-        this.claims.count++;
-        this.claims.energy += amount;
+        let claimAmount = amount;
+        let remaining = this.energy - this.claims.energy;
 
-        return new ClaimReceipt(this, 'spawn', resourceType, amount);
+        // ensure our remaining resource meets their claim
+        if (claimAmount > remaining)
+        {
+            if (minAmount > remaining)
+            {
+                return null;
+            }
+
+            claimAmount = remaining;
+        }
+
+        this.claims.count++;
+        this.claims.energy += claimAmount;
+
+        return new ClaimReceipt(this, 'spawn', resourceType, claimAmount);
     }
 
     private get claims(): Claims

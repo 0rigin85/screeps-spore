@@ -14,7 +14,7 @@ declare global
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
 
-        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
         claims: SourceClaims;
     }
 }
@@ -55,7 +55,7 @@ class ScreepsSource implements Source
 
     collect(collector: any, claimReceipt: ClaimReceipt): number { return 0; }
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt  { return null; }
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt  { return null; }
     claims: SourceClaims;
 }
 
@@ -150,11 +150,10 @@ export class SporeSource extends ScreepsSource implements Claimable
         return ERR_INVALID_ARGS;
     }
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt
     {
         //console.log('makeClaim ' + claimer);
         if (resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
-            (amount > this.energy - this.claims.energy && isExtended === false) || // ensure our remaining energy meets their claim
             this.claims.count >= this.slots || //ensure we have open slots
             (this.claims.work >= 1 && isExtended === true)) // ensure for extended claims we have open work
         {
@@ -167,8 +166,26 @@ export class SporeSource extends ScreepsSource implements Claimable
             return null;
         }
 
+        let claimAmount = amount;
+
+        if (isExtended === false)
+        {
+            let remaining = this.energy - this.claims.energy;
+
+            // ensure our remaining resource meets their claim
+            if (claimAmount > remaining)
+            {
+                if (minAmount > remaining)
+                {
+                    return null;
+                }
+
+                claimAmount = remaining;
+            }
+        }
+
         this.claims.count++;
-        this.claims.energy += amount; // extended claims ignore the resource amount request on sources
+        this.claims.energy += claimAmount; // extended claims ignore the resource amount request on sources
 
         if (isExtended === true && claimer.getActiveBodyparts != null)
         {
@@ -176,7 +193,7 @@ export class SporeSource extends ScreepsSource implements Claimable
         }
 
         //console.log('makeClaim success');
-        return new ClaimReceipt(this, 'source', resourceType, amount);
+        return new ClaimReceipt(this, 'source', resourceType, claimAmount);
     }
 
     private _claimTick: number;

@@ -9,7 +9,7 @@ declare global
     interface Resource
     {
         collect(collector: any, claimReceipt: ClaimReceipt): number;
-        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
@@ -31,18 +31,31 @@ export class SporeResource extends Resource implements Claimable
         return ERR_INVALID_ARGS;
     }
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt
     {
-        if (resourceType != this.resourceType || // ensure they are trying to claim the correct resource
-            this.amount - this.claims.amount <= 0) // ensure there is remaining resources
+        if (resourceType != this.resourceType) // ensure they are trying to claim the correct resource
         {
             return null;
         }
 
-        this.claims.count++;
-        this.claims.amount += amount;
+        let claimAmount = amount;
+        let remaining = this.amount - this.claims.amount;
 
-        return new ClaimReceipt(this, 'dropped', resourceType, amount);
+        // ensure our remaining resource meets their claim
+        if (claimAmount > remaining)
+        {
+            if (minAmount > remaining)
+            {
+                return null;
+            }
+
+            claimAmount = remaining;
+        }
+
+        this.claims.count++;
+        this.claims.amount += claimAmount;
+
+        return new ClaimReceipt(this, 'dropped', resourceType, claimAmount);
     }
 
     private get claims(): Claims

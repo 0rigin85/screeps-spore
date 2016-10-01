@@ -37,7 +37,7 @@ export class UpgradeRoomController extends Task
             }
         }
 
-        let carryDemand = 24;//Math.ceil((controller.room.economy.resources.energy * controller.room.budget.upgrade) / CARRY_CAPACITY);
+        let carryDemand = 12;//Math.ceil((controller.room.economy.resources.energy * controller.room.budget.upgrade) / CARRY_CAPACITY);
         this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: carryDemand }, 1, 50);
     }
 
@@ -89,13 +89,35 @@ export class UpgradeRoomController extends Task
         }
         else
         {
+            let amount = creep.carryCapacityRemaining;
+
             code = creep.goCollect(
                 RESOURCE_ENERGY,
-                creep.carryCapacityRemaining,
+                amount,
+                amount,
                 false,
                 this.controller.pos,
                 [['near_dropped'], ['link','container','storage'], ['dropped']],
                 {});
+
+            if (code === ERR_NO_WORK)
+            {
+                if (creep.carry[RESOURCE_ENERGY] > 0)
+                {
+                    code = creep.goUpgrade(this.controller);
+                }
+                else
+                {
+                    code = creep.goCollect(
+                        RESOURCE_ENERGY,
+                        amount,
+                        0,
+                        false,
+                        this.controller.pos,
+                        [['near_dropped'], ['link','container','storage'], ['dropped']],
+                        {});
+                }
+            }
         }
 
         if (code === OK)
@@ -104,6 +126,10 @@ export class UpgradeRoomController extends Task
             {
                 this.possibleWorkers--;
             }
+        }
+        else
+        {
+            console.log(code);
         }
 
         if (this.possibleWorkers === 0)

@@ -17,7 +17,7 @@ declare global
         getTasks(): Task[];
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
-        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
@@ -211,29 +211,21 @@ export class SporeLink extends StructureLink implements Claimable
         // }
         // else
         // {
-        //     if (this.nearBySource != null)
-        //     {
-        //         let transferEnergyTask = new TransferResource([ScreepsPtr.from<EnergyContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(this.nearBySource), null);
-        //         transferEnergyTask.priority = TaskPriority.Mandatory;
-        //         transferEnergyTask.name = "Transfer energy to " + this + " from " + this.nearBySource;
-        //         transferEnergyTask.possibleWorkers = 1;
-        //         tasks.push(transferEnergyTask);
-        //     }
-        //     else
-        //     {
-        //         this.takesTransfers = true;
-        //     }
+            if (this.nearBySource == null)
+            {
+                this.takesTransfers = true;
+            }
         // }
         //
-        // if (this.energy > 0)
-        // {
-        //     transferTarget = this.findLinkTakingTransfers();
-        //
-        //     if (transferTarget != null)
-        //     {
-        //         this.transferEnergy(transferTarget);
-        //     }
-        // }
+        if (this.energy > 0 && !this.takesTransfers)
+        {
+            transferTarget = this.findLinkTakingTransfers();
+
+            if (transferTarget != null)
+            {
+                this.transferEnergy(transferTarget);
+            }
+        }
 
         return tasks;
     }
@@ -269,19 +261,32 @@ export class SporeLink extends StructureLink implements Claimable
         return ERR_INVALID_ARGS;
     }
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt
     {
         if (this.takesTransfers !== true || // ensure this is a pick up location
-            resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
-            amount > this.energy - this.claims.energy) // ensure our remaining energy meets their claim
+            resourceType != RESOURCE_ENERGY) // ensure they are trying to claim energy
         {
             return null;
         }
 
-        this.claims.count++;
-        this.claims.energy += amount;
+        let claimAmount = amount;
+        let remaining = this.energy - this.claims.energy;
 
-        return new ClaimReceipt(this, 'link', resourceType, amount);
+        // ensure our remaining resource meets their claim
+        if (claimAmount > remaining)
+        {
+            if (minAmount > remaining)
+            {
+                return null;
+            }
+
+            claimAmount = remaining;
+        }
+
+        this.claims.count++;
+        this.claims.energy += claimAmount;
+
+        return new ClaimReceipt(this, 'link', resourceType, claimAmount);
     }
 
     private get claims(): Claims

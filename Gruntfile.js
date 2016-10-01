@@ -4,24 +4,29 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-ts-clean');
     grunt.loadNpmTasks('grunt-contrib-copy');
     grunt.loadNpmTasks('grunt-browserify');
+    grunt.loadNpmTasks('grunt-webpack');
 
     var credentials = grunt.file.readJSON('credentials.private');
-    var src = ['js/*.js','js/**/*.js'];
+    var src = ['dist/*.js','dist/**/*.js'];
     var devsrc = ['js/*.js*','js/**/*.js*'];
 
     grunt.initConfig(
         {
-            browserify: {
-                dist: {
-                    src: ['js/*.js'],
-                    dest: 'dist/main.js'
+            webpack: {
+                bundle: {
+                    entry: ['./js/main.js'],
+                    output: {
+                        path: 'dist/',
+                        filename: 'main.js',
+                        libraryTarget: 'commonjs2'
+                    }
                 }
             },
             copy: {
                 main: {
                     files: [
                         // includes files within path
-                        {expand: true, flatten: true, src: ['node_modules/typescript-collections/dist/lib/*.js'], dest: './js', filter: 'isFile'}
+                        {expand: true, flatten: true, src: ['js/main.js'], dest: './dist', filter: 'isFile'}
                     ]
                 }
             },
@@ -34,7 +39,7 @@ module.exports = function(grunt) {
                     ptr: false
                 },
                 files: {
-                    src: devsrc
+                    src: src
                 }
             },
             experimental: {
@@ -73,7 +78,7 @@ module.exports = function(grunt) {
     });
 
     //grunt.registerTask('default', ['screeps:experimental']);
-    grunt.registerTask('new', ['screeps:new']);
+    grunt.registerTask('new', ['webpack:bundle', 'screeps:new']);
     //grunt.registerTask('live', ['ts_clean', 'screeps:live']);
     //grunt.registerTask('browserify', ['browserify:dist']);
 };

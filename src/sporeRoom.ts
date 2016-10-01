@@ -20,7 +20,7 @@ declare global
     {
         getTasks(): Task[];
         trackEconomy(): void;
-        claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt;
+        claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt;
         getRouteTo(roomName: string): any[];
 
         tasksById: Dictionary<Task>;
@@ -41,6 +41,7 @@ declare global
         friendlyCreeps: Creep[];
 
         economy: Economy;
+        budget: Budget;
 
         my: boolean;
         priority: number;
@@ -54,12 +55,13 @@ declare global
         sites: Dictionary<ConstructionSiteMemory>;
         controller: ControllerMemory;
         storage: StorageMemory;
+        budget: Budget;
     }
 }
 
 var GATHER_RESOURCE_STORES =
 {
-    'source': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'source': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -83,7 +85,7 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'near_dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'near_dropped': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
 
@@ -114,7 +116,7 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'dropped': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'dropped': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         for (let resource of this.resources)
         {
@@ -127,7 +129,7 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'container': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'container': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         for (let container of this.containers)
         {
@@ -139,7 +141,7 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'link': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'link': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -157,17 +159,21 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'storage': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'storage': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (this.storage != null &&
             this.storage.doIgnore !== true &&
             this.storage.store[resourceType] > 0 &&
             excludes[this.storage.id] == null)
         {
-            collection.push(this.storage);
+            let savings = this.budget.savings[resourceType];
+            if (savings != null && this.storage.store[resourceType] - amount >= savings)
+            {
+                collection.push(this.storage);
+            }
         }
     },
-    'extension': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'extension': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -184,7 +190,7 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'spawn': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'spawn': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -201,7 +207,7 @@ var GATHER_RESOURCE_STORES =
             }
         }
     },
-    'tower': function(collection: Claimable[], resourceType: string, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    'tower': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
     {
         if (resourceType !== RESOURCE_ENERGY)
         {
@@ -279,10 +285,7 @@ export class Economy
 
 export class Budget
 {
-    construction: number;
-    upgrading: number;
-    repair: number;
-    savings: number;
+    savings: { [resourceType: string]:number } = {};
 }
 
 export class SporeRoom extends Room
@@ -293,7 +296,24 @@ export class SporeRoom extends Room
     basicTasks: Task[] = [];
 
     economy: Economy;
-    budget: Budget;
+
+    get budget(): Budget
+    {
+        let memory = Memory.rooms[this.name];
+        if (memory == null)
+        {
+            memory = <RoomMemory>{};
+            Memory.rooms[this.name] = memory;
+        }
+
+        if (memory.budget == null)
+        {
+            memory.budget = new Budget();
+        }
+
+        Object.defineProperty(this, "budget", {value: memory.budget});
+        return memory.budget;
+    }
 
     get my(): boolean
     {
@@ -500,11 +520,10 @@ export class SporeRoom extends Room
     trackEconomy(): void
     {
         this.economy = new Economy();
-        this.budget = new Budget();
 
-        if (this.storage != null && this.storage.storeCapacityRemaining > 0)
+        if (this.budget.savings[RESOURCE_ENERGY] == null)
         {
-            this.budget.savings = 0.1;
+            this.budget.savings[RESOURCE_ENERGY] = 100000;
         }
 
         for (let structure of this.containers)
@@ -525,7 +544,21 @@ export class SporeRoom extends Room
 
         if (this.storage != null)
         {
-            this.economy.countStoreResources(this.storage.store);
+            for (let prop in this.storage.store)
+            {
+                if (this.economy.resources[prop] == null)
+                {
+                    this.economy.resources[prop] = 0;
+                }
+
+                let savings = 0;
+                if (this.budget.savings[prop] != null && this.budget.savings[prop] > 0)
+                {
+                    savings = this.budget.savings[prop];
+                }
+
+                this.economy.resources[prop] += Math.max(this.storage.store[prop] - savings, 0);
+            }
         }
 
         for (let resource of this.resources)
@@ -541,7 +574,7 @@ export class SporeRoom extends Room
         console.log(this + ' economy energy ' + this.economy.resources.energy);
     }
 
-    claimResource(claimer: any, resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt
+    claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt
     {
         if (receipt != null && receipt.target != null && excludes[receipt.target.id] == null)
         {
@@ -549,7 +582,7 @@ export class SporeRoom extends Room
             if (_.includes(flatStorePriorities, receipt.type) ||
                 _.includes(flatStorePriorities, receipt.target.id))
             {
-                let claim = receipt.target.makeClaim(claimer, resourceType, amount, isExtended);
+                let claim = receipt.target.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
                 if (claim !== null)
                 {
                     return claim;
@@ -564,7 +597,7 @@ export class SporeRoom extends Room
 
             for (let index = 0; index < group.length; index++)
             {
-                GATHER_RESOURCE_STORES[group[index]].bind(this)(claimables, resourceType, claimer, near, excludes);
+                GATHER_RESOURCE_STORES[group[index]].bind(this)(claimables, resourceType, amount, claimer, near, excludes);
             }
 
             if (claimables.length > 0)
@@ -578,7 +611,7 @@ export class SporeRoom extends Room
                         continue;
                     }
 
-                    let newReceipt = claimable.makeClaim(claimer, resourceType, amount, isExtended);
+                    let newReceipt = claimable.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
 
                     if (newReceipt != null)
                     {
@@ -605,7 +638,8 @@ export class SporeRoom extends Room
                     return !!(structure.structureType !== STRUCTURE_RAMPART &&
                         structure.structureType !== STRUCTURE_WALL &&
                         structure.structureType !== STRUCTURE_CONTAINER &&
-                        structure.structureType !== STRUCTURE_LINK);
+                        structure.structureType !== STRUCTURE_LINK &&
+                        structure.structureType !== STRUCTURE_ROAD);
                 });
 
                 for (let creep of this.hostileCreeps)

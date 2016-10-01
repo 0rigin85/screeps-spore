@@ -232,14 +232,7 @@ export class BuildBarrier extends Task
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             ((creep.action === ACTION_BUILD || creep.action === ACTION_REPAIR || creep.action === ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0))
         {
-            if (this.barriers[nextBarrier].lookType === LOOK_CONSTRUCTION_SITES)
-            {
-                code = creep.goBuild(<ScreepsPtr<ConstructionSite>>this.barriers[nextBarrier]);
-            }
-            else
-            {
-                code = creep.goRepair(<ScreepsPtr<Structure>><any>this.barriers[nextBarrier]);
-            }
+            this.goReinforce(creep, nextBarrier);
         }
         else
         {
@@ -248,10 +241,30 @@ export class BuildBarrier extends Task
             code = creep.goCollect(
                 RESOURCE_ENERGY,
                 amount,
+                amount,
                 false,
                 this.barriers[nextBarrier].pos,
                 [['near_dropped'], ['link','container','storage'], ['dropped']],
                 {});
+
+            if (code === ERR_NO_WORK)
+            {
+                if (creep.carry[RESOURCE_ENERGY] > 0)
+                {
+                    this.goReinforce(creep, nextBarrier);
+                }
+                else
+                {
+                    code = creep.goCollect(
+                        RESOURCE_ENERGY,
+                        amount,
+                        0,
+                        false,
+                        this.barriers[nextBarrier].pos,
+                        [['near_dropped'], ['link','container','storage'], ['dropped']],
+                        {});
+                }
+            }
         }
 
         if (code === OK)
@@ -268,6 +281,22 @@ export class BuildBarrier extends Task
         if (this.possibleWorkers === 0 || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length)
         {
             return NO_MORE_WORK;
+        }
+
+        return code;
+    }
+
+    private goReinforce(creep: Creep, barrierIndex: number) : number
+    {
+        let code;
+
+        if (this.barriers[barrierIndex].lookType === LOOK_CONSTRUCTION_SITES)
+        {
+            code = creep.goBuild(<ScreepsPtr<ConstructionSite>>this.barriers[barrierIndex]);
+        }
+        else
+        {
+            code = creep.goRepair(<ScreepsPtr<Structure>><any>this.barriers[barrierIndex]);
         }
 
         return code;

@@ -10,7 +10,7 @@ declare global
         storeCapacityRemaining: number;
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
-        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
@@ -64,23 +64,36 @@ export class SporeStorage extends StructureStorage implements Claimable
         return ERR_INVALID_ARGS;
     }
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt
     {
         if (this.claims[resourceType] == null)
         {
             this.claims[resourceType] = 0;
         }
 
-        if (resourceType != RESOURCE_ENERGY || // ensure they are trying to claim energy
-            amount > this.store[resourceType] - this.claims[resourceType]) // ensure our remaining energy meets their claim
+        if (resourceType != RESOURCE_ENERGY) // ensure they are trying to claim energy
         {
             return null;
         }
 
-        this.claims.count++;
-        this.claims[resourceType] += amount;
+        let claimAmount = amount;
+        let remaining = this.store[resourceType] - this.claims[resourceType];
 
-        return new ClaimReceipt(this, 'storage', resourceType, amount);
+        // ensure our remaining resource meets their claim
+        if (claimAmount > remaining)
+        {
+            if (minAmount > remaining)
+            {
+                return null;
+            }
+
+            claimAmount = remaining;
+        }
+
+        this.claims.count++;
+        this.claims[resourceType] += claimAmount;
+
+        return new ClaimReceipt(this, 'storage', resourceType, claimAmount);
     }
 
     private get claims(): Claims

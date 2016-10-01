@@ -98,6 +98,7 @@ export class BuildStructure extends Task
             code = creep.goCollect(
                 RESOURCE_ENERGY,
                 amount,
+                amount,
                 false,
                 this.site.pos,
                 [['near_dropped'], ['link','container','storage'], ['dropped']],

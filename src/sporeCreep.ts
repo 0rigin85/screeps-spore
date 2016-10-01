@@ -34,8 +34,10 @@ declare global
         goBuild(site: ScreepsPtr<ConstructionSite>): number;
         goDismantle(structure: ScreepsPtr<Structure>): number;
         goRepair(structure: ScreepsPtr<Structure>): number;
-        goCollect(resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number;
+        goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number;
         goUpgrade(controller: ScreepsPtr<Controller>): number;
+        goReserve(controller: ScreepsPtr<Controller>): number;
+        goClaim(controller: ScreepsPtr<Controller>): number;
         goRecycle(spawn: ScreepsPtr<Spawn>): number;
     }
 }
@@ -66,6 +68,8 @@ export var ACTION_TRANSFER: string = "transfer";
 export var ACTION_RECYCLE: string = "recycle";
 export var ACTION_COLLECT: string = "collect";
 export var ACTION_UPGRADE: string = "upgrade";
+export var ACTION_RESERVE: string = "reserve";
+export var ACTION_CLAIM: string = "claim";
 export var ACTION_BUILD: string = "build";
 export var ACTION_DISMANTLE: string = "dismantle";
 export var ACTION_REPAIR: string = "repair";
@@ -76,6 +80,7 @@ export var CREEP_TYPE: {
     MINER: BodyDefinition;
     COURIER: BodyDefinition;
     CITIZEN: BodyDefinition;
+    RESERVER: BodyDefinition;
 } = <any>{};
 
 var bodyDefinition = new BodyDefinition('MINER');
@@ -94,6 +99,11 @@ bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 5, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 10, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 5, 1, 1));
 CREEP_TYPE.CITIZEN = bodyDefinition;
+
+var bodyDefinition = new BodyDefinition('RESERVER');
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 4, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CLAIM, 1, 1, 1));
+CREEP_TYPE.RESERVER = bodyDefinition;
 
 export class SporeCreep extends Creep
 {
@@ -463,7 +473,7 @@ export class SporeCreep extends Creep
         }
         else
         {
-            let claimReceipt = source.instance.makeClaim(this, RESOURCE_ENERGY, this.carryCapacityRemaining, true);
+            let claimReceipt = source.instance.makeClaim(this, RESOURCE_ENERGY, this.carryCapacityRemaining, this.carryCapacityRemaining, true);
 
             if (claimReceipt == null)
             {
@@ -746,14 +756,14 @@ export class SporeCreep extends Creep
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goCollect(resourceType: string, amount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number
+    goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number
     {
         if (this.action != ACTION_COLLECT && this.action != ACTION_MOVE)
         {
             this.claimReceipt = null;
         }
 
-        let claimReceipt = Game.rooms[near.roomName].claimResource(this, resourceType, amount, isExtended, near, storePriorities, excludes, this.claimReceipt);
+        let claimReceipt = Game.rooms[near.roomName].claimResource(this, resourceType, amount, minAmount, isExtended, near, storePriorities, excludes, this.claimReceipt);
 
         if (claimReceipt == null)
         {
@@ -830,6 +840,84 @@ export class SporeCreep extends Creep
         }
 
         console.log("goUpgrade error code: " + code + " " + this);
+        return ERR_CANNOT_PERFORM_TASK;
+    }
+
+    goReserve(controller: ScreepsPtr<Controller>): number
+    {
+        if (!controller.isValid)
+        {
+            return ERR_NO_WORK;
+        }
+
+        let code = ERR_NO_WORK;
+
+        if (controller.isShrouded)
+        {
+            code = this.goMoveTo(controller);
+        }
+        else
+        {
+            code = this.reserveController(controller.instance);
+
+            if (code === OK)
+            {
+                this.action = ACTION_RESERVE;
+                this.actionTarget = controller.toString();
+                this.claimReceipt = null;
+                return OK;
+            }
+            else if(code === ERR_NOT_IN_RANGE)
+            {
+                return this.goMoveTo(controller);
+            }
+        }
+
+        if (code === OK)
+        {
+            return OK;
+        }
+
+        console.log("goReserve error code: " + code + " " + this);
+        return ERR_CANNOT_PERFORM_TASK;
+    }
+
+    goClaim(controller: ScreepsPtr<Controller>): number
+    {
+        if (!controller.isValid)
+        {
+            return ERR_NO_WORK;
+        }
+
+        let code = ERR_NO_WORK;
+
+        if (controller.isShrouded)
+        {
+            code = this.goMoveTo(controller);
+        }
+        else
+        {
+            code = this.claimController(controller.instance);
+
+            if (code === OK)
+            {
+                this.action = ACTION_CLAIM;
+                this.actionTarget = controller.toString();
+                this.claimReceipt = null;
+                return OK;
+            }
+            else if(code === ERR_NOT_IN_RANGE)
+            {
+                return this.goMoveTo(controller);
+            }
+        }
+
+        if (code === OK)
+        {
+            return OK;
+        }
+
+        console.log("goClaim error code: " + code + " " + this);
         return ERR_CANNOT_PERFORM_TASK;
     }
 

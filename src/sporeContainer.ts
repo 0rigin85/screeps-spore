@@ -16,7 +16,7 @@ declare global
         getTasks(): Task[];
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
-        makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt;
+        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
     }
 }
 
@@ -148,23 +148,30 @@ export class SporeContainer extends StructureContainer implements Claimable
         return ERR_INVALID_ARGS;
     }
 
-    makeClaim(claimer: any, resourceType: string, amount: number, isExtended?: boolean): ClaimReceipt
+    makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt
     {
         if (this.claims[resourceType] == null)
         {
             this.claims[resourceType] = 0;
         }
 
+        let claimAmount = amount;
+        let remaining = this.store[resourceType] - this.claims[resourceType];
         // ensure our remaining resource meets their claim
-        if (amount > this.store[resourceType] - this.claims[resourceType])
+        if (claimAmount > remaining)
         {
-            return null;
+            if (minAmount > remaining)
+            {
+                return null;
+            }
+
+            claimAmount = remaining;
         }
 
         this.claims.count++;
-        this.claims[resourceType] += amount;
+        this.claims[resourceType] += claimAmount;
 
-        return new ClaimReceipt(this, 'container', resourceType, amount);
+        return new ClaimReceipt(this, 'container', resourceType, claimAmount);
     }
 
     private get claims(): Claims

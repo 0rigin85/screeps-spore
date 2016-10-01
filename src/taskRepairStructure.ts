@@ -67,6 +67,7 @@ export class RepairStructure extends Task
             code = creep.goCollect(
                 RESOURCE_ENERGY,
                 amount,
+                amount,
                 false,
                 this.structure.pos,
                 [['near_dropped'], ['link','container','storage'], ['dropped']],

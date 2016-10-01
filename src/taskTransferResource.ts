@@ -51,7 +51,7 @@ export class TransferResource extends Task
 
         if (room.economy.resources[RESOURCE_ENERGY] > 0)
         {
-            this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((this.resourceCapacity / CARRY_CAPACITY) * 0.8) }, 1, 50);
+            //this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 1000) / CARRY_CAPACITY) * 0.8) }, 1, 50);
         }
     }
 
@@ -325,9 +325,11 @@ export class TransferResource extends Task
         }
         else
         {
+            let amount = Math.min(creep.carryCapacityRemaining, remainingNeededResources);
             code = creep.goCollect(
                 this.resourceType,
-                Math.min(creep.carryCapacityRemaining, remainingNeededResources),
+                amount,
+                amount,
                 false,
                 ((needsResources.length > 0) ? needsResources[0].pos : creep.pos),
                 this.storePriorities,
