@@ -8,12 +8,13 @@ import {BodyDefinition} from "./bodyDefinition";
 export class BuildBarrier extends Task
 {
     idealCreepBody: BodyDefinition;
-    workers: number = 0;
+    scheduledWorkers: number = 0;
+    scheduledCarry: number = 0;
+
     direRampartHits: number = RAMPART_DECAY_AMOUNT * 10;
     averageHits: number = 0;
     averageDelta: number = 1000;
-    requiredCarryPerBarrier: number = 0.25;
-    scheduledCarry: number = 0;
+    requiredCarryPerBarrier: number = 0.20;
 
     constructor(public barriers: ScreepsPtr<ConstructionSite | StructureWall | StructureRampart>[])
     {
@@ -38,7 +39,7 @@ export class BuildBarrier extends Task
 
         this.averageHits = totalHits / total;
 
-        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((this.requiredCarryPerBarrier * this.barriers.length) / CARRY_CAPACITY) }, 1, 10);
+        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor(this.requiredCarryPerBarrier * this.barriers.length) }, 1, 10);
     }
 
     sortBarriers(): void
@@ -209,16 +210,31 @@ export class BuildBarrier extends Task
     beginScheduling(): void
     {
         this.sortBarriers();
+        this.scheduledWorkers = 0;
         this.scheduledCarry = 0;
+    }
+
+    hasWork(): boolean
+    {
+        if (this.possibleWorkers === 0)
+        {
+            return false;
+        }
+
+        if (this.labor.types[this.idealCreepBody.name] != null)
+        {
+            if (this.scheduledCarry >= this.labor.types[this.idealCreepBody.name].parts[CARRY] ||
+                this.scheduledWorkers >= this.labor.types[this.idealCreepBody.name].max)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     schedule(object: RoomObjectLike): number
     {
-        if (this.possibleWorkers === 0 || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length)
-        {
-            return ERR_NO_WORK;
-        }
-
         if (!(object instanceof Creep))
         {
             console.log('ERROR: Attempted to reinforce barriers with a non-creep room object. ' + object);
@@ -229,15 +245,24 @@ export class BuildBarrier extends Task
         let creep = <Creep>object;
         let code;
 
+        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null)
+        {
+            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+            return OK;
+        }
+
+        if (!this.hasWork())
+        {
+            return ERR_NO_WORK;
+        }
+
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             ((creep.action === ACTION_BUILD || creep.action === ACTION_REPAIR || creep.action === ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0))
         {
-            console.log('-----------------------------------');
             code = this.goReinforce(creep, nextBarrier);
         }
         else
         {
-            console.log('++++++++++++++++++++++++++++++++++++++');
             let amount = creep.carryCapacityRemaining;
 
             code = creep.goCollect(
@@ -271,7 +296,7 @@ export class BuildBarrier extends Task
 
         if (code === OK)
         {
-            this.workers++;
+            this.scheduledWorkers++;
             this.scheduledCarry += creep.getActiveBodyparts(CARRY);
 
             if (this.possibleWorkers > 0)
@@ -280,12 +305,11 @@ export class BuildBarrier extends Task
             }
         }
 
-        if (this.possibleWorkers === 0 || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length)
+        if (!this.hasWork())
         {
             return NO_MORE_WORK;
         }
 
-        console.log('///// ' + code);
         return code;
     }
 

@@ -56,30 +56,33 @@ export class FlagDismantleStructure extends Task
     {
         let steps: Task[] = [];
 
-        let sitesUnderFlag = this.flag.room.lookForAt<ConstructionSite>(LOOK_CONSTRUCTION_SITES, this.flag.pos);
-        if (sitesUnderFlag != null && sitesUnderFlag.length > 0)
+        if (this.flag.room != null)
         {
-            for (var index = 0; index < sitesUnderFlag.length; index++)
+            let sitesUnderFlag = this.flag.room.lookForAt<ConstructionSite>(LOOK_CONSTRUCTION_SITES, this.flag.pos);
+            if (sitesUnderFlag != null && sitesUnderFlag.length > 0)
             {
-                var type = sitesUnderFlag[index].structureType;
-
-                if (this.structureType == null || type == this.structureType)
+                for (var index = 0; index < sitesUnderFlag.length; index++)
                 {
-                    sitesUnderFlag[index].remove();
+                    var type = sitesUnderFlag[index].structureType;
+
+                    if (this.structureType == null || type == this.structureType)
+                    {
+                        sitesUnderFlag[index].remove();
+                    }
                 }
             }
-        }
 
-        let structuresUnderFlag = this.flag.room.lookForAt<Structure>(LOOK_STRUCTURES, this.flag.pos);
-        if (structuresUnderFlag != null)
-        {
-            for (var index = 0; index < structuresUnderFlag.length; index++)
+            let structuresUnderFlag = this.flag.room.lookForAt<Structure>(LOOK_STRUCTURES, this.flag.pos);
+            if (structuresUnderFlag != null)
             {
-                var type = structuresUnderFlag[index].structureType;
-
-                if (this.structureType == null || this.structureType == type)
+                for (var index = 0; index < structuresUnderFlag.length; index++)
                 {
-                    steps.push(new DismantleStructure(ScreepsPtr.from<Structure>(structuresUnderFlag[index])));
+                    var type = structuresUnderFlag[index].structureType;
+
+                    if (this.structureType == null || this.structureType == type)
+                    {
+                        steps.push(new DismantleStructure(ScreepsPtr.from<Structure>(structuresUnderFlag[index])));
+                    }
                 }
             }
         }

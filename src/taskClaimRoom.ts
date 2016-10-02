@@ -5,7 +5,7 @@ import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
 import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 import {BodyDefinition} from "./bodyDefinition";
 
-export class ReserveRoom extends Task
+export class ClaimRoom extends Task
 {
     idealCreepBody: BodyDefinition;
     scheduledClaim: number;
@@ -14,33 +14,19 @@ export class ReserveRoom extends Task
     {
         super(false);
 
-        this.id = 'Reserve ' + controller;
-        this.name = 'Reserve ' + controller.toHtml();
+        this.id = 'Claim ' + controller;
+        this.name = 'Claim ' + controller.toHtml();
         this.possibleWorkers = -1;
-        this.idealCreepBody = CREEP_TYPE.RESERVER;
+        this.idealCreepBody = CREEP_TYPE.CLAIMER;
         this.near = controller;
+        this.priority = TaskPriority.MediumHigh;
 
-        if (controller.isShrouded)
+        if (!controller.isShrouded && controller.instance.owner != null)
         {
-            this.priority = TaskPriority.High;
-        }
-        else if (controller.instance.reservation != null)
-        {
-            if (controller.instance.reservation.ticksToEnd < 1000)
-            {
-                this.priority = TaskPriority.Mandatory;
-            }
-            else
-            {
-                this.priority = TaskPriority.High;
-            }
-        }
-        else
-        {
-            this.priority = TaskPriority.High;
+            this.priority = TaskPriority.None;
         }
 
-        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ claim: 2 }, 1, 2);
+        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ claim: 1 }, 1, 1);
     }
 
     createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
@@ -90,7 +76,7 @@ export class ReserveRoom extends Task
             return OK;
         }
 
-        code = creep.goReserve(this.controller);
+        code = creep.goClaim(this.controller);
 
         if (code === OK)
         {

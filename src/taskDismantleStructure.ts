@@ -1,14 +1,15 @@
-import {Task, ERR_NO_WORK} from './task';
+import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK} from './task';
 import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
-import {SporeCreep, CREEP_TYPE} from "./sporeCreep";
+import {CREEP_TYPE} from "./sporeCreep";
 import {BodyDefinition} from "./bodyDefinition";
 
 export class DismantleStructure extends Task
 {
     idealCreepBody: BodyDefinition;
-    structure: ScreepsPtr<Structure>;
+    scheduledWork: number;
+    scheduledWorkers: number;
 
-    constructor(structure: ScreepsPtr<Structure>)
+    constructor(public structure: ScreepsPtr<Structure>)
     {
         super(false);
 
@@ -22,15 +23,16 @@ export class DismantleStructure extends Task
     {
         if (object instanceof Creep)
         {
-            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
-            {
-                return 0;
-            }
-
             return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
         }
 
         return 0;
+    }
+
+    beginScheduling(): void
+    {
+        this.scheduledWork = 0;
+        this.scheduledWorkers = 0;
     }
 
     schedule(object: RoomObjectLike): number
@@ -41,11 +43,29 @@ export class DismantleStructure extends Task
         }
 
         let creep = <Creep>object;
+
+        if (creep.type === CREEP_TYPE.MINER.name && this.scheduledWorkers > 0)
+        {
+            return ERR_CANNOT_PERFORM_TASK;
+        }
+
+        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null)
+        {
+            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+            return OK;
+        }
+
         let code = creep.goDismantle(this.structure);
 
-        if (code === OK && this.possibleWorkers > 0)
+        if (code === OK)
         {
-            this.possibleWorkers--;
+            this.scheduledWorkers++;
+            this.scheduledWork += creep.getActiveBodyparts(WORK);
+
+            if (this.possibleWorkers > 0)
+            {
+                this.possibleWorkers--;
+            }
         }
 
         return code;

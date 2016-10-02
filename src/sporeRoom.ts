@@ -8,11 +8,11 @@ import {ConstructionSiteMemory} from "./sporeConstructionSite";
 import {ControllerMemory} from "./sporeController";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
 import {RepairStructure} from "./taskRepairStructure";
-import Dictionary = _.Dictionary;
 import {ScreepsPtr, EnergyContainerLike, StoreContainerLike, CarryContainerLike} from "./screepsPtr";
-import {SporeCreep} from "./sporeCreep";
 import {HarvestEnergy} from "./taskHarvestEnergy";
 import {BuildBarrier} from "./taskBuildBarrier";
+import Dictionary = _.Dictionary;
+import {CREEP_TYPE} from "./sporeCreep";
 
 declare global
 {
@@ -23,7 +23,6 @@ declare global
         claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt;
         getRouteTo(roomName: string): any[];
 
-        tasksById: Dictionary<Task>;
         tasks: Task[];
         basicTasks: Task[];
 
@@ -44,6 +43,7 @@ declare global
         budget: Budget;
 
         my: boolean;
+        isReserved: boolean;
         priority: number;
     }
 
@@ -291,7 +291,6 @@ export class Budget
 export class SporeRoom extends Room
 {
     untaskedCreepsByName: Dictionary<Creep> = {};
-    tasksById: Dictionary<Task> = {};
     tasks: Task[] = [];
     basicTasks: Task[] = [];
 
@@ -320,6 +319,19 @@ export class SporeRoom extends Room
         let my = this.controller != null && (this.controller.my || (this.controller.reservation != null && this.controller.reservation.username == 'PCake0rigin'));
         Object.defineProperty(this, "my", {value: my});
         return my;
+    }
+
+    get isReserved(): boolean
+    {
+        let isReserved = false;
+
+        if (this.controller != null && this.controller.reservation != null)
+        {
+            isReserved = this.controller.reservation.username == 'PCake0rigin';
+        }
+
+        Object.defineProperty(this, "isReserved", {value: isReserved});
+        return isReserved;
     }
 
     get priority(): number
@@ -566,12 +578,14 @@ export class SporeRoom extends Room
             this.economy.resources[resource.resourceType] += resource.amount;
         }
 
-        // for (let creep of this.myCreeps)
-        // {
-        //     this.economy.countStoreResources(creep.carry);
-        // }
+        for (let creep of this.myCreeps)
+        {
+            //this.economy.countStoreResources(creep.carry);
+            this.economy.demand[RESOURCE_ENERGY] += creep.cost;
+        }
 
-        console.log(this + ' economy energy ' + this.economy.resources.energy);
+        console.log(this + ' economy energy supply ' + this.economy.resources.energy);
+        console.log(this + ' economy energy demand ' + Math.ceil(this.economy.demand.energy / 1500));
     }
 
     claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt
@@ -665,6 +679,12 @@ export class SporeRoom extends Room
                 let task = new HarvestEnergy(ScreepsPtr.from<Source>(source));
                 task.priority = TaskPriority.Mandatory + 25;
 
+                if (this.isReserved)
+                {
+                    console.log('////////////////////////////');
+                    task.idealCreepBody = CREEP_TYPE.REMOTE_MINER;
+                }
+
                 let spawn = source.pos.findClosestByPath<Spawn>(this.mySpawns, <any>{ ignoreCreeps:true });
                 if (spawn != null)
                 {
@@ -673,6 +693,12 @@ export class SporeRoom extends Room
 
                 tasks.push(task);
             }
+        }
+        //////////////////////////////////////////////////////////////////////////////
+        // Carry remote energy
+        if (this.isReserved)
+        {
+
         }
 
         //////////////////////////////////////////////////////////////////////////////
@@ -728,6 +754,7 @@ export class SporeRoom extends Room
 
         //////////////////////////////////////////////////////////////////////////////
         // Upgrade room controller
+        if (this.controller.owner != null && this.controller.owner.username == 'pcake0rigin')
         {
             let task = new UpgradeRoomController(ScreepsPtr.from<Controller>(this.controller));
             tasks.push(task);
@@ -756,13 +783,13 @@ export class SporeRoom extends Room
                     return false;
                 }
 
-                if (!structure.doIgnore && structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL)
+                if (!structure.doIgnore && (structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL))
                 {
                     return true;
                 }
 
                 return false;
-            });
+            }.bind(this));
 
             let barriers: ScreepsPtr<ConstructionSite | StructureWall | StructureRampart>[] =
                 _.map(sites, function(site: ConstructionSite)

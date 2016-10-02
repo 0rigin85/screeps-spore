@@ -13,6 +13,7 @@ export const enum TaskPriority
     Medium = 50,
     MediumLow = 25,
     Low = 0,
+    None = -1,
 
     ExtraDemandBoost = 10,
 }
@@ -146,7 +147,7 @@ export class Task
         }
 
         // 1 - 40
-        if (near != null && creep.pos.roomName == near.pos.roomName)
+        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName))
         {
             objectPriority += 0.40;
         }

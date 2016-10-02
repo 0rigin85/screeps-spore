@@ -8,6 +8,7 @@ import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 export class TransferResource extends Task
 {
     scheduledTransfer: number = 0;
+    scheduledWorkers: number = 0;
     scheduledCarry: number = 0;
     reserveWorkers: boolean = false;
 
@@ -55,7 +56,7 @@ export class TransferResource extends Task
             room.economy.resources != null &&
             room.economy.resources[RESOURCE_ENERGY] > 0)
         {
-            this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 1200) / CARRY_CAPACITY) * 0.8) }, 1, 3);
+            this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 2000) / CARRY_CAPACITY) * 0.8) }, 1, 3);
         }
     }
 
@@ -164,7 +165,33 @@ export class TransferResource extends Task
     beginScheduling(): void
     {
         this.scheduledTransfer = 0;
+        this.scheduledWorkers = 0;
         this.scheduledCarry = 0;
+    }
+
+    hasWork(): boolean
+    {
+        if (this.possibleWorkers === 0)
+        {
+            return false;
+        }
+
+        if (this.resourcesNeeded <= 0)
+        {
+            return false;
+        }
+
+        if (this.labor.types[this.idealCreepBody.name] != null)
+        {
+            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
+            if (this.scheduledCarry >= this.labor.types[this.idealCreepBody.name].parts[CARRY] ||
+                this.scheduledWorkers >= this.labor.types[this.idealCreepBody.name].max)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     schedule(object: RoomObjectLike): number
@@ -177,11 +204,6 @@ export class TransferResource extends Task
         else
         {
             room = this.targets[0].room;
-        }
-
-        if (this.possibleWorkers === 0)
-        {
-            return ERR_NO_WORK;
         }
 
         if (!(object instanceof Creep))
@@ -198,17 +220,9 @@ export class TransferResource extends Task
             return OK;
         }
 
-        //if (this.resourcesNeeded === 0 || this.resourcesNeeded < this.scheduledTransfer || this.needsResources.length === 0)
-        let maxCarryReached = false;
-        if (this.labor.types[this.idealCreepBody.name] != null)
+        if (!this.hasWork())
         {
-            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
-            maxCarryReached = this.scheduledCarry >= this.labor.types[this.idealCreepBody.name].parts[CARRY];
-        }
-
-        if (this.scheduledTransfer >= this.resourceCapacity || maxCarryReached)
-        {
-            // console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
+            //console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
             return ERR_NO_WORK;
         }
 
@@ -282,7 +296,8 @@ export class TransferResource extends Task
             let compatibleTransfer = creep.carryCapacityRemaining + creep.carry[this.resourceType];
 
             this.scheduledTransfer += compatibleTransfer;
-            this.scheduledCarry += Math.floor((creep.carryCapacity / compatibleTransfer) / CARRY_CAPACITY);
+            this.scheduledWorkers++;
+            this.scheduledCarry += Math.floor(compatibleTransfer / CARRY_CAPACITY);
 
             if (this.possibleWorkers > 0)
             {
@@ -290,7 +305,7 @@ export class TransferResource extends Task
             }
         }
 
-        if (this.possibleWorkers === 0 || this.scheduledTransfer >= this.resourceCapacity || maxCarryReached)
+        if (this.possibleWorkers === 0 || !this.hasWork())
         {
             return NO_MORE_WORK;
         }

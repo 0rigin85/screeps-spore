@@ -10,6 +10,7 @@ import {HarvestEnergy} from "./taskHarvestEnergy";
 import {TransferResource} from "./taskTransferResource";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
 import {BuildBarrier} from "./taskBuildBarrier";
+import {ClaimRoom} from "./taskClaimRoom";
 
 export class LaborPoolType
 {
@@ -61,6 +62,7 @@ export class SporeColony
     constructor()
     { }
 
+    tasks: Task[] = [];
     tasksById: Dictionary<Task> = {};
     laborPool: LaborPool = new LaborPool();
     spawnRequests: SpawnRequest[] = [];
@@ -111,6 +113,7 @@ export class SporeColony
 
     run(): void
     {
+        this.tasks = [];
         this.tasksById = {};
         this.laborPool = new LaborPool();
         this.spawnRequests.length = 0;
@@ -158,141 +161,13 @@ export class SporeColony
         {
             for (let task of room.basicTasks)
             {
-                let priorityCache: Dictionary<number> = {};
-                taskLaborPools[task.id] = new LaborPool();
-
-                task.beginScheduling();
-                let prioritizedCreeps = this.getCreepsByTier(task, creeps, priorityCache);
-
-                let code = OK;
-                let creepTaskPriority = 0;
-
-                for (let index = 0; index < prioritizedCreeps.length; index++)
-                {
-                    let tierCreeps = prioritizedCreeps[index];
-
-                    if (tierCreeps.length > 1)
-                    {
-                        console.log('//////  Sorting Tier ' + index + ' for ' + task.name);
-                        this.sortCreepsBySecondPriority(task, tierCreeps);
-                    }
-
-                    for (let creep of tierCreeps)
-                    {
-                        if (creep.type != null && task.labor.types[creep.type] != null)
-                        {
-                            taskLaborPools[task.id].addCreep(creep);
-                        }
-
-                        if (code === ERR_NO_WORK)
-                        {
-                            break;
-                        }
-
-                        code = task.schedule(creep);
-
-                        if (task instanceof TransferResource)
-                        {
-                            console.log('    ' + code);
-                        }
-
-                        if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task))
-                        {
-                            creep.task = task;
-                            creep.taskPriority = creepTaskPriority;
-                            creepTaskPriority++;
-
-                            // remove creep now that it's been scheduled
-                            creeps[creep.name] = null;
-                            delete creeps[creep.name];
-                            console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
-
-                            if (creep.ticksToLive < 300 && CREEP_TYPE[creep.type] != null && creep.task != null)
-                            {
-                                this.spawnRequests.push(new SpawnRequest('replace_' + creep.name, null, creep, CREEP_TYPE[creep.type]));
-                            }
-
-                            if (code === NO_MORE_WORK)
-                            {
-                                break;
-                            }
-                        }
-                        else if (code === ERR_NO_WORK)
-                        {
-
-                        }
-                        else if (code === ERR_CANNOT_PERFORM_TASK)
-                        {
-                            //skip this creep
-                            console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
-                        }
-                        else
-                        {
-                            console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
-                        }
-                    }
-
-                    if (code === NO_MORE_WORK || code === ERR_NO_WORK)
-                    {
-                        break;
-                    }
-                }
-                task.endScheduling();
-
-                for (let index = 0; index < prioritizedCreeps.length; index++)
-                {
-                    for (let creep of prioritizedCreeps[index])
-                    {
-                        if (task instanceof TransferResource)
-                        {
-                            console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
-                        }
-                    }
-                }
-
-                for(let name in task.labor.types)
-                {
-                    let type = task.labor.types[name];
-
-                    if (type == null)
-                    {
-                        continue;
-                    }
-
-                    if (taskLaborPools[task.id].types[name] == null)
-                    {
-                        taskLaborPools[task.id].types[name] = new LaborPoolType({}, 0);
-                    }
-
-                    let typePool = taskLaborPools[task.id].types[name];
-                    let doSpawn = false;
-
-                    if (type.min > typePool.count)
-                    {
-                        console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
-                        doSpawn = true;
-                    }
-
-                    if (!doSpawn)
-                    {
-                        for (let partName in type.parts)
-                        {
-                            if (type.parts[partName] > typePool.parts[partName])
-                            {
-                                console.log(task.name + ' -> ' + partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
-                                doSpawn = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (doSpawn && type.max > typePool.count)
-                    {
-                        console.log(task.name + ' -> ' + name + ': '+ type.max + ' > ' + typePool.count);
-                        this.spawnRequests.push(new SpawnRequest('new_: ' + task.id, task, null, CREEP_TYPE[name]));
-                    }
-                }
+                this.scheduleTask(task, creeps, taskLaborPools);
             }
+        }
+
+        for(let task of this.tasks)
+        {
+            this.scheduleTask(task, creeps, taskLaborPools);
         }
 
         for (let name in creeps)
@@ -312,84 +187,204 @@ export class SporeColony
         //this.recycleCreeps(creeps);
     }
 
-    collectTasks(): void
+    scheduleTask(task: Task, creeps: Dictionary<Creep>, taskLaborPools: Dictionary<LaborPool>): void
     {
-        this.tasksById = {};
+        let priorityCache: Dictionary<number> = {};
+        taskLaborPools[task.id] = new LaborPool();
 
-        for(let room of this.myRooms)
+        task.beginScheduling();
+        let prioritizedCreeps = this.getCreepsByTier(task, creeps, priorityCache);
+
+        let code = OK;
+        let creepTaskPriority = 0;
+
+        for (let index = 0; index < prioritizedCreeps.length; index++)
         {
-            room.tasksById = {};
-            room.tasks = [];
-            room.basicTasks = [];
+            let tierCreeps = prioritizedCreeps[index];
 
-            //////////////////////////////////////////////////////////////////////////////
-            // turn flags into tasks
-            for (let name in Game.flags)
+            if (tierCreeps.length > 1)
             {
-                let flag = Game.flags[name];
-
-                if (flag.room != room)
-                {
-                    continue;
-                }
-
-                flag.room.tasks.push.apply(flag.room.tasks, flag.getTasks());
+                console.log('//////  Sorting Tier ' + index + ' for ' + task.name);
+                this.sortCreepsBySecondPriority(task, tierCreeps);
             }
 
-            room.tasks.push.apply(room.tasks, room.getTasks());
-
-            // Breakdown tasks
-            for (let index = 0; index < room.tasks.length; index++)
+            for (let creep of tierCreeps)
             {
-                let task = room.tasks[index];
-
-                if (task.isComplex)
+                if (creep.type != null && task.labor.types[creep.type] != null)
                 {
-                    let subTasks = task.getSteps();
-                    room.tasks.push.apply(room.tasks, subTasks);
+                    taskLaborPools[task.id].addCreep(creep);
                 }
-                else if (room.tasksById[task.id] == null)
+
+                if (code === ERR_NO_WORK)
                 {
-                    room.basicTasks.push(task);
-                    room.tasksById[task.id] = task;
-                    this.tasksById[task.id] = task;
+                    break;
+                }
+
+                code = task.schedule(creep);
+
+                // if (task instanceof TransferResource)
+                // {
+                //     console.log('    ' + code);
+                // }
+
+                if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task))
+                {
+                    creep.task = task;
+                    creep.taskPriority = creepTaskPriority;
+                    creepTaskPriority++;
+
+                    // remove creep now that it's been scheduled
+                    creeps[creep.name] = null;
+                    delete creeps[creep.name];
+                    console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
+
+                    if (creep.ticksToLive < 300 && CREEP_TYPE[creep.type] != null && creep.task != null && task.labor.types[creep.type] != null)
+                    {
+                        this.spawnRequests.push(new SpawnRequest('replace_' + creep.name, null, creep, CREEP_TYPE[creep.type]));
+                    }
+
+                    if (code === NO_MORE_WORK)
+                    {
+                        break;
+                    }
+                }
+                else if (code === ERR_NO_WORK)
+                {
+
+                }
+                else if (code === ERR_CANNOT_PERFORM_TASK)
+                {
+                    //skip this creep
+                    console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
                 }
                 else
                 {
-                    if (room.tasksById[task.id].priority !== task.priority)
+                    console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
+                }
+            }
+
+            if (code === NO_MORE_WORK || code === ERR_NO_WORK)
+            {
+                break;
+            }
+        }
+        task.endScheduling();
+
+        for (let index = 0; index < prioritizedCreeps.length; index++)
+        {
+            for (let creep of prioritizedCreeps[index])
+            {
+                if (task instanceof ClaimRoom)
+                {
+                    console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
+                }
+            }
+        }
+
+        let laborPool: LaborPool = new LaborPool();
+
+        for (let index = 0; index < prioritizedCreeps.length; index++)
+        {
+            let tierCreeps = prioritizedCreeps[index];
+
+            for (let creep of tierCreeps)
+            {
+                if (creep.type != null && task.labor.types[creep.type] != null)
+                {
+                    laborPool.addCreep(creep);
+                }
+            }
+        }
+
+        for(let name in task.labor.types)
+        {
+            let type = task.labor.types[name];
+
+            if (type == null)
+            {
+                continue;
+            }
+
+            if (laborPool.types[name] == null)
+            {
+                laborPool.types[name] = new LaborPoolType({}, 0);
+            }
+
+            let typePool = laborPool.types[name];
+            let doSpawn = false;
+
+            if (type.min > typePool.count)
+            {
+                //console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
+                doSpawn = true;
+            }
+
+            if (!doSpawn)
+            {
+                for (let partName in type.parts)
+                {
+                    if (type.parts[partName] > typePool.parts[partName])
                     {
-                        room.basicTasks.push(task);
-                        room.tasksById[task.id] = task;
-                        this.tasksById[task.id] = task;
+                        //console.log(task.name + ' -> ' + partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
+                        doSpawn = true;
+                        break;
                     }
                 }
             }
 
-            // Sort the basic tasks by their priority
-            room.basicTasks.sort(function(a, b)
+            if (doSpawn && type.max > typePool.count)
             {
-                if (a.priority < b.priority)
-                {
-                    return 1;
-                }
+                //console.log(task.name + ' -> ' + name + ': '+ type.max + ' > ' + typePool.count);
+                this.spawnRequests.push(new SpawnRequest('new_: ' + task.id, task, null, CREEP_TYPE[name]));
+            }
+        }
+    }
 
-                if (a.priority > b.priority)
-                {
-                    return -1;
-                }
+    collectTasks(): void
+    {
+        let globalTasks = [];
 
-                if (a.id < b.id)
-                {
-                    return 1;
-                }
+        for(let room of this.myRooms)
+        {
+            room.tasks = [];
+            room.basicTasks = [];
+        }
 
-                if (a.id > b.id)
-                {
-                    return -1;
-                }
+        //////////////////////////////////////////////////////////////////////////////
+        // turn flags into tasks
+        for (let name in Game.flags)
+        {
+            let flag = Game.flags[name];
 
-                return 0;
-            });
+            if (flag.room != null && flag.room.my)
+            {
+                flag.room.tasks.push.apply(flag.room.tasks, flag.getTasks());
+            }
+            else
+            {
+                globalTasks.push.apply(globalTasks, flag.getTasks());
+            }
+        }
+
+        for(let room of this.myRooms)
+        {
+            room.tasks.push.apply(room.tasks, room.getTasks());
+        }
+
+        console.log("[global] basic tasks: " + this.tasks.length);
+        this.breakdownTasks(globalTasks, this.tasks);
+        this.sortTasks(this.tasks);
+
+        for (let taskIndex = 0; taskIndex < this.tasks.length; taskIndex++)
+        {
+            let task = this.tasks[taskIndex];
+            console.log('   ' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
+        }
+
+        for(let room of this.myRooms)
+        {
+            this.breakdownTasks(room.tasks, room.basicTasks);
+            this.sortTasks(room.basicTasks);
 
             console.log(room + " basic tasks: " + room.basicTasks.length);
 
@@ -401,57 +396,61 @@ export class SporeColony
         }
     }
 
-    getCreepsByPriority(task: Task, creeps: Dictionary<Creep>, priorityCache?: Dictionary<number>): Creep[]
+    sortTasks(tasks: Task[]): void
     {
-        if (priorityCache == null)
+        // Sort the basic tasks by their priority
+        tasks.sort(function(a, b)
         {
-            priorityCache = {};
-        }
-
-        let creepsByPriority: Creep[] = [];
-
-        for (let name in creeps)
-        {
-            let creep = creeps[name];
-            let priority = task.prioritize(creep);
-
-            if (priority > 0)
-            {
-                priorityCache[creep.id] = priority;
-                creepsByPriority.push(creep);
-            }
-        }
-
-        let distanceCache: Dictionary<number> = {};
-
-        creepsByPriority.sort(function (a, b)
-        {
-            let priorityA = priorityCache[a.id];
-            let priorityB = priorityCache[b.id];
-
-            if (priorityA < priorityB)
+            if (a.priority < b.priority)
             {
                 return 1;
             }
 
-            if (priorityA > priorityB)
+            if (a.priority > b.priority)
+            {
+                return -1;
+            }
+
+            if (a.id < b.id)
+            {
+                return 1;
+            }
+
+            if (a.id > b.id)
             {
                 return -1;
             }
 
             return 0;
         });
+    }
 
-        // if (_.size(creepsByPriority) > 0)
-        // {
-        //     console.log(task.name + ' creep priority: ' + _.size(creepsByPriority));
-        //     for (let creep of creepsByPriority)
-        //     {
-        //         console.log('   ' + creep.name + ' ' + priorityCache[creep.id]);
-        //     }
-        // }
+    breakdownTasks(tasks: Task[], outputTasks: Task[]): void
+    {
+        // Breakdown tasks
+        for (let index = 0; index < tasks.length; index++)
+        {
+            let task = tasks[index];
 
-        return creepsByPriority;
+            if (task.isComplex)
+            {
+                let subTasks = task.getSteps();
+                tasks.push.apply(tasks, subTasks);
+            }
+            else if (this.tasksById[task.id] == null)
+            {
+                outputTasks.push(task);
+                this.tasksById[task.id] = task;
+            }
+            else
+            {
+                if (this.tasksById[task.id].priority !== task.priority)
+                {
+                    outputTasks.push(task);
+                    this.tasksById[task.id] = task;
+                }
+            }
+        }
     }
 
     getCreepsByTier(task: Task, creeps: Dictionary<Creep>, priorityCache?: Dictionary<number>): Creep[][]

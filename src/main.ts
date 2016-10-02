@@ -7,6 +7,8 @@ declare var module: any;
 
 module.exports.loop = function() {
 
+    PathFinder.use(true);
+
     for(let name in Memory.creeps)
     {
         if(!Game.creeps[name])

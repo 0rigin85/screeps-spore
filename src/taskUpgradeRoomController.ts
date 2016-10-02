@@ -85,6 +85,12 @@ export class UpgradeRoomController extends Task
         let creep = <Creep>object;
         let code;
 
+        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null)
+        {
+            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+            return OK;
+        }
+
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             (creep.action === ACTION_UPGRADE && creep.carry[RESOURCE_ENERGY] > 0))
         {
@@ -125,14 +131,15 @@ export class UpgradeRoomController extends Task
 
         if (code === OK)
         {
+            this.scheduledWorkers++;
+
+            let compatibleTransfer = creep.carryCapacityRemaining + creep.carry[RESOURCE_ENERGY];
+            this.scheduledCarry += Math.floor(compatibleTransfer / CARRY_CAPACITY);
+
             if (this.possibleWorkers > 0)
             {
                 this.possibleWorkers--;
             }
-        }
-        else
-        {
-            console.log(code);
         }
 
         if (this.possibleWorkers === 0)
@@ -153,12 +160,12 @@ export class UpgradeRoomController extends Task
 
         if (this.scheduledWorkers > 0)
         {
-            let averageWorkerCapacity = (this.scheduledCarry / this.scheduledWorkers);
+            let averageWorkerCapacity = (this.scheduledCarry / this.scheduledWorkers) * CARRY_CAPACITY;
 
             if (room != null &&
                 room.economy != null &&
                 room.economy.resources != null &&
-                room.economy.resources[RESOURCE_ENERGY] > averageWorkerCapacity)
+                room.economy.resources[RESOURCE_ENERGY] > averageWorkerCapacity * 5)
             {
                 this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: (this.scheduledCarry + averageWorkerCapacity) }, 1, 50);
             }

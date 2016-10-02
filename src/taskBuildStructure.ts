@@ -66,6 +66,11 @@ export class BuildStructure extends Task
         return 0;
     }
 
+    beginScheduling(): void
+    {
+        this.scheduledWork = 0;
+    }
+
     schedule(object: RoomObjectLike): number
     {
         if (this.possibleWorkers === 0 || !this.site.isValid || this.scheduledWork >= this.desiredWork)
@@ -81,6 +86,12 @@ export class BuildStructure extends Task
 
         let creep = <Creep>object;
         let code;
+
+        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null)
+        {
+            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+            return OK;
+        }
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             (creep.action === ACTION_BUILD && creep.carry[RESOURCE_ENERGY] > 0))

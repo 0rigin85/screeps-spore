@@ -23,6 +23,7 @@ declare global
         room: Room;
         type: string;
         spawnRequest: SpawnRequest;
+        cost: number;
 
         colony: SporeColony;
 
@@ -54,6 +55,7 @@ export interface CreepMemory
     taskId: string;
     taskPriority: number;
     spawnRequest: SpawnRequestMemory;
+    cost: number;
 
     action: string;
     actionTarget: string;
@@ -78,9 +80,12 @@ export var ACTION_MOVE: string = "move";
 export var CREEP_TYPE: {
     [part: string]: BodyDefinition;
     MINER: BodyDefinition;
+    REMOTE_MINER: BodyDefinition;
     COURIER: BodyDefinition;
+    REMOTE_COURIER: BodyDefinition;
     CITIZEN: BodyDefinition;
     RESERVER: BodyDefinition;
+    CLAIMER: BodyDefinition;
 } = <any>{};
 
 var bodyDefinition = new BodyDefinition('MINER');
@@ -89,10 +94,22 @@ bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 1, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 1, 1, 1));
 CREEP_TYPE.MINER = bodyDefinition;
 
+var bodyDefinition = new BodyDefinition('REMOTE_MINER');
+bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 6, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 6, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 1, 1, 1));
+CREEP_TYPE.REMOTE_MINER = bodyDefinition;
+
 var bodyDefinition = new BodyDefinition('COURIER');
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 12, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 12, 1, 1));
 CREEP_TYPE.COURIER = bodyDefinition;
+
+var bodyDefinition = new BodyDefinition('REMOTE_COURIER');
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 10, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 17, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 1, 1, 1));
+CREEP_TYPE.REMOTE_COURIER = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('CITIZEN');
 bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 5, 1, 1));
@@ -102,8 +119,13 @@ CREEP_TYPE.CITIZEN = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('RESERVER');
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 4, 1, 1));
-bodyDefinition.requirements.push(new BodyPartRequirements(CLAIM, 1, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CLAIM, 2, 1, 1));
 CREEP_TYPE.RESERVER = bodyDefinition;
+
+var bodyDefinition = new BodyDefinition('CLAIMER');
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 1, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CLAIM, 1, 1, 1));
+CREEP_TYPE.CLAIMER = bodyDefinition;
 
 export class SporeCreep extends Creep
 {
@@ -171,6 +193,26 @@ export class SporeCreep extends Creep
             memory.claimReceiptResourceType = value.resourceType;
             memory.claimReceiptAmount = value.amount;
         }
+    }
+
+    get cost(): number
+    {
+        if (this.memory.cost == null)
+        {
+            this.memory.cost = 0;
+
+            for (let part of this.body)
+            {
+                this.memory.cost += BODYPART_COST[part.type];
+            }
+        }
+
+        return this.memory.cost;
+    }
+
+    set cost(value: number)
+    {
+        this.memory.cost = value;
     }
 
     getEfficiencyAs(bodyDefinition: BodyDefinition) : number

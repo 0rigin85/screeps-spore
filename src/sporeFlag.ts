@@ -3,6 +3,9 @@
 import {Task} from "./task";
 import {FlagBuildStructure} from "./flagBuildStructure";
 import {FlagDismantleStructure} from "./flagDismantleStructure";
+import {ClaimRoom} from "./taskClaimRoom";
+import {ScreepsPtr} from "./screepsPtr";
+import {ReserveRoom} from "./taskReserveRoom";
 
 declare global
 {
@@ -23,6 +26,7 @@ export class SporeFlag extends Flag
     {
         let tasks: Task[] = [];
 
+        let myRoom = this.room != null && this.room.my;
         if (this.color == COLOR_GREEN)
         {
             tasks.push(new FlagBuildStructure("", Game.flags[this.name]));
@@ -33,45 +37,76 @@ export class SporeFlag extends Flag
         }
         else if (this.color == COLOR_GREY)
         {
-            let lookResults: LookAtResult[] = this.room.lookAt(this);
-
-            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
+            if (this.room != null)
             {
-                let lookObject = lookResults[lookIndex];
+                let lookResults: LookAtResult[] = this.room.lookAt(this);
 
-                if (lookObject.type == LOOK_SOURCES)
+                for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
                 {
-                    lookObject.source.doIgnore = true;
-                }
-                else if (lookObject.type == LOOK_STRUCTURES)
-                {
-                    lookObject.structure.doIgnore = true;
-                }
-                else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
-                {
-                    lookObject.constructionSite.doIgnore = true;
+                    let lookObject = lookResults[lookIndex];
+
+                    if (lookObject.type == LOOK_SOURCES)
+                    {
+                        lookObject.source.doIgnore = true;
+                    }
+                    else if (lookObject.type == LOOK_STRUCTURES)
+                    {
+                        lookObject.structure.doIgnore = true;
+                    }
+                    else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
+                    {
+                        lookObject.constructionSite.doIgnore = true;
+                    }
                 }
             }
         }
         else if (this.color == COLOR_BLUE)
         {
-            let lookResults: LookAtResult[] = this.room.lookAt(this);
-
-            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
+            if (this.room != null)
             {
-                let lookObject = lookResults[lookIndex];
+                let lookResults: LookAtResult[] = this.room.lookAt(this);
 
-                if (lookObject.type == LOOK_SOURCES)
+                for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++)
                 {
-                    lookObject.source.doFavor = true;
+                    let lookObject = lookResults[lookIndex];
+
+                    if (lookObject.type == LOOK_SOURCES)
+                    {
+                        lookObject.source.doFavor = true;
+                    }
+                    else if (lookObject.type == LOOK_STRUCTURES)
+                    {
+                        lookObject.structure.doFavor = true;
+                    }
+                    else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
+                    {
+                        lookObject.constructionSite.doFavor = true;
+                    }
                 }
-                else if (lookObject.type == LOOK_STRUCTURES)
+            }
+        }
+        else if (this.color == COLOR_PURPLE)
+        {
+            if (this.secondaryColor == COLOR_PURPLE)
+            {
+                if (this.room == null || (this.room.controller != null && this.room.controller.owner == null))
                 {
-                    lookObject.structure.doFavor = true;
+                    tasks.push(new ClaimRoom(ScreepsPtr.fromPosition<StructureController>(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER)));
                 }
-                else if (lookObject.type == LOOK_CONSTRUCTION_SITES)
+                else if (this.room != null && this.room.controller != null && this.room.controller.owner != null && this.room.controller.owner.username == 'PCake0rigin')
                 {
-                    lookObject.constructionSite.doFavor = true;
+                    this.remove();
+                }
+            }
+            else if (this.secondaryColor == COLOR_BLUE)
+            {
+                if (this.room == null || (this.room.controller != null && this.room.controller.owner == null && (this.room.controller.reservation == null || this.room.controller.reservation.username == 'PCake0rigin')))
+                {
+                    tasks.push(new ReserveRoom(ScreepsPtr.fromPosition<StructureController>(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER)));
+                }
+                else if (this.room != null && this.room.controller.owner.username == 'PCake0rigin')
+                {
+                    this.remove();
                 }
             }
         }

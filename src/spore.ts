@@ -17,15 +17,6 @@ import {SporeColony} from "./sporeColony";
 import {SporeResource} from "./sporeResource";
 import {SporeLink} from "./sporeLink";
 
-declare global
-{
-    interface Memory {
-        routes: {
-            [fromRoom: string]: any;
-        };
-    }
-}
-
 export class Spore
 {
     constructor()
@@ -35,6 +26,11 @@ export class Spore
 
     static inject(): void
     {
+        if (Memory.config == null)
+        {
+            Memory.config = { tasks:{} };
+        }
+
         function completeAssign(target, ...sources) {
             sources.forEach(source => {
                 let descriptors = Object.getOwnPropertyNames(source).reduce((descriptors, key) => {

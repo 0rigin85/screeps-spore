@@ -24,15 +24,6 @@ export class HarvestEnergy extends Task
         this.idealCreepBody = CREEP_TYPE.MINER;
         this.roomName = this.source.pos.roomName;
         this.near = source;
-
-        let slots = SporeSource.getSlots(this.source);
-
-        if (slots === -1)
-        {
-            slots = 8;
-        }
-
-        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ work: 5 }, 1, slots);
     }
 
     createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
@@ -59,6 +50,14 @@ export class HarvestEnergy extends Task
     {
         this.scheduledWork= 0;
         this.scheduledWorkers.length = 0;
+
+        let slots = SporeSource.getSlots(this.source);
+        if (slots === -1)
+        {
+            slots = 8;
+        }
+
+        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ work: 5 }, 1, slots);
     }
 
     schedule(object: RoomObjectLike): number
@@ -77,7 +76,7 @@ export class HarvestEnergy extends Task
 
         let creep = <Creep>object;
 
-        if (creep.task != this && creep.task instanceof HarvestEnergy && creep.action === ACTION_COLLECT)
+        if (creep.task != this && creep.task instanceof HarvestEnergy)
         {
             return ERR_CANNOT_PERFORM_TASK;
         }
@@ -176,6 +175,12 @@ export class HarvestEnergy extends Task
                     }
                 }
             }
+        }
+
+        if (code === ERR_CANNOT_PERFORM_TASK)
+        {
+            console.log(creep + ' is blocked from harvesting');
+            code = OK;
         }
 
         if (code === OK && creep.spawnRequest == null)

@@ -55,8 +55,9 @@ module.exports =
 	/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const spore_1 = __webpack_require__(2);
-	const sporeColony_1 = __webpack_require__(33);
+	const sporeColony_1 = __webpack_require__(35);
 	module.exports.loop = function () {
+	    PathFinder.use(true);
 	    for (let name in Memory.creeps) {
 	        if (!Game.creeps[name]) {
 	            delete Memory.creeps[name];
@@ -83,17 +84,20 @@ module.exports =
 	const sporeController_1 = __webpack_require__(20);
 	const sporeExtension_1 = __webpack_require__(21);
 	const sporeFlag_1 = __webpack_require__(22);
-	const sporeRoomPosition_1 = __webpack_require__(26);
-	const sporeSpawn_1 = __webpack_require__(27);
-	const sporeStorage_1 = __webpack_require__(28);
-	const sporeStructure_1 = __webpack_require__(29);
-	const sporeTower_1 = __webpack_require__(30);
-	const sporeResource_1 = __webpack_require__(31);
-	const sporeLink_1 = __webpack_require__(32);
+	const sporeRoomPosition_1 = __webpack_require__(28);
+	const sporeSpawn_1 = __webpack_require__(29);
+	const sporeStorage_1 = __webpack_require__(30);
+	const sporeStructure_1 = __webpack_require__(31);
+	const sporeTower_1 = __webpack_require__(32);
+	const sporeResource_1 = __webpack_require__(33);
+	const sporeLink_1 = __webpack_require__(34);
 	class Spore {
 	    constructor() {
 	    }
 	    static inject() {
+	        if (Memory.config == null) {
+	            Memory.config = { tasks: {} };
+	        }
 	        function completeAssign(target, ...sources) {
 	            sources.forEach(source => {
 	                let descriptors = Object.getOwnPropertyNames(source).reduce((descriptors, key) => {
@@ -149,6 +153,7 @@ module.exports =
 	const screepsPtr_1 = __webpack_require__(12);
 	const taskHarvestEnergy_1 = __webpack_require__(13);
 	const taskBuildBarrier_1 = __webpack_require__(15);
+	const sporeCreep_1 = __webpack_require__(7);
 	var GATHER_RESOURCE_STORES = {
 	    'source': function (collection, resourceType, amount, claimer, near, excludes) {
 	        if (resourceType !== RESOURCE_ENERGY) {
@@ -321,7 +326,6 @@ module.exports =
 	    constructor(...args) {
 	        super(...args);
 	        this.untaskedCreepsByName = {};
-	        this.tasksById = {};
 	        this.tasks = [];
 	        this.basicTasks = [];
 	        this._resources = null;
@@ -343,6 +347,14 @@ module.exports =
 	        let my = this.controller != null && (this.controller.my || (this.controller.reservation != null && this.controller.reservation.username == 'PCake0rigin'));
 	        Object.defineProperty(this, "my", { value: my });
 	        return my;
+	    }
+	    get isReserved() {
+	        let isReserved = false;
+	        if (this.controller != null && this.controller.reservation != null) {
+	            isReserved = this.controller.reservation.username == 'PCake0rigin';
+	        }
+	        Object.defineProperty(this, "isReserved", { value: isReserved });
+	        return isReserved;
 	    }
 	    get priority() {
 	        let memory = Memory.rooms[this.name];
@@ -505,11 +517,12 @@ module.exports =
 	        for (let resource of this.resources) {
 	            this.economy.resources[resource.resourceType] += resource.amount;
 	        }
-	        // for (let creep of this.myCreeps)
-	        // {
-	        //     this.economy.countStoreResources(creep.carry);
-	        // }
-	        console.log(this + ' economy energy ' + this.economy.resources.energy);
+	        for (let creep of this.myCreeps) {
+	            //this.economy.countStoreResources(creep.carry);
+	            this.economy.demand[RESOURCE_ENERGY] += creep.cost;
+	        }
+	        console.log(this + ' economy energy supply ' + this.economy.resources.energy);
+	        console.log(this + ' economy energy demand ' + Math.ceil(this.economy.demand.energy / 1500));
 	    }
 	    claimResource(claimer, resourceType, amount, minAmount, isExtended, near, storePriorities, excludes, receipt) {
 	        if (receipt != null && receipt.target != null && excludes[receipt.target.id] == null) {
@@ -572,12 +585,20 @@ module.exports =
 	                }
 	                let task = new taskHarvestEnergy_1.HarvestEnergy(screepsPtr_1.ScreepsPtr.from(source));
 	                task.priority = 1000 /* Mandatory */ + 25;
+	                if (this.isReserved) {
+	                    console.log('////////////////////////////');
+	                    task.idealCreepBody = sporeCreep_1.CREEP_TYPE.REMOTE_MINER;
+	                }
 	                let spawn = source.pos.findClosestByPath(this.mySpawns, { ignoreCreeps: true });
 	                if (spawn != null) {
 	                    task.priority += Math.max(0, 150 - source.pos.findPathTo(spawn.pos, { ignoreCreeps: true }).length);
 	                }
 	                tasks.push(task);
 	            }
+	        }
+	        //////////////////////////////////////////////////////////////////////////////
+	        // Carry remote energy
+	        if (this.isReserved) {
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Fill Spawn and Extensions
@@ -616,7 +637,7 @@ module.exports =
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Upgrade room controller
-	        {
+	        if (this.controller.owner != null && this.controller.owner.username == 'pcake0rigin') {
 	            let task = new taskUpgradeRoomController_1.UpgradeRoomController(screepsPtr_1.ScreepsPtr.from(this.controller));
 	            tasks.push(task);
 	        }
@@ -636,11 +657,11 @@ module.exports =
 	                    // don't repair newbie walls
 	                    return false;
 	                }
-	                if (!structure.doIgnore && structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL) {
+	                if (!structure.doIgnore && (structure.structureType === STRUCTURE_RAMPART || structure.structureType === STRUCTURE_WALL)) {
 	                    return true;
 	                }
 	                return false;
-	            });
+	            }.bind(this));
 	            let barriers = _.map(sites, function (site) {
 	                return screepsPtr_1.ScreepsPtr.from(site);
 	            }).concat(_.map(structures, function (structure) {
@@ -782,6 +803,7 @@ module.exports =
 	        this.source = source;
 	        this.storePriorities = storePriorities;
 	        this.scheduledTransfer = 0;
+	        this.scheduledWorkers = 0;
 	        this.scheduledCarry = 0;
 	        this.reserveWorkers = false;
 	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.COURIER;
@@ -810,7 +832,7 @@ module.exports =
 	            room.economy != null &&
 	            room.economy.resources != null &&
 	            room.economy.resources[RESOURCE_ENERGY] > 0) {
-	            this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 1200) / CARRY_CAPACITY) * 0.8) }, 1, 3);
+	            this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 2000) / CARRY_CAPACITY) * 0.8) }, 1, 3);
 	        }
 	    }
 	    calculateRequirements() {
@@ -883,7 +905,24 @@ module.exports =
 	    }
 	    beginScheduling() {
 	        this.scheduledTransfer = 0;
+	        this.scheduledWorkers = 0;
 	        this.scheduledCarry = 0;
+	    }
+	    hasWork() {
+	        if (this.possibleWorkers === 0) {
+	            return false;
+	        }
+	        if (this.resourcesNeeded <= 0) {
+	            return false;
+	        }
+	        if (this.labor.types[this.idealCreepBody.name] != null) {
+	            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
+	            if (this.scheduledCarry >= this.labor.types[this.idealCreepBody.name].parts[CARRY] ||
+	                this.scheduledWorkers >= this.labor.types[this.idealCreepBody.name].max) {
+	                return false;
+	            }
+	        }
+	        return true;
 	    }
 	    schedule(object) {
 	        let room = null;
@@ -892,9 +931,6 @@ module.exports =
 	        }
 	        else {
 	            room = this.targets[0].room;
-	        }
-	        if (this.possibleWorkers === 0) {
-	            return task_1.ERR_NO_WORK;
 	        }
 	        if (!(object instanceof Creep)) {
 	            console.log('ERROR: Attempted to transfer resources with a non-creep room object. ' + object);
@@ -905,14 +941,8 @@ module.exports =
 	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
 	            return OK;
 	        }
-	        //if (this.resourcesNeeded === 0 || this.resourcesNeeded < this.scheduledTransfer || this.needsResources.length === 0)
-	        let maxCarryReached = false;
-	        if (this.labor.types[this.idealCreepBody.name] != null) {
-	            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
-	            maxCarryReached = this.scheduledCarry >= this.labor.types[this.idealCreepBody.name].parts[CARRY];
-	        }
-	        if (this.scheduledTransfer >= this.resourceCapacity || maxCarryReached) {
-	            // console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
+	        if (!this.hasWork()) {
+	            //console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
 	            return task_1.ERR_NO_WORK;
 	        }
 	        if (creep.type === sporeCreep_1.CREEP_TYPE.MINER.name && this.scheduledTransfer > 0) {
@@ -962,12 +992,13 @@ module.exports =
 	        if (code === OK && creep.spawnRequest == null) {
 	            let compatibleTransfer = creep.carryCapacityRemaining + creep.carry[this.resourceType];
 	            this.scheduledTransfer += compatibleTransfer;
-	            this.scheduledCarry += Math.floor((creep.carryCapacity / compatibleTransfer) / CARRY_CAPACITY);
+	            this.scheduledWorkers++;
+	            this.scheduledCarry += Math.floor(compatibleTransfer / CARRY_CAPACITY);
 	            if (this.possibleWorkers > 0) {
 	                this.possibleWorkers--;
 	            }
 	        }
-	        if (this.possibleWorkers === 0 || this.scheduledTransfer >= this.resourceCapacity || maxCarryReached) {
+	        if (this.possibleWorkers === 0 || !this.hasWork()) {
 	            return task_1.NO_MORE_WORK;
 	        }
 	        return code;
@@ -1101,7 +1132,7 @@ module.exports =
 	            }
 	        }
 	        // 1 - 40
-	        if (near != null && creep.pos.roomName == near.pos.roomName) {
+	        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName)) {
 	            objectPriority += 0.40;
 	        }
 	        // 41 - 60
@@ -1194,10 +1225,20 @@ module.exports =
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 1, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 1, 1, 1));
 	exports.CREEP_TYPE.MINER = bodyDefinition;
+	var bodyDefinition = new bodyDefinition_1.BodyDefinition('REMOTE_MINER');
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 6, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 6, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 1, 1, 1));
+	exports.CREEP_TYPE.REMOTE_MINER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('COURIER');
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 12, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 12, 1, 1));
 	exports.CREEP_TYPE.COURIER = bodyDefinition;
+	var bodyDefinition = new bodyDefinition_1.BodyDefinition('REMOTE_COURIER');
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 10, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 17, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 1, 1, 1));
+	exports.CREEP_TYPE.REMOTE_COURIER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('CITIZEN');
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 5, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 10, 1, 1));
@@ -1205,8 +1246,12 @@ module.exports =
 	exports.CREEP_TYPE.CITIZEN = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('RESERVER');
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 4, 1, 1));
-	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CLAIM, 1, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CLAIM, 2, 1, 1));
 	exports.CREEP_TYPE.RESERVER = bodyDefinition;
+	var bodyDefinition = new bodyDefinition_1.BodyDefinition('CLAIMER');
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 1, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CLAIM, 1, 1, 1));
+	exports.CREEP_TYPE.CLAIMER = bodyDefinition;
 	class SporeCreep extends Creep {
 	    get carryCount() {
 	        return _.sum(this.carry);
@@ -1248,6 +1293,18 @@ module.exports =
 	            memory.claimReceiptResourceType = value.resourceType;
 	            memory.claimReceiptAmount = value.amount;
 	        }
+	    }
+	    get cost() {
+	        if (this.memory.cost == null) {
+	            this.memory.cost = 0;
+	            for (let part of this.body) {
+	                this.memory.cost += BODYPART_COST[part.type];
+	            }
+	        }
+	        return this.memory.cost;
+	    }
+	    set cost(value) {
+	        this.memory.cost = value;
 	    }
 	    getEfficiencyAs(bodyDefinition) {
 	        let totalRequiredParts = 0;
@@ -1865,6 +1922,10 @@ module.exports =
 	        }
 	        let creep = object;
 	        let code;
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+	            return OK;
+	        }
 	        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
 	            (creep.action === sporeCreep_1.ACTION_UPGRADE && creep.carry[RESOURCE_ENERGY] > 0)) {
 	            code = creep.goUpgrade(this.controller);
@@ -1882,12 +1943,12 @@ module.exports =
 	            }
 	        }
 	        if (code === OK) {
+	            this.scheduledWorkers++;
+	            let compatibleTransfer = creep.carryCapacityRemaining + creep.carry[RESOURCE_ENERGY];
+	            this.scheduledCarry += Math.floor(compatibleTransfer / CARRY_CAPACITY);
 	            if (this.possibleWorkers > 0) {
 	                this.possibleWorkers--;
 	            }
-	        }
-	        else {
-	            console.log(code);
 	        }
 	        if (this.possibleWorkers === 0) {
 	            return task_1.NO_MORE_WORK;
@@ -1900,11 +1961,11 @@ module.exports =
 	            room = this.controller.instance.room;
 	        }
 	        if (this.scheduledWorkers > 0) {
-	            let averageWorkerCapacity = (this.scheduledCarry / this.scheduledWorkers);
+	            let averageWorkerCapacity = (this.scheduledCarry / this.scheduledWorkers) * CARRY_CAPACITY;
 	            if (room != null &&
 	                room.economy != null &&
 	                room.economy.resources != null &&
-	                room.economy.resources[RESOURCE_ENERGY] > averageWorkerCapacity) {
+	                room.economy.resources[RESOURCE_ENERGY] > averageWorkerCapacity * 5) {
 	                this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: (this.scheduledCarry + averageWorkerCapacity) }, 1, 50);
 	            }
 	        }
@@ -2150,11 +2211,6 @@ module.exports =
 	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.MINER;
 	        this.roomName = this.source.pos.roomName;
 	        this.near = source;
-	        let slots = sporeSource_1.SporeSource.getSlots(this.source);
-	        if (slots === -1) {
-	            slots = 8;
-	        }
-	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ work: 5 }, 1, slots);
 	    }
 	    createAppointment(spawn, request) {
 	        return super.createBasicAppointment(spawn, request, this.source);
@@ -2171,6 +2227,11 @@ module.exports =
 	    beginScheduling() {
 	        this.scheduledWork = 0;
 	        this.scheduledWorkers.length = 0;
+	        let slots = sporeSource_1.SporeSource.getSlots(this.source);
+	        if (slots === -1) {
+	            slots = 8;
+	        }
+	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ work: 5 }, 1, slots);
 	    }
 	    schedule(object) {
 	        if (this.possibleWorkers === 0 || this.scheduledWork >= 1 || !this.source.isValid ||
@@ -2182,7 +2243,7 @@ module.exports =
 	            return task_1.ERR_CANNOT_PERFORM_TASK;
 	        }
 	        let creep = object;
-	        if (creep.task != this && creep.task instanceof HarvestEnergy && creep.action === sporeCreep_1.ACTION_COLLECT) {
+	        if (creep.task != this && creep.task instanceof HarvestEnergy) {
 	            return task_1.ERR_CANNOT_PERFORM_TASK;
 	        }
 	        let code;
@@ -2249,6 +2310,10 @@ module.exports =
 	                    }
 	                }
 	            }
+	        }
+	        if (code === task_1.ERR_CANNOT_PERFORM_TASK) {
+	            console.log(creep + ' is blocked from harvesting');
+	            code = OK;
 	        }
 	        if (code === OK && creep.spawnRequest == null) {
 	            this.scheduledWork += creep.getActiveBodyparts(WORK) / 5;
@@ -2397,12 +2462,12 @@ module.exports =
 	    constructor(barriers) {
 	        super(false);
 	        this.barriers = barriers;
-	        this.workers = 0;
+	        this.scheduledWorkers = 0;
+	        this.scheduledCarry = 0;
 	        this.direRampartHits = RAMPART_DECAY_AMOUNT * 10;
 	        this.averageHits = 0;
 	        this.averageDelta = 1000;
-	        this.requiredCarryPerBarrier = 0.25;
-	        this.scheduledCarry = 0;
+	        this.requiredCarryPerBarrier = 0.20;
 	        this.id = 'Reinforce barriers';
 	        this.name = 'Reinforce barriers';
 	        this.possibleWorkers = -1;
@@ -2417,7 +2482,7 @@ module.exports =
 	            }
 	        }
 	        this.averageHits = totalHits / total;
-	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: Math.floor((this.requiredCarryPerBarrier * this.barriers.length) / CARRY_CAPACITY) }, 1, 10);
+	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: Math.floor(this.requiredCarryPerBarrier * this.barriers.length) }, 1, 10);
 	    }
 	    sortBarriers() {
 	        this.barriers.sort(function (a, b) {
@@ -2523,12 +2588,22 @@ module.exports =
 	    }
 	    beginScheduling() {
 	        this.sortBarriers();
+	        this.scheduledWorkers = 0;
 	        this.scheduledCarry = 0;
 	    }
-	    schedule(object) {
-	        if (this.possibleWorkers === 0 || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length) {
-	            return task_1.ERR_NO_WORK;
+	    hasWork() {
+	        if (this.possibleWorkers === 0) {
+	            return false;
 	        }
+	        if (this.labor.types[this.idealCreepBody.name] != null) {
+	            if (this.scheduledCarry >= this.labor.types[this.idealCreepBody.name].parts[CARRY] ||
+	                this.scheduledWorkers >= this.labor.types[this.idealCreepBody.name].max) {
+	                return false;
+	            }
+	        }
+	        return true;
+	    }
+	    schedule(object) {
 	        if (!(object instanceof Creep)) {
 	            console.log('ERROR: Attempted to reinforce barriers with a non-creep room object. ' + object);
 	            return task_1.ERR_CANNOT_PERFORM_TASK;
@@ -2536,13 +2611,18 @@ module.exports =
 	        let nextBarrier = 0; //Math.min(this.workers, this.barriers.length);
 	        let creep = object;
 	        let code;
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+	            return OK;
+	        }
+	        if (!this.hasWork()) {
+	            return task_1.ERR_NO_WORK;
+	        }
 	        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
 	            ((creep.action === sporeCreep_1.ACTION_BUILD || creep.action === sporeCreep_1.ACTION_REPAIR || creep.action === sporeCreep_1.ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0)) {
-	            console.log('-----------------------------------');
 	            code = this.goReinforce(creep, nextBarrier);
 	        }
 	        else {
-	            console.log('++++++++++++++++++++++++++++++++++++++');
 	            let amount = creep.carryCapacityRemaining;
 	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.barriers[nextBarrier].pos, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']], {});
 	            if (code === task_1.ERR_NO_WORK) {
@@ -2555,16 +2635,15 @@ module.exports =
 	            }
 	        }
 	        if (code === OK) {
-	            this.workers++;
+	            this.scheduledWorkers++;
 	            this.scheduledCarry += creep.getActiveBodyparts(CARRY);
 	            if (this.possibleWorkers > 0) {
 	                this.possibleWorkers--;
 	            }
 	        }
-	        if (this.possibleWorkers === 0 || this.scheduledCarry >= this.requiredCarryPerBarrier * this.barriers.length) {
+	        if (!this.hasWork()) {
 	            return task_1.NO_MORE_WORK;
 	        }
-	        console.log('///// ' + code);
 	        return code;
 	    }
 	    goReinforce(creep, barrierIndex) {
@@ -2681,6 +2760,9 @@ module.exports =
 	        }
 	        return 0;
 	    }
+	    beginScheduling() {
+	        this.scheduledWork = 0;
+	    }
 	    schedule(object) {
 	        if (this.possibleWorkers === 0 || !this.site.isValid || this.scheduledWork >= this.desiredWork) {
 	            return task_1.ERR_NO_WORK;
@@ -2691,6 +2773,10 @@ module.exports =
 	        }
 	        let creep = object;
 	        let code;
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+	            return OK;
+	        }
 	        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
 	            (creep.action === sporeCreep_1.ACTION_BUILD && creep.carry[RESOURCE_ENERGY] > 0)) {
 	            code = creep.goBuild(this.site);
@@ -2949,9 +3035,13 @@ module.exports =
 	"use strict";
 	const flagBuildStructure_1 = __webpack_require__(23);
 	const flagDismantleStructure_1 = __webpack_require__(25);
+	const taskClaimRoom_1 = __webpack_require__(26);
+	const screepsPtr_1 = __webpack_require__(12);
+	const taskReserveRoom_1 = __webpack_require__(27);
 	class SporeFlag extends Flag {
 	    getTasks() {
 	        let tasks = [];
+	        let myRoom = this.room != null && this.room.my;
 	        if (this.color == COLOR_GREEN) {
 	            tasks.push(new flagBuildStructure_1.FlagBuildStructure("", Game.flags[this.name]));
 	        }
@@ -2959,32 +3049,54 @@ module.exports =
 	            tasks.push(new flagDismantleStructure_1.FlagDismantleStructure("", Game.flags[this.name]));
 	        }
 	        else if (this.color == COLOR_GREY) {
-	            let lookResults = this.room.lookAt(this);
-	            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++) {
-	                let lookObject = lookResults[lookIndex];
-	                if (lookObject.type == LOOK_SOURCES) {
-	                    lookObject.source.doIgnore = true;
-	                }
-	                else if (lookObject.type == LOOK_STRUCTURES) {
-	                    lookObject.structure.doIgnore = true;
-	                }
-	                else if (lookObject.type == LOOK_CONSTRUCTION_SITES) {
-	                    lookObject.constructionSite.doIgnore = true;
+	            if (this.room != null) {
+	                let lookResults = this.room.lookAt(this);
+	                for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++) {
+	                    let lookObject = lookResults[lookIndex];
+	                    if (lookObject.type == LOOK_SOURCES) {
+	                        lookObject.source.doIgnore = true;
+	                    }
+	                    else if (lookObject.type == LOOK_STRUCTURES) {
+	                        lookObject.structure.doIgnore = true;
+	                    }
+	                    else if (lookObject.type == LOOK_CONSTRUCTION_SITES) {
+	                        lookObject.constructionSite.doIgnore = true;
+	                    }
 	                }
 	            }
 	        }
 	        else if (this.color == COLOR_BLUE) {
-	            let lookResults = this.room.lookAt(this);
-	            for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++) {
-	                let lookObject = lookResults[lookIndex];
-	                if (lookObject.type == LOOK_SOURCES) {
-	                    lookObject.source.doFavor = true;
+	            if (this.room != null) {
+	                let lookResults = this.room.lookAt(this);
+	                for (var lookIndex = 0; lookIndex < lookResults.length; lookIndex++) {
+	                    let lookObject = lookResults[lookIndex];
+	                    if (lookObject.type == LOOK_SOURCES) {
+	                        lookObject.source.doFavor = true;
+	                    }
+	                    else if (lookObject.type == LOOK_STRUCTURES) {
+	                        lookObject.structure.doFavor = true;
+	                    }
+	                    else if (lookObject.type == LOOK_CONSTRUCTION_SITES) {
+	                        lookObject.constructionSite.doFavor = true;
+	                    }
 	                }
-	                else if (lookObject.type == LOOK_STRUCTURES) {
-	                    lookObject.structure.doFavor = true;
+	            }
+	        }
+	        else if (this.color == COLOR_PURPLE) {
+	            if (this.secondaryColor == COLOR_PURPLE) {
+	                if (this.room == null || (this.room.controller != null && this.room.controller.owner == null)) {
+	                    tasks.push(new taskClaimRoom_1.ClaimRoom(screepsPtr_1.ScreepsPtr.fromPosition(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER)));
 	                }
-	                else if (lookObject.type == LOOK_CONSTRUCTION_SITES) {
-	                    lookObject.constructionSite.doFavor = true;
+	                else if (this.room != null && this.room.controller != null && this.room.controller.owner != null && this.room.controller.owner.username == 'PCake0rigin') {
+	                    this.remove();
+	                }
+	            }
+	            else if (this.secondaryColor == COLOR_BLUE) {
+	                if (this.room == null || (this.room.controller != null && this.room.controller.owner == null && (this.room.controller.reservation == null || this.room.controller.reservation.username == 'PCake0rigin'))) {
+	                    tasks.push(new taskReserveRoom_1.ReserveRoom(screepsPtr_1.ScreepsPtr.fromPosition(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER)));
+	                }
+	                else if (this.room != null && this.room.controller.owner.username == 'PCake0rigin') {
+	                    this.remove();
 	                }
 	            }
 	        }
@@ -3127,6 +3239,7 @@ module.exports =
 	class DismantleStructure extends task_1.Task {
 	    constructor(structure) {
 	        super(false);
+	        this.structure = structure;
 	        this.id = 'Dismantle ' + this.structure;
 	        this.name = 'Dismantle ' + this.structure;
 	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.CITIZEN;
@@ -3134,21 +3247,33 @@ module.exports =
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
-	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
-	                return 0;
-	            }
 	            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
 	        }
 	        return 0;
+	    }
+	    beginScheduling() {
+	        this.scheduledWork = 0;
+	        this.scheduledWorkers = 0;
 	    }
 	    schedule(object) {
 	        if (this.possibleWorkers === 0 || !this.structure.isValid || !(object instanceof Creep)) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        let creep = object;
+	        if (creep.type === sporeCreep_1.CREEP_TYPE.MINER.name && this.scheduledWorkers > 0) {
+	            return task_1.ERR_CANNOT_PERFORM_TASK;
+	        }
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+	            return OK;
+	        }
 	        let code = creep.goDismantle(this.structure);
-	        if (code === OK && this.possibleWorkers > 0) {
-	            this.possibleWorkers--;
+	        if (code === OK) {
+	            this.scheduledWorkers++;
+	            this.scheduledWork += creep.getActiveBodyparts(WORK);
+	            if (this.possibleWorkers > 0) {
+	                this.possibleWorkers--;
+	            }
 	        }
 	        return code;
 	    }
@@ -3196,21 +3321,23 @@ module.exports =
 	    }
 	    getSteps() {
 	        let steps = [];
-	        let sitesUnderFlag = this.flag.room.lookForAt(LOOK_CONSTRUCTION_SITES, this.flag.pos);
-	        if (sitesUnderFlag != null && sitesUnderFlag.length > 0) {
-	            for (var index = 0; index < sitesUnderFlag.length; index++) {
-	                var type = sitesUnderFlag[index].structureType;
-	                if (this.structureType == null || type == this.structureType) {
-	                    sitesUnderFlag[index].remove();
+	        if (this.flag.room != null) {
+	            let sitesUnderFlag = this.flag.room.lookForAt(LOOK_CONSTRUCTION_SITES, this.flag.pos);
+	            if (sitesUnderFlag != null && sitesUnderFlag.length > 0) {
+	                for (var index = 0; index < sitesUnderFlag.length; index++) {
+	                    var type = sitesUnderFlag[index].structureType;
+	                    if (this.structureType == null || type == this.structureType) {
+	                        sitesUnderFlag[index].remove();
+	                    }
 	                }
 	            }
-	        }
-	        let structuresUnderFlag = this.flag.room.lookForAt(LOOK_STRUCTURES, this.flag.pos);
-	        if (structuresUnderFlag != null) {
-	            for (var index = 0; index < structuresUnderFlag.length; index++) {
-	                var type = structuresUnderFlag[index].structureType;
-	                if (this.structureType == null || this.structureType == type) {
-	                    steps.push(new taskDismantleStructure_1.DismantleStructure(screepsPtr_1.ScreepsPtr.from(structuresUnderFlag[index])));
+	            let structuresUnderFlag = this.flag.room.lookForAt(LOOK_STRUCTURES, this.flag.pos);
+	            if (structuresUnderFlag != null) {
+	                for (var index = 0; index < structuresUnderFlag.length; index++) {
+	                    var type = structuresUnderFlag[index].structureType;
+	                    if (this.structureType == null || this.structureType == type) {
+	                        steps.push(new taskDismantleStructure_1.DismantleStructure(screepsPtr_1.ScreepsPtr.from(structuresUnderFlag[index])));
+	                    }
 	                }
 	            }
 	        }
@@ -3222,6 +3349,150 @@ module.exports =
 
 /***/ },
 /* 26 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	const task_1 = __webpack_require__(5);
+	const sporeCreep_1 = __webpack_require__(7);
+	class ClaimRoom extends task_1.Task {
+	    constructor(controller) {
+	        super(false);
+	        this.controller = controller;
+	        this.id = 'Claim ' + controller;
+	        this.name = 'Claim ' + controller.toHtml();
+	        this.possibleWorkers = -1;
+	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.CLAIMER;
+	        this.near = controller;
+	        this.priority = 75 /* MediumHigh */;
+	        if (!controller.isShrouded && controller.instance.owner != null) {
+	            this.priority = -1 /* None */;
+	        }
+	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ claim: 1 }, 1, 1);
+	    }
+	    createAppointment(spawn, request) {
+	        if (request.replacingCreep != null) {
+	            return super.createBasicAppointment(spawn, request, request.replacingCreep);
+	        }
+	        return super.createBasicAppointment(spawn, request, this.controller);
+	    }
+	    prioritize(object) {
+	        if (object instanceof Creep) {
+	            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+	        }
+	        return 0;
+	    }
+	    beginScheduling() {
+	        this.scheduledClaim = 0;
+	    }
+	    schedule(object) {
+	        if (this.possibleWorkers === 0 || !this.controller.isValid || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM]) {
+	            return task_1.ERR_NO_WORK;
+	        }
+	        if (!(object instanceof Creep)) {
+	            console.log('ERROR: Attempted to reserve a controller with a non-creep room object. ' + object);
+	            return task_1.ERR_CANNOT_PERFORM_TASK;
+	        }
+	        let creep = object;
+	        let code;
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+	            return OK;
+	        }
+	        code = creep.goClaim(this.controller);
+	        if (code === OK) {
+	            this.scheduledClaim += creep.getActiveBodyparts(CLAIM);
+	            if (this.possibleWorkers > 0) {
+	                this.possibleWorkers--;
+	            }
+	        }
+	        if (this.possibleWorkers === 0 || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM]) {
+	            return task_1.NO_MORE_WORK;
+	        }
+	        return code;
+	    }
+	}
+	exports.ClaimRoom = ClaimRoom;
+	//# sourceMappingURL=taskClaimRoom.js.map
+
+/***/ },
+/* 27 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	const task_1 = __webpack_require__(5);
+	const sporeCreep_1 = __webpack_require__(7);
+	class ReserveRoom extends task_1.Task {
+	    constructor(controller) {
+	        super(false);
+	        this.controller = controller;
+	        this.id = 'Reserve ' + controller;
+	        this.name = 'Reserve ' + controller.toHtml();
+	        this.possibleWorkers = -1;
+	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.RESERVER;
+	        this.near = controller;
+	        if (controller.isShrouded) {
+	            this.priority = 100 /* High */;
+	        }
+	        else if (controller.instance.reservation != null) {
+	            if (controller.instance.reservation.ticksToEnd < 1000) {
+	                this.priority = 1000 /* Mandatory */;
+	            }
+	            else {
+	                this.priority = 100 /* High */;
+	            }
+	        }
+	        else {
+	            this.priority = 100 /* High */;
+	        }
+	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ claim: 2 }, 1, 2);
+	    }
+	    createAppointment(spawn, request) {
+	        if (request.replacingCreep != null) {
+	            return super.createBasicAppointment(spawn, request, request.replacingCreep);
+	        }
+	        return super.createBasicAppointment(spawn, request, this.controller);
+	    }
+	    prioritize(object) {
+	        if (object instanceof Creep) {
+	            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+	        }
+	        return 0;
+	    }
+	    beginScheduling() {
+	        this.scheduledClaim = 0;
+	    }
+	    schedule(object) {
+	        if (this.possibleWorkers === 0 || !this.controller.isValid || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM]) {
+	            return task_1.ERR_NO_WORK;
+	        }
+	        if (!(object instanceof Creep)) {
+	            console.log('ERROR: Attempted to reserve a controller with a non-creep room object. ' + object);
+	            return task_1.ERR_CANNOT_PERFORM_TASK;
+	        }
+	        let creep = object;
+	        let code;
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+	            return OK;
+	        }
+	        code = creep.goReserve(this.controller);
+	        if (code === OK) {
+	            this.scheduledClaim += creep.getActiveBodyparts(CLAIM);
+	            if (this.possibleWorkers > 0) {
+	                this.possibleWorkers--;
+	            }
+	        }
+	        if (this.possibleWorkers === 0 || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM]) {
+	            return task_1.NO_MORE_WORK;
+	        }
+	        return code;
+	    }
+	}
+	exports.ReserveRoom = ReserveRoom;
+	//# sourceMappingURL=taskReserveRoom.js.map
+
+/***/ },
+/* 28 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -3252,6 +3523,9 @@ module.exports =
 	        }.bind(this));
 	    }
 	    getRouteTo(toRoom) {
+	        if (Memory.routes == null) {
+	            Memory.routes = [];
+	        }
 	        let routeMemory = Memory.routes[this.roomName];
 	        if (routeMemory == null) {
 	            routeMemory = {};
@@ -3276,6 +3550,7 @@ module.exports =
 	            toRoomName = other.pos.roomName;
 	        }
 	        if (this.roomName != toRoomName) {
+	            return 50;
 	            if (Game.rooms[this.roomName] == null) {
 	                return 0;
 	            }
@@ -3296,7 +3571,9 @@ module.exports =
 	            else {
 	                lastExit -= 4;
 	            }
+	            console.log(lastExit);
 	            let closestLastExit = this.findClosestByRange(lastExit);
+	            console.log(closestLastExit);
 	            rangeToSite += this.findPathTo(closestLastExit, opts).length;
 	        }
 	        else {
@@ -3373,7 +3650,7 @@ module.exports =
 	//# sourceMappingURL=sporeRoomPosition.js.map
 
 /***/ },
-/* 27 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3478,7 +3755,7 @@ module.exports =
 	//# sourceMappingURL=sporeSpawn.js.map
 
 /***/ },
-/* 28 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3546,7 +3823,7 @@ module.exports =
 	//# sourceMappingURL=sporeStorage.js.map
 
 /***/ },
-/* 29 */
+/* 31 */
 /***/ function(module, exports) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3664,7 +3941,7 @@ module.exports =
 	//# sourceMappingURL=sporeStructure.js.map
 
 /***/ },
-/* 30 */
+/* 32 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3762,7 +4039,7 @@ module.exports =
 	//# sourceMappingURL=sporeTower.js.map
 
 /***/ },
-/* 31 */
+/* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3813,7 +4090,7 @@ module.exports =
 	//# sourceMappingURL=sporeResource.js.map
 
 /***/ },
-/* 32 */
+/* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -4063,16 +4340,16 @@ module.exports =
 	//# sourceMappingURL=sporeLink.js.map
 
 /***/ },
-/* 33 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskRecycleCreep_1 = __webpack_require__(34);
+	const taskRecycleCreep_1 = __webpack_require__(36);
 	const screepsPtr_1 = __webpack_require__(12);
 	const spawnRequest_1 = __webpack_require__(6);
 	const sporeCreep_1 = __webpack_require__(7);
-	const taskTransferResource_1 = __webpack_require__(4);
+	const taskClaimRoom_1 = __webpack_require__(26);
 	class LaborPoolType {
 	    constructor(parts, count) {
 	        this.parts = parts;
@@ -4107,6 +4384,7 @@ module.exports =
 	exports.LaborPool = LaborPool;
 	class SporeColony {
 	    constructor() {
+	        this.tasks = [];
 	        this.tasksById = {};
 	        this.laborPool = new LaborPool();
 	        this.spawnRequests = [];
@@ -4139,6 +4417,7 @@ module.exports =
 	        return myRooms;
 	    }
 	    run() {
+	        this.tasks = [];
 	        this.tasksById = {};
 	        this.laborPool = new LaborPool();
 	        this.spawnRequests.length = 0;
@@ -4168,95 +4447,11 @@ module.exports =
 	        }
 	        for (let room of this.myRooms) {
 	            for (let task of room.basicTasks) {
-	                let priorityCache = {};
-	                taskLaborPools[task.id] = new LaborPool();
-	                task.beginScheduling();
-	                let prioritizedCreeps = this.getCreepsByTier(task, creeps, priorityCache);
-	                let code = OK;
-	                let creepTaskPriority = 0;
-	                for (let index = 0; index < prioritizedCreeps.length; index++) {
-	                    let tierCreeps = prioritizedCreeps[index];
-	                    if (tierCreeps.length > 1) {
-	                        console.log('//////  Sorting Tier ' + index + ' for ' + task.name);
-	                        this.sortCreepsBySecondPriority(task, tierCreeps);
-	                    }
-	                    for (let creep of tierCreeps) {
-	                        if (creep.type != null && task.labor.types[creep.type] != null) {
-	                            taskLaborPools[task.id].addCreep(creep);
-	                        }
-	                        if (code === task_1.ERR_NO_WORK) {
-	                            break;
-	                        }
-	                        code = task.schedule(creep);
-	                        if (task instanceof taskTransferResource_1.TransferResource) {
-	                            console.log('    ' + code);
-	                        }
-	                        if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task)) {
-	                            creep.task = task;
-	                            creep.taskPriority = creepTaskPriority;
-	                            creepTaskPriority++;
-	                            // remove creep now that it's been scheduled
-	                            creeps[creep.name] = null;
-	                            delete creeps[creep.name];
-	                            console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
-	                            if (creep.ticksToLive < 300 && sporeCreep_1.CREEP_TYPE[creep.type] != null && creep.task != null) {
-	                                this.spawnRequests.push(new spawnRequest_1.SpawnRequest('replace_' + creep.name, null, creep, sporeCreep_1.CREEP_TYPE[creep.type]));
-	                            }
-	                            if (code === task_1.NO_MORE_WORK) {
-	                                break;
-	                            }
-	                        }
-	                        else if (code === task_1.ERR_NO_WORK) {
-	                        }
-	                        else if (code === task_1.ERR_CANNOT_PERFORM_TASK) {
-	                            //skip this creep
-	                            console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
-	                        }
-	                        else {
-	                            console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
-	                        }
-	                    }
-	                    if (code === task_1.NO_MORE_WORK || code === task_1.ERR_NO_WORK) {
-	                        break;
-	                    }
-	                }
-	                task.endScheduling();
-	                for (let index = 0; index < prioritizedCreeps.length; index++) {
-	                    for (let creep of prioritizedCreeps[index]) {
-	                        if (task instanceof taskTransferResource_1.TransferResource) {
-	                            console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
-	                        }
-	                    }
-	                }
-	                for (let name in task.labor.types) {
-	                    let type = task.labor.types[name];
-	                    if (type == null) {
-	                        continue;
-	                    }
-	                    if (taskLaborPools[task.id].types[name] == null) {
-	                        taskLaborPools[task.id].types[name] = new LaborPoolType({}, 0);
-	                    }
-	                    let typePool = taskLaborPools[task.id].types[name];
-	                    let doSpawn = false;
-	                    if (type.min > typePool.count) {
-	                        console.log(task.name + ' -> ' + name + ': ' + type.min + ' > ' + typePool.count);
-	                        doSpawn = true;
-	                    }
-	                    if (!doSpawn) {
-	                        for (let partName in type.parts) {
-	                            if (type.parts[partName] > typePool.parts[partName]) {
-	                                console.log(task.name + ' -> ' + partName + ': ' + type.parts[partName] + ' > ' + typePool.parts[partName]);
-	                                doSpawn = true;
-	                                break;
-	                            }
-	                        }
-	                    }
-	                    if (doSpawn && type.max > typePool.count) {
-	                        console.log(task.name + ' -> ' + name + ': ' + type.max + ' > ' + typePool.count);
-	                        this.spawnRequests.push(new spawnRequest_1.SpawnRequest('new_: ' + task.id, task, null, sporeCreep_1.CREEP_TYPE[name]));
-	                    }
-	                }
+	                this.scheduleTask(task, creeps, taskLaborPools);
 	            }
+	        }
+	        for (let task of this.tasks) {
+	            this.scheduleTask(task, creeps, taskLaborPools);
 	        }
 	        for (let name in creeps) {
 	            let creep = creeps[name];
@@ -4270,58 +4465,136 @@ module.exports =
 	        console.log("Surplus Creeps: " + totalSurplusCreeps);
 	        //this.recycleCreeps(creeps);
 	    }
-	    collectTasks() {
-	        this.tasksById = {};
-	        for (let room of this.myRooms) {
-	            room.tasksById = {};
-	            room.tasks = [];
-	            room.basicTasks = [];
-	            //////////////////////////////////////////////////////////////////////////////
-	            // turn flags into tasks
-	            for (let name in Game.flags) {
-	                let flag = Game.flags[name];
-	                if (flag.room != room) {
-	                    continue;
-	                }
-	                flag.room.tasks.push.apply(flag.room.tasks, flag.getTasks());
+	    scheduleTask(task, creeps, taskLaborPools) {
+	        let priorityCache = {};
+	        taskLaborPools[task.id] = new LaborPool();
+	        task.beginScheduling();
+	        let prioritizedCreeps = this.getCreepsByTier(task, creeps, priorityCache);
+	        let code = OK;
+	        let creepTaskPriority = 0;
+	        for (let index = 0; index < prioritizedCreeps.length; index++) {
+	            let tierCreeps = prioritizedCreeps[index];
+	            if (tierCreeps.length > 1) {
+	                console.log('//////  Sorting Tier ' + index + ' for ' + task.name);
+	                this.sortCreepsBySecondPriority(task, tierCreeps);
 	            }
-	            room.tasks.push.apply(room.tasks, room.getTasks());
-	            // Breakdown tasks
-	            for (let index = 0; index < room.tasks.length; index++) {
-	                let task = room.tasks[index];
-	                if (task.isComplex) {
-	                    let subTasks = task.getSteps();
-	                    room.tasks.push.apply(room.tasks, subTasks);
+	            for (let creep of tierCreeps) {
+	                if (creep.type != null && task.labor.types[creep.type] != null) {
+	                    taskLaborPools[task.id].addCreep(creep);
 	                }
-	                else if (room.tasksById[task.id] == null) {
-	                    room.basicTasks.push(task);
-	                    room.tasksById[task.id] = task;
-	                    this.tasksById[task.id] = task;
+	                if (code === task_1.ERR_NO_WORK) {
+	                    break;
+	                }
+	                code = task.schedule(creep);
+	                // if (task instanceof TransferResource)
+	                // {
+	                //     console.log('    ' + code);
+	                // }
+	                if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task)) {
+	                    creep.task = task;
+	                    creep.taskPriority = creepTaskPriority;
+	                    creepTaskPriority++;
+	                    // remove creep now that it's been scheduled
+	                    creeps[creep.name] = null;
+	                    delete creeps[creep.name];
+	                    console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
+	                    if (creep.ticksToLive < 300 && sporeCreep_1.CREEP_TYPE[creep.type] != null && creep.task != null && task.labor.types[creep.type] != null) {
+	                        this.spawnRequests.push(new spawnRequest_1.SpawnRequest('replace_' + creep.name, null, creep, sporeCreep_1.CREEP_TYPE[creep.type]));
+	                    }
+	                    if (code === task_1.NO_MORE_WORK) {
+	                        break;
+	                    }
+	                }
+	                else if (code === task_1.ERR_NO_WORK) {
+	                }
+	                else if (code === task_1.ERR_CANNOT_PERFORM_TASK) {
+	                    //skip this creep
+	                    console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
 	                }
 	                else {
-	                    if (room.tasksById[task.id].priority !== task.priority) {
-	                        room.basicTasks.push(task);
-	                        room.tasksById[task.id] = task;
-	                        this.tasksById[task.id] = task;
+	                    console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
+	                }
+	            }
+	            if (code === task_1.NO_MORE_WORK || code === task_1.ERR_NO_WORK) {
+	                break;
+	            }
+	        }
+	        task.endScheduling();
+	        for (let index = 0; index < prioritizedCreeps.length; index++) {
+	            for (let creep of prioritizedCreeps[index]) {
+	                if (task instanceof taskClaimRoom_1.ClaimRoom) {
+	                    console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
+	                }
+	            }
+	        }
+	        let laborPool = new LaborPool();
+	        for (let index = 0; index < prioritizedCreeps.length; index++) {
+	            let tierCreeps = prioritizedCreeps[index];
+	            for (let creep of tierCreeps) {
+	                if (creep.type != null && task.labor.types[creep.type] != null) {
+	                    laborPool.addCreep(creep);
+	                }
+	            }
+	        }
+	        for (let name in task.labor.types) {
+	            let type = task.labor.types[name];
+	            if (type == null) {
+	                continue;
+	            }
+	            if (laborPool.types[name] == null) {
+	                laborPool.types[name] = new LaborPoolType({}, 0);
+	            }
+	            let typePool = laborPool.types[name];
+	            let doSpawn = false;
+	            if (type.min > typePool.count) {
+	                //console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
+	                doSpawn = true;
+	            }
+	            if (!doSpawn) {
+	                for (let partName in type.parts) {
+	                    if (type.parts[partName] > typePool.parts[partName]) {
+	                        //console.log(task.name + ' -> ' + partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
+	                        doSpawn = true;
+	                        break;
 	                    }
 	                }
 	            }
-	            // Sort the basic tasks by their priority
-	            room.basicTasks.sort(function (a, b) {
-	                if (a.priority < b.priority) {
-	                    return 1;
-	                }
-	                if (a.priority > b.priority) {
-	                    return -1;
-	                }
-	                if (a.id < b.id) {
-	                    return 1;
-	                }
-	                if (a.id > b.id) {
-	                    return -1;
-	                }
-	                return 0;
-	            });
+	            if (doSpawn && type.max > typePool.count) {
+	                //console.log(task.name + ' -> ' + name + ': '+ type.max + ' > ' + typePool.count);
+	                this.spawnRequests.push(new spawnRequest_1.SpawnRequest('new_: ' + task.id, task, null, sporeCreep_1.CREEP_TYPE[name]));
+	            }
+	        }
+	    }
+	    collectTasks() {
+	        let globalTasks = [];
+	        for (let room of this.myRooms) {
+	            room.tasks = [];
+	            room.basicTasks = [];
+	        }
+	        //////////////////////////////////////////////////////////////////////////////
+	        // turn flags into tasks
+	        for (let name in Game.flags) {
+	            let flag = Game.flags[name];
+	            if (flag.room != null && flag.room.my) {
+	                flag.room.tasks.push.apply(flag.room.tasks, flag.getTasks());
+	            }
+	            else {
+	                globalTasks.push.apply(globalTasks, flag.getTasks());
+	            }
+	        }
+	        for (let room of this.myRooms) {
+	            room.tasks.push.apply(room.tasks, room.getTasks());
+	        }
+	        console.log("[global] basic tasks: " + this.tasks.length);
+	        this.breakdownTasks(globalTasks, this.tasks);
+	        this.sortTasks(this.tasks);
+	        for (let taskIndex = 0; taskIndex < this.tasks.length; taskIndex++) {
+	            let task = this.tasks[taskIndex];
+	            console.log('   ' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
+	        }
+	        for (let room of this.myRooms) {
+	            this.breakdownTasks(room.tasks, room.basicTasks);
+	            this.sortTasks(room.basicTasks);
 	            console.log(room + " basic tasks: " + room.basicTasks.length);
 	            for (let taskIndex = 0; taskIndex < room.basicTasks.length; taskIndex++) {
 	                let task = room.basicTasks[taskIndex];
@@ -4329,40 +4602,43 @@ module.exports =
 	            }
 	        }
 	    }
-	    getCreepsByPriority(task, creeps, priorityCache) {
-	        if (priorityCache == null) {
-	            priorityCache = {};
-	        }
-	        let creepsByPriority = [];
-	        for (let name in creeps) {
-	            let creep = creeps[name];
-	            let priority = task.prioritize(creep);
-	            if (priority > 0) {
-	                priorityCache[creep.id] = priority;
-	                creepsByPriority.push(creep);
-	            }
-	        }
-	        let distanceCache = {};
-	        creepsByPriority.sort(function (a, b) {
-	            let priorityA = priorityCache[a.id];
-	            let priorityB = priorityCache[b.id];
-	            if (priorityA < priorityB) {
+	    sortTasks(tasks) {
+	        // Sort the basic tasks by their priority
+	        tasks.sort(function (a, b) {
+	            if (a.priority < b.priority) {
 	                return 1;
 	            }
-	            if (priorityA > priorityB) {
+	            if (a.priority > b.priority) {
+	                return -1;
+	            }
+	            if (a.id < b.id) {
+	                return 1;
+	            }
+	            if (a.id > b.id) {
 	                return -1;
 	            }
 	            return 0;
 	        });
-	        // if (_.size(creepsByPriority) > 0)
-	        // {
-	        //     console.log(task.name + ' creep priority: ' + _.size(creepsByPriority));
-	        //     for (let creep of creepsByPriority)
-	        //     {
-	        //         console.log('   ' + creep.name + ' ' + priorityCache[creep.id]);
-	        //     }
-	        // }
-	        return creepsByPriority;
+	    }
+	    breakdownTasks(tasks, outputTasks) {
+	        // Breakdown tasks
+	        for (let index = 0; index < tasks.length; index++) {
+	            let task = tasks[index];
+	            if (task.isComplex) {
+	                let subTasks = task.getSteps();
+	                tasks.push.apply(tasks, subTasks);
+	            }
+	            else if (this.tasksById[task.id] == null) {
+	                outputTasks.push(task);
+	                this.tasksById[task.id] = task;
+	            }
+	            else {
+	                if (this.tasksById[task.id].priority !== task.priority) {
+	                    outputTasks.push(task);
+	                    this.tasksById[task.id] = task;
+	                }
+	            }
+	        }
 	    }
 	    getCreepsByTier(task, creeps, priorityCache) {
 	        if (priorityCache == null) {
@@ -4685,7 +4961,7 @@ module.exports =
 	//# sourceMappingURL=sporeColony.js.map
 
 /***/ },
-/* 34 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";

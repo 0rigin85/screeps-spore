@@ -58,6 +58,11 @@ export class SporeRoomPosition extends RoomPosition
 
     getRouteTo(toRoom: string): any[]
     {
+        if (Memory.routes == null)
+        {
+            Memory.routes = [];
+        }
+
         let routeMemory = Memory.routes[this.roomName];
         if (routeMemory == null)
         {
@@ -96,6 +101,8 @@ export class SporeRoomPosition extends RoomPosition
 
         if (this.roomName != toRoomName)
         {
+            return 50;
+
             if (Game.rooms[this.roomName] == null)
             {
                 return 0;
@@ -127,8 +134,10 @@ export class SporeRoomPosition extends RoomPosition
             {
                 lastExit -= 4;
             }
+            console.log(lastExit);
 
             let closestLastExit = this.findClosestByRange<RoomPosition>(lastExit);
+            console.log(closestLastExit);
             rangeToSite += this.findPathTo(closestLastExit, opts).length;
         }
         else
