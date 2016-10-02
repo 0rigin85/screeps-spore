@@ -93,7 +93,7 @@ export class SporeTower extends StructureTower implements Claimable
         {
             let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureTower>(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped']]);
             transferEnergyTask.priority = TaskPriority.Mandatory;
-            transferEnergyTask.name = "Fill " + this;
+            transferEnergyTask.name = "Fill " + ScreepsPtr.from<StructureTower>(this).toHtml();
             tasks.push(transferEnergyTask);
         }
 

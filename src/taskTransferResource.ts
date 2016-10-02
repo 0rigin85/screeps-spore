@@ -35,6 +35,7 @@ export class TransferResource extends Task
         }
         else
         {
+            this.id += ' ';
             for (let index = 0; index < (<any[]>storePriorities).length; index++)
             {
                 this.id += storePriorities[index].join(',');
@@ -49,9 +50,12 @@ export class TransferResource extends Task
 
         this.calculateRequirements();
 
-        if (room.economy.resources[RESOURCE_ENERGY] > 0)
+        if (room != null &&
+            room.economy != null &&
+            room.economy.resources != null &&
+            room.economy.resources[RESOURCE_ENERGY] > 0)
         {
-            //this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 1000) / CARRY_CAPACITY) * 0.8) }, 1, 50);
+            this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 1200) / CARRY_CAPACITY) * 0.8) }, 1, 3);
         }
     }
 
@@ -334,6 +338,25 @@ export class TransferResource extends Task
                 ((needsResources.length > 0) ? needsResources[0].pos : creep.pos),
                 this.storePriorities,
                 (<any>_).indexBy(this.targets, 'id'));
+
+            if (code === ERR_NO_WORK)
+            {
+                if (creep.carry[this.resourceType] > 0)
+                {
+                    code = this.scheduleTransfer(creep, needsResources);
+                }
+                else
+                {
+                    code = creep.goCollect(
+                        this.resourceType,
+                        amount,
+                        0,
+                        false,
+                        ((needsResources.length > 0) ? needsResources[0].pos : creep.pos),
+                        this.storePriorities,
+                        (<any>_).indexBy(this.targets, 'id'));
+                }
+            }
         }
 
         return code;

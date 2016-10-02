@@ -190,6 +190,12 @@ export class SporeColony
                         }
 
                         code = task.schedule(creep);
+
+                        if (task instanceof TransferResource)
+                        {
+                            console.log('    ' + code);
+                        }
+
                         if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task))
                         {
                             creep.task = task;
@@ -237,7 +243,7 @@ export class SporeColony
                 {
                     for (let creep of prioritizedCreeps[index])
                     {
-                        if (task instanceof UpgradeRoomController)
+                        if (task instanceof TransferResource)
                         {
                             console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
                         }
@@ -263,7 +269,7 @@ export class SporeColony
 
                     if (type.min > typePool.count)
                     {
-                        //console.log(name + ': '+ type.min + ' > ' + typePool.count);
+                        console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
                         doSpawn = true;
                     }
 
@@ -273,7 +279,7 @@ export class SporeColony
                         {
                             if (type.parts[partName] > typePool.parts[partName])
                             {
-                                console.log(partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
+                                console.log(task.name + ' -> ' + partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
                                 doSpawn = true;
                                 break;
                             }
@@ -282,7 +288,7 @@ export class SporeColony
 
                     if (doSpawn && type.max > typePool.count)
                     {
-                        //console.log(type.max + ' > ' + typePool.count);
+                        console.log(task.name + ' -> ' + name + ': '+ type.max + ' > ' + typePool.count);
                         this.spawnRequests.push(new SpawnRequest('new_: ' + task.id, task, null, CREEP_TYPE[name]));
                     }
                 }
@@ -295,6 +301,7 @@ export class SporeColony
             if (creep != null)
             {
                 creep.task = null;
+                creep.say('\u{1F4A4}');
             }
         }
 

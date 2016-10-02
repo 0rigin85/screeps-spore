@@ -1,7 +1,7 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
 import {Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, LaborDemandType, NO_MORE_WORK} from './task';
-import {CREEP_TYPE} from "./sporeCreep";
+import {CREEP_TYPE, ACTION_COLLECT} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
 import {SpawnAppointment, SpawnRequest} from "./spawnRequest";
 import {BodyDefinition} from "./bodyDefinition";
@@ -76,6 +76,12 @@ export class HarvestEnergy extends Task
         }
 
         let creep = <Creep>object;
+
+        if (creep.task != this && creep.task instanceof HarvestEnergy && creep.action === ACTION_COLLECT)
+        {
+            return ERR_CANNOT_PERFORM_TASK;
+        }
+
         let code;
 
         if (creep.spawnRequest != null)

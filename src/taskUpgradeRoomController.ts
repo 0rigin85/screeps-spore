@@ -9,6 +9,8 @@ import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 export class UpgradeRoomController extends Task
 {
     idealCreepBody: BodyDefinition;
+    scheduledWorkers: number;
+    scheduledCarry: number;
 
     constructor(public controller: ScreepsPtr<Controller>)
     {
@@ -21,8 +23,11 @@ export class UpgradeRoomController extends Task
         this.priority = TaskPriority.Low;
         this.near = controller;
 
+        let room = null;
         if (!controller.isShrouded)
         {
+            room = controller.instance.room;
+
             if (controller.instance.ticksToDowngrade < 2000)
             {
                 this.priority = TaskPriority.Mandatory * 2;
@@ -36,9 +41,6 @@ export class UpgradeRoomController extends Task
                 this.priority = TaskPriority.Mandatory - 100;
             }
         }
-
-        let carryDemand = 12;//Math.ceil((controller.room.economy.resources.energy * controller.room.budget.upgrade) / CARRY_CAPACITY);
-        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: carryDemand }, 1, 50);
     }
 
     createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
@@ -63,7 +65,8 @@ export class UpgradeRoomController extends Task
 
     beginScheduling(): void
     {
-
+        this.scheduledWorkers = 0;
+        this.scheduledCarry = 0;
     }
 
     schedule(object: RoomObjectLike): number
@@ -142,6 +145,28 @@ export class UpgradeRoomController extends Task
 
     endScheduling(): void
     {
+        let room = null;
+        if (!this.controller.isShrouded)
+        {
+            room = this.controller.instance.room;
+        }
 
+        if (this.scheduledWorkers > 0)
+        {
+            let averageWorkerCapacity = (this.scheduledCarry / this.scheduledWorkers);
+
+            if (room != null &&
+                room.economy != null &&
+                room.economy.resources != null &&
+                room.economy.resources[RESOURCE_ENERGY] > averageWorkerCapacity)
+            {
+                this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ carry: (this.scheduledCarry + averageWorkerCapacity) }, 1, 50);
+            }
+        }
+        else
+        {
+            //this.idealCreepBody.getPossibleParts(CLAIM)
+            this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ }, 1, 50);
+        }
     }
 }

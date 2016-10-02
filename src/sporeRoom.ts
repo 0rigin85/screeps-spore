@@ -692,7 +692,17 @@ export class SporeRoom extends Room
 
             if (transferTargets.length > 0)
             {
-                let task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped'], ['source']]);
+                let task;
+
+                if (this.economy.resources[RESOURCE_ENERGY] > 0)
+                {
+                    task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped']]);
+                }
+                else
+                {
+                    task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped'], ['source']]);
+                }
+
                 task.priority = TaskPriority.Mandatory + 200;
                 task.id = "Fill Spawns and Extensions " + this;
                 task.name = task.id;
@@ -710,8 +720,7 @@ export class SporeRoom extends Room
             {
                 let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureStorage>(this.storage)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container'], ['dropped']]);
                 transferEnergyTask.priority = TaskPriority.High;
-                transferEnergyTask.name = "Transfer energy to " + this;
-                transferEnergyTask.possibleWorkers = 1;
+                transferEnergyTask.name = "Transfer energy to " + ScreepsPtr.from<StructureStorage>(this.storage).toHtml();
                 tasks.push(transferEnergyTask);
             }
         }

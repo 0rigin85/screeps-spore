@@ -232,10 +232,12 @@ export class BuildBarrier extends Task
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
             ((creep.action === ACTION_BUILD || creep.action === ACTION_REPAIR || creep.action === ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0))
         {
-            this.goReinforce(creep, nextBarrier);
+            console.log('-----------------------------------');
+            code = this.goReinforce(creep, nextBarrier);
         }
         else
         {
+            console.log('++++++++++++++++++++++++++++++++++++++');
             let amount = creep.carryCapacityRemaining;
 
             code = creep.goCollect(
@@ -251,7 +253,7 @@ export class BuildBarrier extends Task
             {
                 if (creep.carry[RESOURCE_ENERGY] > 0)
                 {
-                    this.goReinforce(creep, nextBarrier);
+                    code = this.goReinforce(creep, nextBarrier);
                 }
                 else
                 {
@@ -283,6 +285,7 @@ export class BuildBarrier extends Task
             return NO_MORE_WORK;
         }
 
+        console.log('///// ' + code);
         return code;
     }
 
