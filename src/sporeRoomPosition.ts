@@ -1,5 +1,5 @@
 
-import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
+import {RoomObjectLike} from "./screepsPtr";
 
 declare global
 {
@@ -7,6 +7,7 @@ declare global
     {
         sortByRangeTo(targets: RoomObjectLike[]): void;
         getWalkableSurroundingArea(): number;
+        getWalkableSurroundingAreaInRange(target: RoomPosition, range: number): RoomPosition[];
         findFirstInRange(targets: RoomObjectLike[], range: number): RoomObjectLike;
         findClosestInRange(targets: RoomObjectLike[], range: number): RoomObjectLike;
         findDistanceByPathTo(other: RoomPosition | RoomObjectLike, opts?: FindPathOpts): number;
@@ -31,6 +32,12 @@ export class SporeRoomPosition extends RoomPosition
             if (rangeA == null)
             {
                 rangeA = this.getRangeTo(a);
+
+                if (rangeA == null)
+                {
+                    rangeA = Game.map.getRoomLinearDistance(this.roomName, a.roomName) * 50;
+                }
+
                 cachedRange[a.id] = rangeA;
             }
 
@@ -39,6 +46,12 @@ export class SporeRoomPosition extends RoomPosition
             if (rangeB == null)
             {
                 rangeB = this.getRangeTo(b);
+
+                if (rangeB == null)
+                {
+                    rangeB = Game.map.getRoomLinearDistance(this.roomName, b.roomName) * 50;
+                }
+
                 cachedRange[b.id] = rangeB;
             }
 
@@ -240,6 +253,73 @@ export class SporeRoomPosition extends RoomPosition
                     if (hasObstacle === false)
                     {
                         availableSlots++;
+                    }
+                }
+            }
+        }
+
+        return availableSlots;
+    }
+
+    getWalkableSurroundingAreaInRange(target: RoomPosition, range: number): RoomPosition[]
+    {
+        let availableSlots = [];
+        let room = Game.rooms[this.roomName];
+
+        if (_.isNull(room))
+        {
+            for (var xOffset = -1; xOffset < 2; xOffset++)
+            {
+                for (var yOffset = -1; yOffset < 2; yOffset++)
+                {
+                    if (xOffset == 0 && yOffset == 0)
+                    {
+                        continue;
+                    }
+
+                    if (Game.map.getTerrainAt(this.x + xOffset, this.y + yOffset, this.roomName) != "wall")
+                    {
+                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
+                        if (target.inRangeTo(pos, range))
+                        {
+                            availableSlots.push(pos);
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            let lookResults = <LookAtResultMatrix>room.lookAtArea(this.y - 1, this.x - 1, this.y + 1, this.x + 1);
+
+            for (var xOffset = -1; xOffset < 2; xOffset++)
+            {
+                for (var yOffset = -1; yOffset < 2; yOffset++)
+                {
+                    if (xOffset == 0 && yOffset == 0)
+                    {
+                        continue;
+                    }
+
+                    let resultArray = <LookAtResult[]>lookResults[this.y + yOffset][this.x + xOffset];
+
+                    let hasObstacle = false;
+                    for (let result of resultArray)
+                    {
+                        if (_.includes(OBSTACLE_OBJECT_TYPES, result[result.type]))
+                        {
+                            hasObstacle = true;
+                            break;
+                        }
+                    }
+
+                    if (hasObstacle === false)
+                    {
+                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
+                        if (target.inRangeTo(pos, range))
+                        {
+                            availableSlots.push(pos);
+                        }
                     }
                 }
             }

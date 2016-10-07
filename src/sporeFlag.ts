@@ -6,6 +6,7 @@ import {FlagDismantleStructure} from "./flagDismantleStructure";
 import {ClaimRoom} from "./taskClaimRoom";
 import {ScreepsPtr} from "./screepsPtr";
 import {ReserveRoom} from "./taskReserveRoom";
+import {Wire} from "./taskWire";
 
 declare global
 {
@@ -34,6 +35,10 @@ export class SporeFlag extends Flag
         else if (this.color == COLOR_RED)
         {
             tasks.push(new FlagDismantleStructure("", Game.flags[this.name]));
+        }
+        else if (this.color == COLOR_WHITE)
+        {
+            tasks.push(new Wire(Game.flags[this.name].pos));
         }
         else if (this.color == COLOR_GREY)
         {
@@ -102,7 +107,9 @@ export class SporeFlag extends Flag
             {
                 if (this.room == null || (this.room.controller != null && this.room.controller.owner == null && (this.room.controller.reservation == null || this.room.controller.reservation.username == 'PCake0rigin')))
                 {
-                    tasks.push(new ReserveRoom(ScreepsPtr.fromPosition<StructureController>(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER)));
+                    let task = new ReserveRoom(ScreepsPtr.fromPosition<StructureController>(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER));
+                    task.roomName = 'E1N49';
+                    tasks.push(task);
                 }
                 else if (this.room != null && this.room.controller.owner.username == 'PCake0rigin')
                 {

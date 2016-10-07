@@ -1,16 +1,17 @@
 
 import Dictionary = _.Dictionary;
-import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK} from "./task";
+import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORKER} from "./task";
 import {RecycleCreep} from "./taskRecycleCreep";
 import {ScreepsPtr} from "./screepsPtr";
 import {SpawnAppointment, SpawnRequest} from "./spawnRequest";
-import {SporeCreep, CREEP_TYPE} from "./sporeCreep";
-import {Economy} from "./sporeRoom";
+import {SporeCreep, CREEP_TYPE, CollectOptions, ACTION_MOVE} from "./sporeCreep";
+import {Economy, SporeRoom} from "./sporeRoom";
 import {HarvestEnergy} from "./taskHarvestEnergy";
 import {TransferResource} from "./taskTransferResource";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
 import {BuildBarrier} from "./taskBuildBarrier";
 import {ClaimRoom} from "./taskClaimRoom";
+import {Claimable, ClaimReceipt} from "./sporeClaimable";
 
 export class LaborPoolType
 {
@@ -57,6 +58,173 @@ export class LaborPool
     }
 }
 
+var GATHER_RESOURCE_STORES =
+{
+    'source': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        if (resourceType !== RESOURCE_ENERGY)
+        {
+            return;
+        }
+
+        if (!(claimer instanceof Creep))
+        {
+            return;
+        }
+        else if (claimer.getActiveBodyparts(WORK) === 0)
+        {
+            return;
+        }
+
+        for (let source of this.sources)
+        {
+            if (source.doIgnore !== true && source.energy > 0 && excludes[source.id] == null)
+            {
+                collection.push(source);
+            }
+        }
+    },
+    'near_dropped': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
+
+        for (let resource of nearClaimerResources)
+        {
+            if (resource.doIgnore !== true &&
+                resource.resourceType === resourceType &&
+                resource.amount > 0 &&
+                excludes[resource.id] == null)
+            {
+                collection.push(resource);
+            }
+        }
+
+        if (near != null)
+        {
+            let nearTargetResources: Resource[] = <Resource[]>near.findInRange(FIND_DROPPED_RESOURCES, 5);
+
+            for (let resource of nearTargetResources)
+            {
+                if (resource.doIgnore !== true &&
+                    resource.resourceType === resourceType &&
+                    resource.amount > 0 &&
+                    excludes[resource.id] == null)
+                {
+                    collection.push(resource);
+                }
+            }
+        }
+    },
+    'dropped': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        for (let resource of this.resources)
+        {
+            if (resource.doIgnore !== true &&
+                resource.resourceType === resourceType &&
+                resource.amount > 0 &&
+                excludes[resource.id] == null)
+            {
+                collection.push(resource);
+            }
+        }
+    },
+    'container': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        for (let container of this.containers)
+        {
+            if (container.doIgnore !== true &&
+                container.store[resourceType] > 0 &&
+                excludes[container.id] == null)
+            {
+                collection.push(container);
+            }
+        }
+    },
+    'link': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        if (resourceType !== RESOURCE_ENERGY)
+        {
+            return;
+        }
+
+        for (let link of this.links)
+        {
+            if (link.doIgnore !== true &&
+                link.energy > 0 &&
+                link.takesTransfers &&
+                excludes[link.id] == null)
+            {
+                collection.push(link);
+            }
+        }
+    },
+    'storage': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        if (this.storage != null &&
+            this.storage.doIgnore !== true &&
+            this.storage.store[resourceType] > 0 &&
+            excludes[this.storage.id] == null)
+        {
+            let savings = this.budget.savings[resourceType];
+            if (savings != null && this.storage.store[resourceType] - amount >= savings)
+            {
+                collection.push(this.storage);
+            }
+        }
+    },
+    'extension': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        if (resourceType !== RESOURCE_ENERGY)
+        {
+            return;
+        }
+
+        for (let extension of this.extensions)
+        {
+            if (extension.doIgnore !== true &&
+                extension.energy > 0 &&
+                excludes[extension.id] == null)
+            {
+                collection.push(extension);
+            }
+        }
+    },
+    'spawn': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        if (resourceType !== RESOURCE_ENERGY)
+        {
+            return;
+        }
+
+        for (let spawn of this.mySpawns)
+        {
+            if (spawn.doIgnore !== true &&
+                spawn.energy > 0 &&
+                excludes[spawn.id] == null)
+            {
+                collection.push(spawn);
+            }
+        }
+    },
+    'tower': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
+    {
+        if (resourceType !== RESOURCE_ENERGY)
+        {
+            return;
+        }
+
+        for (let tower of this.towers)
+        {
+            if (tower.doIgnore !== true &&
+                tower.energy > 0 &&
+                excludes[tower.id] == null)
+            {
+                collection.push(tower);
+            }
+        }
+    }
+};
+
 export class SporeColony
 {
     constructor()
@@ -86,12 +254,12 @@ export class SporeColony
         {
             if (a.priority < b.priority)
             {
-                return -1;
+                return 1;
             }
 
             if (a.priority > b.priority)
             {
-                return 1;
+                return -1;
             }
 
             if (a.name < b.name)
@@ -128,6 +296,7 @@ export class SporeColony
 
         let creeps: Dictionary<Creep> = {};
         let taskLaborPools: Dictionary<LaborPool> = {};
+        let totalBodyCount = 0;
 
         for(let name in Game.creeps)
         {
@@ -137,6 +306,8 @@ export class SporeColony
             {
                 continue;
             }
+
+            totalBodyCount += creep.body.length;
 
             let spawnRequest = creep.spawnRequest;
 
@@ -157,13 +328,7 @@ export class SporeColony
             this.laborPool.addCreep(creep);
         }
 
-        for(let room of this.myRooms)
-        {
-            for (let task of room.basicTasks)
-            {
-                this.scheduleTask(task, creeps, taskLaborPools);
-            }
-        }
+        console.log('total creep body count: ' + totalBodyCount);
 
         for(let task of this.tasks)
         {
@@ -189,6 +354,7 @@ export class SporeColony
 
     scheduleTask(task: Task, creeps: Dictionary<Creep>, taskLaborPools: Dictionary<LaborPool>): void
     {
+        let skippedCreeps: Dictionary<Creep> = {};
         let priorityCache: Dictionary<number> = {};
         taskLaborPools[task.id] = new LaborPool();
 
@@ -236,12 +402,26 @@ export class SporeColony
                     // remove creep now that it's been scheduled
                     creeps[creep.name] = null;
                     delete creeps[creep.name];
-                    console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
 
-                    if (creep.ticksToLive < 300 && CREEP_TYPE[creep.type] != null && creep.task != null && task.labor.types[creep.type] != null)
+                    if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null)
+                    {
+                        console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type + ' REPLACEMENT');
+                    }
+                    else
+                    {
+                        console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
+                    }
+
+                    if (creep.ticksToLive < 300 &&
+                        CREEP_TYPE[creep.type] != null &&
+                        creep.task != null &&
+                        task.labor.types[creep.type] != null &&
+                        task.shouldPlanToReplace(creep))
                     {
                         this.spawnRequests.push(new SpawnRequest('replace_' + creep.name, null, creep, CREEP_TYPE[creep.type]));
                     }
+
+                    this.schedulePassives(creep);
 
                     if (code === NO_MORE_WORK)
                     {
@@ -255,7 +435,13 @@ export class SporeColony
                 else if (code === ERR_CANNOT_PERFORM_TASK)
                 {
                     //skip this creep
+                    skippedCreeps[creep.name] = creep;
                     console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
+                }
+                else if (code === ERR_SKIP_WORKER)
+                {
+                    //skip this creep
+                    skippedCreeps[creep.name] = creep;
                 }
                 else
                 {
@@ -270,16 +456,17 @@ export class SporeColony
         }
         task.endScheduling();
 
-        for (let index = 0; index < prioritizedCreeps.length; index++)
-        {
-            for (let creep of prioritizedCreeps[index])
-            {
-                if (task instanceof ClaimRoom)
-                {
-                    console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
-                }
-            }
-        }
+        // DEBUG
+        // for (let index = 0; index < prioritizedCreeps.length; index++)
+        // {
+        //     for (let creep of prioritizedCreeps[index])
+        //     {
+        //         if (task instanceof UpgradeRoomController)
+        //         {
+        //             console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
+        //         }
+        //     }
+        // }
 
         let laborPool: LaborPool = new LaborPool();
 
@@ -289,12 +476,18 @@ export class SporeColony
 
             for (let creep of tierCreeps)
             {
-                if (creep.type != null && task.labor.types[creep.type] != null)
+                if (skippedCreeps[creep.name] == null && creep.type != null && task.labor.types[creep.type] != null)
                 {
                     laborPool.addCreep(creep);
                 }
             }
         }
+
+        let log = false;
+        // if (task instanceof UpgradeRoomController)
+        // {
+        //     log = true;
+        // }
 
         for(let name in task.labor.types)
         {
@@ -313,6 +506,11 @@ export class SporeColony
             let typePool = laborPool.types[name];
             let doSpawn = false;
 
+            if (log)
+            {
+                console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
+            }
+
             if (type.min > typePool.count)
             {
                 //console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
@@ -323,6 +521,11 @@ export class SporeColony
             {
                 for (let partName in type.parts)
                 {
+                    if (log)
+                    {
+                        console.log(task.name + ' -> ' + partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
+                    }
+
                     if (type.parts[partName] > typePool.parts[partName])
                     {
                         //console.log(task.name + ' -> ' + partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
@@ -330,6 +533,11 @@ export class SporeColony
                         break;
                     }
                 }
+            }
+
+            if (log)
+            {
+                console.log(task.name + ' -> ' + name + ': '+ type.max + ' > ' + typePool.count);
             }
 
             if (doSpawn && type.max > typePool.count)
@@ -340,58 +548,67 @@ export class SporeColony
         }
     }
 
+    schedulePassives(creep: Creep): void
+    {
+        if (creep.action === ACTION_MOVE || creep.action == null)
+        {
+            let structures = creep.room.lookForAt<Structure>(LOOK_STRUCTURES, creep.pos);
+
+            if (structures.length > 0)
+            {
+                for (let structure of structures)
+                {
+                    if (structure.hits < structure.hitsMax)
+                    {
+                        creep.repair(structure);
+                        break;
+
+                    }
+                }
+            }
+            else
+            {
+                let sites = creep.room.lookForAt<ConstructionSite>(LOOK_CONSTRUCTION_SITES, creep.pos);
+                if (sites.length > 0)
+                {
+                    creep.build(sites[0]);
+                }
+            }
+        }
+    }
+
     collectTasks(): void
     {
         let globalTasks = [];
-
-        for(let room of this.myRooms)
-        {
-            room.tasks = [];
-            room.basicTasks = [];
-        }
 
         //////////////////////////////////////////////////////////////////////////////
         // turn flags into tasks
         for (let name in Game.flags)
         {
             let flag = Game.flags[name];
-
-            if (flag.room != null && flag.room.my)
-            {
-                flag.room.tasks.push.apply(flag.room.tasks, flag.getTasks());
-            }
-            else
-            {
-                globalTasks.push.apply(globalTasks, flag.getTasks());
-            }
+            globalTasks.push.apply(globalTasks, flag.getTasks());
         }
 
         for(let room of this.myRooms)
         {
-            room.tasks.push.apply(room.tasks, room.getTasks());
+            globalTasks.push.apply(globalTasks, room.getTasks());
         }
 
-        console.log("[global] basic tasks: " + this.tasks.length);
         this.breakdownTasks(globalTasks, this.tasks);
         this.sortTasks(this.tasks);
 
+        console.log("total tasks: " + this.tasks.length);
         for (let taskIndex = 0; taskIndex < this.tasks.length; taskIndex++)
         {
             let task = this.tasks[taskIndex];
-            console.log('   ' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
-        }
 
-        for(let room of this.myRooms)
-        {
-            this.breakdownTasks(room.tasks, room.basicTasks);
-            this.sortTasks(room.basicTasks);
-
-            console.log(room + " basic tasks: " + room.basicTasks.length);
-
-            for (let taskIndex = 0; taskIndex < room.basicTasks.length; taskIndex++)
+            if (task.roomName == null)
             {
-                let task = room.basicTasks[taskIndex];
-                console.log('   ' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
+                console.log('   [global]' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
+            }
+            else
+            {
+                console.log('   [' + task.roomName + ']' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
             }
         }
     }
@@ -401,6 +618,39 @@ export class SporeColony
         // Sort the basic tasks by their priority
         tasks.sort(function(a, b)
         {
+            if (a.roomName == null && b.roomName != null)
+            {
+                return 1;
+            }
+
+            if (a.roomName != null && b.roomName == null)
+            {
+                return -1;
+            }
+
+            if (a.roomName == 'SporeRoom')
+            {
+                console.log('//////////////// ' + a.name);
+            }
+
+            if (b.roomName == 'SporeRoom')
+            {
+                console.log('//////////////// ' + b.name);
+            }
+
+            if (a.roomName != null && b.roomName != null)
+            {
+                if (SporeRoom.getPriority(a.roomName) < SporeRoom.getPriority(b.roomName))
+                {
+                    return 1;
+                }
+
+                if (SporeRoom.getPriority(a.roomName) > SporeRoom.getPriority(b.roomName))
+                {
+                    return -1;
+                }
+            }
+
             if (a.priority < b.priority)
             {
                 return 1;
@@ -621,11 +871,13 @@ export class SporeColony
             // global tasks should only be favored after all of the individual rooms needs are met
             if (taskA.roomName == null && (taskB.roomName != null&& taskB.roomName === spawnRoomName))
             {
+                console.log(taskA.name + ' missing room identifier');
                 return 1;
             }
 
             if ((taskA.roomName != null && taskA.roomName === spawnRoomName) && taskB.roomName == null)
             {
+                console.log(taskB.name + ' missing room identifier');
                 return -1;
             }
 
@@ -653,18 +905,18 @@ export class SporeColony
                 return -1;
             }
 
-            if (roomA != null && roomB != null)
-            {
-                if (roomA.energyCapacityAvailable < roomB.energyCapacityAvailable)
-                {
-                    return 1;
-                }
-
-                if (roomA.energyCapacityAvailable > roomB.energyCapacityAvailable)
-                {
-                    return -1;
-                }
-            }
+            // if (roomA != null && roomB != null)
+            // {
+            //     if (roomA.energyCapacityAvailable < roomB.energyCapacityAvailable)
+            //     {
+            //         return 1;
+            //     }
+            //
+            //     if (roomA.energyCapacityAvailable > roomB.energyCapacityAvailable)
+            //     {
+            //         return -1;
+            //     }
+            // }
 
             // higher priority tasks should be favored
             if (taskA.priority < taskB.priority)
@@ -859,8 +1111,8 @@ export class SporeColony
                 if (priorityAppointment == null || appointment.ticksTillRequired + bodySpawnTime < priorityAppointment.ticksTillRequired - 10)
                 {
                     priorityAppointment = appointment;
-                    priorityBody = priorityAppointment.spawn.getBody(priorityAppointment.creepBody);
-                    priorityBodySpawnTime = priorityBody.length * CREEP_SPAWN_TIME;
+                    priorityBody = body;//priorityAppointment.spawn.getBody(priorityAppointment.creepBody);
+                    priorityBodySpawnTime = bodySpawnTime;//priorityBody.length * CREEP_SPAWN_TIME;
                 }
             }
 
@@ -945,4 +1197,67 @@ export class SporeColony
             }
         }
     }
+
+    claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt
+    {
+        if (receipt != null && receipt.target != null && excludes[receipt.target.id] == null)
+        {
+            let flatStorePriorities = _.flattenDeep<string>(options.storePriorities);
+            if (_.includes(flatStorePriorities, receipt.type) ||
+                _.includes(flatStorePriorities, receipt.target.id))
+            {
+                let claim = receipt.target.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
+                if (claim !== null)
+                {
+                    return claim;
+                }
+            }
+        }
+
+        if (options.roomNames == null || options.roomNames.length === 0)
+        {
+            options.roomNames = [];
+            options.roomNames.push(claimer.pos.roomName);
+        }
+
+        for (let priorityIndex = 0; priorityIndex < options.storePriorities.length; priorityIndex++)
+        {
+            let group = options.storePriorities[priorityIndex];
+            let claimables: Claimable[] = [];
+
+            for (let index = 0; index < group.length; index++)
+            {
+                for (let roomName of options.roomNames)
+                {
+                    if (Game.rooms[roomName] != null)
+                    {
+                        GATHER_RESOURCE_STORES[group[index]].bind(Game.rooms[roomName])(claimables, resourceType, amount, claimer, near, excludes);
+                    }
+                }
+            }
+
+            if (claimables.length > 0)
+            {
+                near.sortByRangeTo(claimables);
+
+                for (let claimable of claimables)
+                {
+                    if (claimable.makeClaim == null)
+                    {
+                        continue;
+                    }
+
+                    let newReceipt = claimable.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
+
+                    if (newReceipt != null)
+                    {
+                        return newReceipt;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
 }

@@ -4,7 +4,7 @@ import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {Task, TaskPriority} from "./task";
 import {TransferResource} from "./taskTransferResource";
 import {StoreContainerLike, ScreepsPtr} from "./screepsPtr";
-import {SporeCreep} from "./sporeCreep";
+import {SporeCreep, CollectOptions} from "./sporeCreep";
 
 declare global
 {
@@ -118,10 +118,15 @@ export class SporeContainer extends StructureContainer implements Claimable
         // }
 
         let closestSource = <Source>this.pos.findClosestInRange(this.room.sources, 2);
-
-        if (closestSource == null)
+        let nearExtractor = false;
+        if (this.room.extractor != null)
         {
-            let transferEnergyTask = new TransferResource([ScreepsPtr.from<StoreContainerLike>(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['container'], ['dropped']]);
+            nearExtractor = this.pos.inRangeTo(this.room.extractor.pos, 2) === true;
+        }
+
+        if (closestSource == null && !nearExtractor)
+        {
+            let transferEnergyTask = new TransferResource([ScreepsPtr.from<StoreContainerLike>(this)], RESOURCE_ENERGY, null, new CollectOptions(null, [['near_dropped'], ['container'], ['dropped']]));
             transferEnergyTask.priority = TaskPriority.Low;
             transferEnergyTask.name = "Fill " + ScreepsPtr.from<StructureContainer>(this).toHtml();
             tasks.push(transferEnergyTask);

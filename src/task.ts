@@ -21,6 +21,7 @@ export const enum TaskPriority
 export var NO_MORE_WORK: number = 123;
 export var ERR_NO_WORK: number = -400;
 export var ERR_CANNOT_PERFORM_TASK: number = -401;
+export var ERR_SKIP_WORKER: number = -402;
 
 export class LaborDemandType
 {
@@ -122,6 +123,11 @@ export class Task
         );
     }
 
+    shouldPlanToReplace(object: RoomObjectLike): boolean
+    {
+        return true;
+    }
+
     prioritize(object: RoomObjectLike): number
     {
         return 0;
@@ -147,13 +153,13 @@ export class Task
         }
 
         // 1 - 40
-        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName))
+        if (creep.type === idealBody.name)
         {
             objectPriority += 0.40;
         }
 
         // 41 - 60
-        if (creep.type === idealBody.name)
+        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName))
         {
             objectPriority += 0.2;
 

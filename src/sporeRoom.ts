@@ -8,11 +8,12 @@ import {ConstructionSiteMemory} from "./sporeConstructionSite";
 import {ControllerMemory} from "./sporeController";
 import {UpgradeRoomController} from "./taskUpgradeRoomController";
 import {RepairStructure} from "./taskRepairStructure";
-import {ScreepsPtr, EnergyContainerLike, StoreContainerLike, CarryContainerLike} from "./screepsPtr";
+import {ScreepsPtr, EnergyContainerLike, StoreContainerLike, CarryContainerLike, RoomObjectLike} from "./screepsPtr";
 import {HarvestEnergy} from "./taskHarvestEnergy";
 import {BuildBarrier} from "./taskBuildBarrier";
+import {CREEP_TYPE, CollectOptions} from "./sporeCreep";
 import Dictionary = _.Dictionary;
-import {CREEP_TYPE} from "./sporeCreep";
+import {DefendRoom} from "./taskDefendRoom";
 
 declare global
 {
@@ -20,13 +21,12 @@ declare global
     {
         getTasks(): Task[];
         trackEconomy(): void;
-        claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt;
+        claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt;
         getRouteTo(roomName: string): any[];
-
-        tasks: Task[];
-        basicTasks: Task[];
+        lookForByRadiusAt(type: string, location: RoomObjectLike | RoomPosition, radius: number, asArray?: boolean): LookAtResultMatrix | LookAtResultWithPos[];
 
         sources: Source[];
+        extractor: StructureExtractor;
         links: StructureLink[];
         structures: Structure[];
         constructionSites: ConstructionSite[];
@@ -38,6 +38,7 @@ declare global
         myCreeps: Creep[];
         hostileCreeps: Creep[];
         friendlyCreeps: Creep[];
+        injuredFriendlyCreeps: Creep[];
 
         economy: Economy;
         budget: Budget;
@@ -59,176 +60,10 @@ declare global
     }
 }
 
-var GATHER_RESOURCE_STORES =
-{
-    'source': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        if (resourceType !== RESOURCE_ENERGY)
-        {
-            return;
-        }
-
-        if (!(claimer instanceof Creep))
-        {
-            return;
-        }
-        else if (claimer.getActiveBodyparts(WORK) === 0)
-        {
-            return;
-        }
-
-        for (let source of this.sources)
-        {
-            if (source.doIgnore !== true && source.energy > 0 && excludes[source.id] == null)
-            {
-                collection.push(source);
-            }
-        }
-    },
-    'near_dropped': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
-
-        for (let resource of nearClaimerResources)
-        {
-            if (resource.doIgnore !== true &&
-                resource.resourceType === resourceType &&
-                resource.amount > 0 &&
-                excludes[resource.id] == null)
-            {
-                collection.push(resource);
-            }
-        }
-
-        if (near != null)
-        {
-            let nearTargetResources: Resource[] = <Resource[]>near.findInRange(FIND_DROPPED_RESOURCES, 5);
-
-            for (let resource of nearTargetResources)
-            {
-                if (resource.doIgnore !== true &&
-                    resource.resourceType === resourceType &&
-                    resource.amount > 0 &&
-                    excludes[resource.id] == null)
-                {
-                    collection.push(resource);
-                }
-            }
-        }
-    },
-    'dropped': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        for (let resource of this.resources)
-        {
-            if (resource.doIgnore !== true &&
-                resource.resourceType === resourceType &&
-                resource.amount > 0 &&
-                excludes[resource.id] == null)
-            {
-                collection.push(resource);
-            }
-        }
-    },
-    'container': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        for (let container of this.containers)
-        {
-            if (container.doIgnore !== true &&
-                container.store[resourceType] > 0 &&
-                excludes[container.id] == null)
-            {
-                collection.push(container);
-            }
-        }
-    },
-    'link': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        if (resourceType !== RESOURCE_ENERGY)
-        {
-            return;
-        }
-
-        for (let link of this.links)
-        {
-            if (link.doIgnore !== true &&
-                link.energy > 0 &&
-                link.takesTransfers &&
-                excludes[link.id] == null)
-            {
-                collection.push(link);
-            }
-        }
-    },
-    'storage': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        if (this.storage != null &&
-            this.storage.doIgnore !== true &&
-            this.storage.store[resourceType] > 0 &&
-            excludes[this.storage.id] == null)
-        {
-            let savings = this.budget.savings[resourceType];
-            if (savings != null && this.storage.store[resourceType] - amount >= savings)
-            {
-                collection.push(this.storage);
-            }
-        }
-    },
-    'extension': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        if (resourceType !== RESOURCE_ENERGY)
-        {
-            return;
-        }
-
-        for (let extension of this.extensions)
-        {
-            if (extension.doIgnore !== true &&
-                extension.energy > 0 &&
-                excludes[extension.id] == null)
-            {
-                collection.push(extension);
-            }
-        }
-    },
-    'spawn': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        if (resourceType !== RESOURCE_ENERGY)
-        {
-            return;
-        }
-
-        for (let spawn of this.mySpawns)
-        {
-            if (spawn.doIgnore !== true &&
-                spawn.energy > 0 &&
-                excludes[spawn.id] == null)
-            {
-                collection.push(spawn);
-            }
-        }
-    },
-    'tower': function(collection: Claimable[], resourceType: string, amount: number, claimer: any, near: RoomPosition, excludes: Dictionary<Claimable>)
-    {
-        if (resourceType !== RESOURCE_ENERGY)
-        {
-            return;
-        }
-
-        for (let tower of this.towers)
-        {
-            if (tower.doIgnore !== true &&
-                tower.energy > 0 &&
-                excludes[tower.id] == null)
-            {
-                collection.push(tower);
-            }
-        }
-    }
-};
-
 // List of allies, name must be lower case.
 const USERNAME_WHITELIST =
     [
+        'pcake0rigin', // Jacob
         'pcakecysote', // Jacob
         'barney',      // Mr McBarnabas
         'pcakecysote', // Jacob
@@ -290,10 +125,6 @@ export class Budget
 
 export class SporeRoom extends Room
 {
-    untaskedCreepsByName: Dictionary<Creep> = {};
-    tasks: Task[] = [];
-    basicTasks: Task[] = [];
-
     economy: Economy;
 
     get budget(): Budget
@@ -334,7 +165,7 @@ export class SporeRoom extends Room
         return isReserved;
     }
 
-    get priority(): number
+    static getPriority(roomName: string): number
     {
         let memory = Memory.rooms[this.name];
         if (memory == null)
@@ -348,13 +179,20 @@ export class SporeRoom extends Room
             memory.priority = 100;
         }
 
-        if (this.my && memory.priority <= 100)
+        if (Game.rooms[roomName] != null && Game.rooms[roomName].my && memory.priority <= 100)
         {
             memory.priority = 500;
         }
 
-        Object.defineProperty(this, "priority", {value: memory.priority});
         return memory.priority;
+    }
+
+    get priority(): number
+    {
+        let priority = SporeRoom.getPriority(this.name);
+
+        Object.defineProperty(this, "priority", {value: priority});
+        return priority;
     }
 
     get sources(): Source[]
@@ -392,6 +230,25 @@ export class SporeRoom extends Room
 
         Object.defineProperty(this, "sources", {value: sources});
         return sources;
+    }
+
+    get extractor(): StructureExtractor
+    {
+        let extractors = this.find<StructureExtension>(FIND_STRUCTURES, {
+            filter: {
+                structureType: STRUCTURE_EXTRACTOR
+            }
+        });
+
+        let extractor = null;
+
+        if (extractors != null && extractors.length > 0)
+        {
+            extractor = extractors[0];
+        }
+
+        Object.defineProperty(this, "extractor", {value: extractor});
+        return extractor;
     }
 
     get mySpawns(): Spawn[]
@@ -529,6 +386,31 @@ export class SporeRoom extends Room
         return friendlyCreeps;
     }
 
+    get injuredFriendlyCreeps(): Creep[]
+    {
+        let injuredFriendlyCreeps = this.find<Creep>(FIND_CREEPS,
+            {
+                filter: (creep) =>
+                {
+                    return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+                }
+            });
+
+        Object.defineProperty(this, "injuredFriendlyCreeps", { value: injuredFriendlyCreeps });
+        return injuredFriendlyCreeps;
+    }
+
+    lookForByRadiusAt(type: string, location: RoomObjectLike | RoomPosition, radius: number, asArray?: boolean): LookAtResultMatrix | LookAtResultWithPos[]
+    {
+        let pos = <RoomPosition>location;
+        if ((<RoomObjectLike>location).pos != null)
+        {
+            pos = (<RoomObjectLike>location).pos;
+        }
+
+        return this.lookForAtArea(type, Math.max(pos.y - radius, 0), Math.max(pos.x - radius, 0), Math.min(pos.y + radius, 49), Math.min(pos.x + radius, 49), asArray);
+    }
+
     trackEconomy(): void
     {
         this.economy = new Economy();
@@ -588,56 +470,6 @@ export class SporeRoom extends Room
         console.log(this + ' economy energy demand ' + Math.ceil(this.economy.demand.energy / 1500));
     }
 
-    claimResource(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>, receipt?: ClaimReceipt): ClaimReceipt
-    {
-        if (receipt != null && receipt.target != null && excludes[receipt.target.id] == null)
-        {
-            let flatStorePriorities = _.flattenDeep<string>(storePriorities);
-            if (_.includes(flatStorePriorities, receipt.type) ||
-                _.includes(flatStorePriorities, receipt.target.id))
-            {
-                let claim = receipt.target.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
-                if (claim !== null)
-                {
-                    return claim;
-                }
-            }
-        }
-
-        for (let priorityIndex = 0; priorityIndex < storePriorities.length; priorityIndex++)
-        {
-            let group = storePriorities[priorityIndex];
-            let claimables: Claimable[] = [];
-
-            for (let index = 0; index < group.length; index++)
-            {
-                GATHER_RESOURCE_STORES[group[index]].bind(this)(claimables, resourceType, amount, claimer, near, excludes);
-            }
-
-            if (claimables.length > 0)
-            {
-                near.sortByRangeTo(claimables);
-
-                for (let claimable of claimables)
-                {
-                    if (claimable.makeClaim == null)
-                    {
-                        continue;
-                    }
-
-                    let newReceipt = claimable.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
-
-                    if (newReceipt != null)
-                    {
-                        return newReceipt;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
     getTasks(): Task[]
     {
         let tasks: Task[] = [];
@@ -681,7 +513,6 @@ export class SporeRoom extends Room
 
                 if (this.isReserved)
                 {
-                    console.log('////////////////////////////');
                     task.idealCreepBody = CREEP_TYPE.REMOTE_MINER;
                 }
 
@@ -691,6 +522,12 @@ export class SporeRoom extends Room
                     task.priority += Math.max(0, 150 - source.pos.findPathTo(spawn.pos, { ignoreCreeps:true }).length);
                 }
 
+                if (this.isReserved)
+                {
+                    task.id += 'E1N49';
+                    task.roomName = 'E1N49';
+                }
+
                 tasks.push(task);
             }
         }
@@ -698,7 +535,41 @@ export class SporeRoom extends Room
         // Carry remote energy
         if (this.isReserved)
         {
+            if (this.name === 'E2N49' || this.name === 'E2N48' || this.name === 'E1N48')
+            {
+                let targets = [];
+                let link = Game.getObjectById<StructureLink>('57f697aab36576753223a1c4');
+                if (link != null && this.name === 'E2N49')
+                {
+                    targets.push(ScreepsPtr.from<StructureStorage>(Game.rooms['E1N49'].storage));
+                }
+                else
+                {
+                    targets.push(ScreepsPtr.from<StructureStorage>(Game.rooms['E1N49'].storage));
+                }
 
+                let task = new TransferResource(targets, RESOURCE_ENERGY, null, new CollectOptions([this.name], [['near_dropped'], ['link', 'container','storage'], ['dropped']]));
+
+                task.priority = TaskPriority.High + 200;
+                task.id = "Remote gather " + this;
+                task.name = task.id;
+                task.idealCreepBody = CREEP_TYPE.REMOTE_COURIER;
+
+                task.id += 'E1N49';
+                task.roomName = 'E1N49';
+
+                task.capacityCap = 0;
+                for (let source of this.sources)
+                {
+                    task.capacityCap += source.energyCapacity;
+                }
+
+                tasks.push(task);
+
+                let defendTask = new DefendRoom(this.name);
+                defendTask.roomName = 'E1N49';
+                tasks.push(defendTask);
+            }
         }
 
         //////////////////////////////////////////////////////////////////////////////
@@ -722,16 +593,17 @@ export class SporeRoom extends Room
 
                 if (this.economy.resources[RESOURCE_ENERGY] > 0)
                 {
-                    task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped']]);
+                    task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, new CollectOptions(null, [['near_dropped'], ['link', 'container','storage'], ['dropped']]));
                 }
                 else
                 {
-                    task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container','storage'], ['dropped'], ['source']]);
+                    task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, new CollectOptions(null, [['near_dropped'], ['link', 'container','storage'], ['dropped'], ['source']]));
                 }
 
                 task.priority = TaskPriority.Mandatory + 200;
                 task.id = "Fill Spawns and Extensions " + this;
                 task.name = task.id;
+                //task.capacityCap = this.energyCapacityAvailable;
                 //task.reserveWorkers = true;
 
                 tasks.push(task);
@@ -744,9 +616,10 @@ export class SporeRoom extends Room
         {
             if (this.storage != null && this.storage.storeCapacityRemaining)
             {
-                let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureStorage>(this.storage)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container'], ['dropped']]);
+                let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureStorage>(this.storage)], RESOURCE_ENERGY, null, new CollectOptions(null, [['near_dropped'], ['link', 'container'], ['dropped']]));
                 transferEnergyTask.priority = TaskPriority.High;
                 transferEnergyTask.name = "Transfer energy to " + ScreepsPtr.from<StructureStorage>(this.storage).toHtml();
+                transferEnergyTask.capacityCap = 600;
                 tasks.push(transferEnergyTask);
             }
         }
@@ -754,14 +627,16 @@ export class SporeRoom extends Room
 
         //////////////////////////////////////////////////////////////////////////////
         // Upgrade room controller
-        if (this.controller.owner != null && this.controller.owner.username == 'pcake0rigin')
+        if (this.controller.owner != null && this.controller.owner.username == 'PCake0rigin')
         {
             let task = new UpgradeRoomController(ScreepsPtr.from<Controller>(this.controller));
+            task.collectOptions.roomNames.push(this.name);
             tasks.push(task);
         }
 
         //////////////////////////////////////////////////////////////////////////////
         // Reinforce barriers
+        if (!this.isReserved && this.controller.level >= 2)
         {
             let sites = _.filter(this.constructionSites, function(site:ConstructionSite)
             {
@@ -873,6 +748,14 @@ export class SporeRoom extends Room
                         tower.attack(closestCreep);
                         tower.attackTarget = closestCreep;
                     }
+                }
+            }
+            else if (this.injuredFriendlyCreeps.length > 0)
+            {
+                for (let tower of this.towers)
+                {
+                    console.log('/////////////////////////////////// ' + this.injuredFriendlyCreeps[0].name);
+                    tower.heal(this.injuredFriendlyCreeps[0]);
                 }
             }
         }

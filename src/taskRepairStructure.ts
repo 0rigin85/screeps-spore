@@ -2,7 +2,7 @@
 
 import {Task, TaskPriority, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK} from './task';
 import {RoomObjectLike, ScreepsPtr} from "./screepsPtr";
-import {ACTION_REPAIR, SporeCreep, CREEP_TYPE} from "./sporeCreep";
+import {ACTION_REPAIR, SporeCreep, CREEP_TYPE, CollectOptions, ACTION_MOVE} from "./sporeCreep";
 import {BodyDefinition} from "./bodyDefinition";
 
 export class RepairStructure extends Task
@@ -12,12 +12,14 @@ export class RepairStructure extends Task
     constructor(public structure: ScreepsPtr<Structure>)
     {
         super(false);
-        this.id = "Repair " + structure;
-        this.name = "Repair " + structure;
+        this.id = 'Repair [structure (' + structure.lookTypeModifier + ') {room ' + this.structure.pos.roomName + '}]';
+        this.name = "Repair " + structure.toHtml();
         this.priority = TaskPriority.MediumHigh;
         this.possibleWorkers = 2;
         this.idealCreepBody = CREEP_TYPE.CITIZEN;
         this.near = structure;
+
+        this.roomName = 'E1N49';
     }
 
     prioritize(object: RoomObjectLike): number
@@ -25,6 +27,11 @@ export class RepairStructure extends Task
         if (object instanceof Creep)
         {
             if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            {
+                return 0;
+            }
+
+            if (object.type === CREEP_TYPE.MINER.name || object.type === CREEP_TYPE.UPGRADER.name)
             {
                 return 0;
             }
@@ -52,7 +59,7 @@ export class RepairStructure extends Task
         let creep = <Creep>object;
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
-            (creep.action === ACTION_REPAIR && creep.carry[RESOURCE_ENERGY] > 0))
+            ((creep.action === ACTION_REPAIR || creep.action === ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0))
         {
             code = creep.goRepair(this.structure);
         }
@@ -70,7 +77,7 @@ export class RepairStructure extends Task
                 amount,
                 false,
                 this.structure.pos,
-                [['near_dropped'], ['link','container','storage'], ['dropped']],
+                new CollectOptions(null, [['near_dropped'], ['link','container','storage'], ['dropped']]),
                 {});
         }
 

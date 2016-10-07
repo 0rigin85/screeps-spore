@@ -156,9 +156,6 @@ export class FlagBuildStructure extends Task
             }
             else
             {
-                let step = new UpgradeRoomController(ScreepsPtr.from<Controller>(this.flag.room.controller));
-
-                steps.push(step);
                 return steps;
             }
         }

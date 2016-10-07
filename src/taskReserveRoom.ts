@@ -8,6 +8,7 @@ import {BodyDefinition} from "./bodyDefinition";
 export class ReserveRoom extends Task
 {
     idealCreepBody: BodyDefinition;
+    scheduledWorkers: number;
     scheduledClaim: number;
 
     constructor(public controller: ScreepsPtr<StructureController>)
@@ -19,16 +20,17 @@ export class ReserveRoom extends Task
         this.possibleWorkers = -1;
         this.idealCreepBody = CREEP_TYPE.RESERVER;
         this.near = controller;
+        this.roomName = controller.pos.roomName;
 
         if (controller.isShrouded)
         {
-            this.priority = TaskPriority.High;
+            this.priority = TaskPriority.Mandatory - 100;
         }
         else if (controller.instance.reservation != null)
         {
             if (controller.instance.reservation.ticksToEnd < 1000)
             {
-                this.priority = TaskPriority.Mandatory;
+                this.priority = TaskPriority.Mandatory + 400;
             }
             else
             {
@@ -40,7 +42,10 @@ export class ReserveRoom extends Task
             this.priority = TaskPriority.High;
         }
 
-        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ claim: 2 }, 1, 2);
+        if (controller.isShrouded || controller.instance.reservation == null || controller.instance.reservation.ticksToEnd < 1500)
+        {
+            this.labor.types[this.idealCreepBody.name] = new LaborDemandType({ claim: 2 }, 1, 2);
+        }
     }
 
     createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
@@ -51,6 +56,22 @@ export class ReserveRoom extends Task
         }
 
         return super.createBasicAppointment(spawn, request, this.controller);
+    }
+
+    shouldPlanToReplace(object: RoomObjectLike): boolean
+    {
+        if (object instanceof Creep)
+        {
+            if (this.controller.isShrouded ||
+                this.controller.instance.reservation == null ||
+                this.controller.instance.reservation.username != 'PCake0rigin' ||
+                this.controller.instance.reservation.ticksToEnd - object.ticksToLive < 1500)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     prioritize(object: RoomObjectLike): number
@@ -65,12 +86,20 @@ export class ReserveRoom extends Task
 
     beginScheduling(): void
     {
+        this.scheduledWorkers = 0;
         this.scheduledClaim = 0;
     }
 
     schedule(object: RoomObjectLike): number
     {
-        if (this.possibleWorkers === 0 || !this.controller.isValid || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM])
+        let claimLabor = 0;
+
+        if (this.labor.types[this.idealCreepBody.name] != null)
+        {
+            claimLabor = this.labor.types[this.idealCreepBody.name].parts[CLAIM];
+        }
+
+        if (this.possibleWorkers === 0 || !this.controller.isValid || (claimLabor > 0 && this.scheduledClaim >= claimLabor))
         {
             return ERR_NO_WORK;
         }
@@ -94,6 +123,7 @@ export class ReserveRoom extends Task
 
         if (code === OK)
         {
+            this.scheduledWorkers++;
             this.scheduledClaim += creep.getActiveBodyparts(CLAIM);
 
             if (this.possibleWorkers > 0)
@@ -102,7 +132,9 @@ export class ReserveRoom extends Task
             }
         }
 
-        if (this.possibleWorkers === 0 || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM])
+        if (this.possibleWorkers === 0 ||
+            this.scheduledClaim >= claimLabor ||
+            (!this.controller.isShrouded && this.scheduledWorkers >= this.controller.instance.slots))
         {
             return NO_MORE_WORK;
         }

@@ -15,6 +15,7 @@ declare global
         carryCount: number;
         task: Task;
         taskPriority: number;
+        taskMetadata: any;
         action: string;
         actionTarget: string;
         claimReceipt: ClaimReceipt;
@@ -28,6 +29,7 @@ declare global
         colony: SporeColony;
 
         getEfficiencyAs(bodyDefinition: BodyDefinition) : number;
+        lookForAtArea(type: string, radius: number, asArray?: boolean): LookAtResultMatrix | LookAtResultWithPos[];
 
         goMoveTo(target: RoomObjectLike): number;
         goHarvest(source: ScreepsPtr<Source>): number;
@@ -35,12 +37,18 @@ declare global
         goBuild(site: ScreepsPtr<ConstructionSite>): number;
         goDismantle(structure: ScreepsPtr<Structure>): number;
         goRepair(structure: ScreepsPtr<Structure>): number;
-        goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number;
+        goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>): number;
         goUpgrade(controller: ScreepsPtr<Controller>): number;
         goReserve(controller: ScreepsPtr<Controller>): number;
         goClaim(controller: ScreepsPtr<Controller>): number;
         goRecycle(spawn: ScreepsPtr<Spawn>): number;
     }
+}
+
+export class CollectOptions
+{
+    constructor(public roomNames: string[], public storePriorities: string[][])
+    { }
 }
 
 interface SpawnRequestMemory
@@ -54,6 +62,7 @@ export interface CreepMemory
 {
     taskId: string;
     taskPriority: number;
+    taskMetadata: any;
     spawnRequest: SpawnRequestMemory;
     cost: number;
 
@@ -81,11 +90,15 @@ export var CREEP_TYPE: {
     [part: string]: BodyDefinition;
     MINER: BodyDefinition;
     REMOTE_MINER: BodyDefinition;
+    UPGRADER: BodyDefinition;
     COURIER: BodyDefinition;
     REMOTE_COURIER: BodyDefinition;
     CITIZEN: BodyDefinition;
+    MASON: BodyDefinition;
+    WIRE: BodyDefinition;
     RESERVER: BodyDefinition;
     CLAIMER: BodyDefinition;
+    REMOTE_DEFENDER: BodyDefinition;
 } = <any>{};
 
 var bodyDefinition = new BodyDefinition('MINER');
@@ -96,9 +109,15 @@ CREEP_TYPE.MINER = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('REMOTE_MINER');
 bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 6, 1, 1));
-bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 6, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 3, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 1, 1, 1));
 CREEP_TYPE.REMOTE_MINER = bodyDefinition;
+
+var bodyDefinition = new BodyDefinition('UPGRADER');
+bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 15, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 1, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 1, 1, 1));
+CREEP_TYPE.UPGRADER = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('COURIER');
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 12, 1, 1));
@@ -106,8 +125,8 @@ bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 12, 1, 1));
 CREEP_TYPE.COURIER = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('REMOTE_COURIER');
-bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 10, 1, 1));
-bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 17, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 8, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 16, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 1, 1, 1));
 CREEP_TYPE.REMOTE_COURIER = bodyDefinition;
 
@@ -116,6 +135,17 @@ bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 5, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 10, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 5, 1, 1));
 CREEP_TYPE.CITIZEN = bodyDefinition;
+
+var bodyDefinition = new BodyDefinition('MASON');
+bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 3, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 4, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 5, 1, 1));
+CREEP_TYPE.MASON = bodyDefinition;
+
+var bodyDefinition = new BodyDefinition('WIRE');
+bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 6, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 1, 1, 1));
+CREEP_TYPE.WIRE = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('RESERVER');
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 4, 1, 1));
@@ -126,6 +156,14 @@ var bodyDefinition = new BodyDefinition('CLAIMER');
 bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 1, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CLAIM, 1, 1, 1));
 CREEP_TYPE.CLAIMER = bodyDefinition;
+
+var bodyDefinition = new BodyDefinition('REMOTE_DEFENDER');
+bodyDefinition.requirements.push(new BodyPartRequirements(TOUGH, 2, 1, 2));
+bodyDefinition.requirements.push(new BodyPartRequirements(ATTACK, 3, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(RANGED_ATTACK, 1, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 7, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(HEAL, 1, 1, 1));
+CREEP_TYPE.REMOTE_DEFENDER = bodyDefinition;
 
 export class SporeCreep extends Creep
 {
@@ -231,6 +269,25 @@ export class SporeCreep extends Creep
                 return 0;
             }
 
+            let totalActiveParts = 0;
+            for (let part of bodyParts)
+            {
+                if (part.hits > 0)
+                {
+                    totalActiveParts++;
+
+                    if (totalActiveParts >= requirement.min)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (totalActiveParts < requirement.min)
+            {
+                return 0;
+            }
+
             totalMaxRequiredParts += requirement.max;
             totalRequiredParts += Math.min(bodyParts.length, requirement.max);
         }
@@ -327,6 +384,8 @@ export class SporeCreep extends Creep
             if (this._task == null)
             {
                 delete memory.taskId;
+                this.taskPriority = -1;
+                this.taskMetadata = null;
             }
         }
 
@@ -386,6 +445,45 @@ export class SporeCreep extends Creep
         else
         {
             memory.taskPriority = value;
+        }
+    }
+
+    private _taskMetadata: any;
+    get taskMetadata(): any
+    {
+        if (this._taskMetadata !== undefined)
+        {
+            return this._taskMetadata;
+        }
+
+        let memory = <CreepMemory>this.memory;
+
+        if (memory.taskMetadata != null)
+        {
+            this._taskMetadata = memory.taskMetadata;
+        }
+        else
+        {
+            this._taskMetadata = null;
+        }
+
+        return this._taskMetadata;
+    }
+
+    set taskMetadata(value: any)
+    {
+        this._taskMetadata = value;
+
+        let memory = <CreepMemory>this.memory;
+
+        if (value == null)
+        {
+            delete memory.taskMetadata;
+            this._taskMetadata = null;
+        }
+        else
+        {
+            memory.taskMetadata = value;
         }
     }
 
@@ -465,6 +563,13 @@ export class SporeCreep extends Creep
         {
             return ERR_NO_WORK;
         }
+
+        // this.room.findPath(this.pos, target.pos, {
+        //     costCallback: function(roomName, costMatrix) {
+        //
+        //     }
+        // });
+
 
         let code = this.moveTo(target.pos, {noPathFinding: true});
 
@@ -798,14 +903,14 @@ export class SporeCreep extends Creep
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, storePriorities: string[][], excludes: Dictionary<Claimable>): number
+    goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>): number
     {
         if (this.action != ACTION_COLLECT && this.action != ACTION_MOVE)
         {
             this.claimReceipt = null;
         }
 
-        let claimReceipt = Game.rooms[near.roomName].claimResource(this, resourceType, amount, minAmount, isExtended, near, storePriorities, excludes, this.claimReceipt);
+        let claimReceipt = this.colony.claimResource(this, resourceType, amount, minAmount, isExtended, near, options, excludes, this.claimReceipt);
 
         if (claimReceipt == null)
         {

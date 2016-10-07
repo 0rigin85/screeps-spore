@@ -71,13 +71,16 @@ export class SporeStorage extends StructureStorage implements Claimable
             this.claims[resourceType] = 0;
         }
 
-        if (resourceType != RESOURCE_ENERGY) // ensure they are trying to claim energy
+        let claimAmount = amount;
+        let savings = 0;
+
+        if (this.room.budget.savings[resourceType] != null && this.room.budget.savings[resourceType] > 0)
         {
-            return null;
+            savings = this.room.budget.savings[resourceType];
         }
 
-        let claimAmount = amount;
         let remaining = this.store[resourceType] - this.claims[resourceType];
+        remaining = Math.max(remaining - savings, 0);
 
         // ensure our remaining resource meets their claim
         if (claimAmount > remaining)

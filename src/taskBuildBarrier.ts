@@ -1,6 +1,6 @@
 import {Task, ERR_NO_WORK, TaskPriority, LaborDemandType, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK} from './task';
 import Dictionary = _.Dictionary;
-import {SporeCreep, ACTION_BUILD, CREEP_TYPE, ACTION_REPAIR, ACTION_MOVE} from "./sporeCreep";
+import {SporeCreep, ACTION_BUILD, CREEP_TYPE, ACTION_REPAIR, ACTION_MOVE, CollectOptions} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
 import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 import {BodyDefinition} from "./bodyDefinition";
@@ -14,17 +14,17 @@ export class BuildBarrier extends Task
     direRampartHits: number = RAMPART_DECAY_AMOUNT * 10;
     averageHits: number = 0;
     averageDelta: number = 1000;
-    requiredCarryPerBarrier: number = 0.20;
+    requiredCarryPerBarrier: number = 0.15;
 
     constructor(public barriers: ScreepsPtr<ConstructionSite | StructureWall | StructureRampart>[])
     {
         super(false);
 
-        this.id = 'Reinforce barriers';
-        this.name = 'Reinforce barriers';
+        this.id = 'Reinforce barriers ' + barriers[0].pos.roomName;
+        this.name = 'Reinforce barriers ' + barriers[0].pos.roomName;
         this.possibleWorkers = -1;
         this.priority = TaskPriority.Medium;
-        this.idealCreepBody = CREEP_TYPE.CITIZEN;
+        this.idealCreepBody = CREEP_TYPE.MASON;
 
         let totalHits = 0;
         let total = 0;
@@ -201,6 +201,11 @@ export class BuildBarrier extends Task
                 return 0;
             }
 
+            if (object.type === CREEP_TYPE.MINER.name || object.type === CREEP_TYPE.UPGRADER.name)
+            {
+                return 0;
+            }
+
             return super.basicPrioritizeCreep(object, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] }, this.idealCreepBody);
         }
 
@@ -263,6 +268,7 @@ export class BuildBarrier extends Task
         }
         else
         {
+            creep.taskMetadata = { type: 'BuildBarrier', target: null };
             let amount = creep.carryCapacityRemaining;
 
             code = creep.goCollect(
@@ -271,7 +277,7 @@ export class BuildBarrier extends Task
                 amount,
                 false,
                 this.barriers[nextBarrier].pos,
-                [['near_dropped'], ['link','container','storage'], ['dropped']],
+                new CollectOptions(null, [['near_dropped'], ['link','container','storage'], ['dropped']]),
                 {});
 
             if (code === ERR_NO_WORK)
@@ -288,7 +294,7 @@ export class BuildBarrier extends Task
                         0,
                         false,
                         this.barriers[nextBarrier].pos,
-                        [['near_dropped'], ['link','container','storage'], ['dropped']],
+                        new CollectOptions(null, [['near_dropped'], ['link','container','storage'], ['dropped']]),
                         {});
                 }
             }
@@ -316,15 +322,32 @@ export class BuildBarrier extends Task
     private goReinforce(creep: Creep, barrierIndex: number) : number
     {
         let code;
+        let barrier = this.barriers[barrierIndex];
+
+        if (creep.taskMetadata != null &&
+            creep.taskMetadata.type === 'BuildBarrier' &&
+            creep.taskMetadata.target != null)
+        {
+            let barrierId = creep.taskMetadata.target;
+            let object = Game.getObjectById(barrierId);
+
+
+            if (object != null)
+            {
+                barrier = ScreepsPtr.from<any>(object);
+            }
+        }
 
         if (this.barriers[barrierIndex].lookType === LOOK_CONSTRUCTION_SITES)
         {
-            code = creep.goBuild(<ScreepsPtr<ConstructionSite>>this.barriers[barrierIndex]);
+            code = creep.goBuild(<ScreepsPtr<ConstructionSite>>barrier);
         }
         else
         {
-            code = creep.goRepair(<ScreepsPtr<Structure>><any>this.barriers[barrierIndex]);
+            code = creep.goRepair(<ScreepsPtr<Structure>><any>barrier);
         }
+
+        creep.taskMetadata = { type: 'BuildBarrier', target: barrier.id };
 
         return code;
     }

@@ -93,7 +93,14 @@ export class SporeSpawn extends Spawn implements Claimable
 
                 for (let increment = 0; increment < totalIncrement; ++increment)
                 {
-                    body.push(requirement.type);
+                    if (requirement.type === TOUGH)
+                    {
+                        body.unshift(requirement.type);
+                    }
+                    else
+                    {
+                        body.push(requirement.type);
+                    }
                 }
             }
             else
@@ -102,7 +109,7 @@ export class SporeSpawn extends Spawn implements Claimable
             }
         }
 
-        return body;
+        return body.reverse();
     }
 
     collect(collector: any, claimReceipt: ClaimReceipt): number

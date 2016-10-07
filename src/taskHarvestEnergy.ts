@@ -1,6 +1,9 @@
 /// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
-import {Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, LaborDemandType, NO_MORE_WORK} from './task';
+import {
+    Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, LaborDemandType, NO_MORE_WORK,
+    ERR_SKIP_WORKER
+} from './task';
 import {CREEP_TYPE, ACTION_COLLECT} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
 import {SpawnAppointment, SpawnRequest} from "./spawnRequest";
@@ -36,6 +39,11 @@ export class HarvestEnergy extends Task
         if (object instanceof Creep)
         {
             if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            {
+                return 0;
+            }
+
+            if (object.type === CREEP_TYPE.UPGRADER.name)
             {
                 return 0;
             }
@@ -76,9 +84,9 @@ export class HarvestEnergy extends Task
 
         let creep = <Creep>object;
 
-        if (creep.task != this && creep.task instanceof HarvestEnergy)
+        if (creep.spawnRequest == null && creep.task != this && creep.task instanceof HarvestEnergy)
         {
-            return ERR_CANNOT_PERFORM_TASK;
+            return ERR_SKIP_WORKER;
         }
 
         let code;
@@ -97,15 +105,22 @@ export class HarvestEnergy extends Task
         else if (!this.source.isShrouded && this.source.instance.energy === 0)
         {
             code = creep.goMoveTo(this.source);
+            this.doBusyWork(creep, ERR_NO_WORK);
         }
         else
         {
             code = creep.goHarvest(this.source);
+            this.doBusyWork(creep, code);
+        }
+
+        if (code < 0)
+        {
+            creep.action = null;
         }
 
         if (creep.carry[RESOURCE_ENERGY] > 0)
         {
-            let areaResults = creep.room.lookForAtArea(LOOK_STRUCTURES, creep.pos.y - 1, creep.pos.x - 1, creep.pos.y + 1, creep.pos.x + 1, true);
+            let areaResults = <LookAtResultWithPos[]>creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep.pos, 1, true);
             let areaResultsByType = _.groupBy(areaResults, function(l: LookAtResultWithPos){ return l.structure.structureType; });
 
             if (areaResultsByType[STRUCTURE_STORAGE] != null && areaResultsByType[STRUCTURE_STORAGE].length > 0)
@@ -201,6 +216,73 @@ export class HarvestEnergy extends Task
         }
 
         return code;
+    }
+
+    doBusyWork(creep: Creep, code: number): void
+    {
+        if (creep.getActiveBodyparts(CARRY) > 0)
+        {
+            let totalEnergyOnGround = 0;
+            let resources = [];
+
+            if (code != 0)
+            {
+                console.log('?+?+?+?+?+?+?+?+?+?+?+?+? ' + creep + ' ' + code);
+            }
+
+            if (code !== ERR_NO_WORK)
+            {
+                resources = <LookAtResultWithPos[]>creep.room.lookForByRadiusAt(LOOK_RESOURCES, creep.pos, 1, true);
+
+                for (let look of resources)
+                {
+                    if (look.resource.resourceType === RESOURCE_ENERGY)
+                    {
+                        totalEnergyOnGround += look.resource.amount;
+                    }
+                }
+            }
+
+            if (totalEnergyOnGround > 2000 || code === ERR_NO_WORK)
+            {
+                let structures = <LookAtResultWithPos[]>creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep.pos, 1, true);
+
+                let didRepaired = false;
+                for (let look of structures)
+                {
+                    if (look.structure.hits < look.structure.hitsMax)
+                    {
+                        if (resources[0] != null)
+                        {
+                            creep.pickup(resources[0].resource);
+                        }
+                        else
+                        {
+                            creep.withdraw(look.structure, RESOURCE_ENERGY);
+                        }
+
+                        creep.repair(look.structure);
+                        didRepaired = true;
+                        break;
+                    }
+                }
+
+                if (!didRepaired)
+                {
+                    let sites = <LookAtResultWithPos[]>creep.room.lookForByRadiusAt(LOOK_CONSTRUCTION_SITES, creep.pos, 1, true);
+
+                    if (sites.length > 0)
+                    {
+                        if (resources[0] != null)
+                        {
+                            creep.pickup(resources[0].resource);
+                        }
+
+                        creep.build(sites[0].constructionSite);
+                    }
+                }
+            }
+        }
     }
 
     endScheduling(): void

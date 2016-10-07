@@ -55,7 +55,33 @@ module.exports =
 	/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const spore_1 = __webpack_require__(2);
-	const sporeColony_1 = __webpack_require__(35);
+	const sporeColony_1 = __webpack_require__(37);
+	// // Any modules that you use that modify the game's prototypes should be require'd
+	// // before you require the profiler.
+	// import {profiler} from "./screeps-profiler";
+	//
+	// // This line monkey patches the global prototypes.
+	// profiler.enable();
+	// module.exports.loop = function() {
+	//     profiler.wrap(function() {
+	//
+	//         PathFinder.use(true);
+	//
+	//         for(let name in Memory.creeps)
+	//         {
+	//             if(!Game.creeps[name])
+	//             {
+	//                 delete Memory.creeps[name];
+	//                 console.log('Clearing non-existing creep memory:', name);
+	//             }
+	//         }
+	//
+	//         Spore.inject();
+	//         Spore.colony = new SporeColony();
+	//         Spore.colony.run();
+	//
+	//     });
+	// };
 	module.exports.loop = function () {
 	    PathFinder.use(true);
 	    for (let name in Memory.creeps) {
@@ -78,19 +104,19 @@ module.exports =
 	const sporeRoom_1 = __webpack_require__(3);
 	const sporeCreep_1 = __webpack_require__(7);
 	const sporeSource_1 = __webpack_require__(14);
-	const sporeRoomObject_1 = __webpack_require__(16);
-	const sporeConstructionSite_1 = __webpack_require__(17);
-	const sporeContainer_1 = __webpack_require__(19);
-	const sporeController_1 = __webpack_require__(20);
-	const sporeExtension_1 = __webpack_require__(21);
-	const sporeFlag_1 = __webpack_require__(22);
-	const sporeRoomPosition_1 = __webpack_require__(28);
-	const sporeSpawn_1 = __webpack_require__(29);
-	const sporeStorage_1 = __webpack_require__(30);
-	const sporeStructure_1 = __webpack_require__(31);
-	const sporeTower_1 = __webpack_require__(32);
-	const sporeResource_1 = __webpack_require__(33);
-	const sporeLink_1 = __webpack_require__(34);
+	const sporeRoomObject_1 = __webpack_require__(17);
+	const sporeConstructionSite_1 = __webpack_require__(18);
+	const sporeContainer_1 = __webpack_require__(20);
+	const sporeController_1 = __webpack_require__(21);
+	const sporeExtension_1 = __webpack_require__(22);
+	const sporeFlag_1 = __webpack_require__(23);
+	const sporeRoomPosition_1 = __webpack_require__(30);
+	const sporeSpawn_1 = __webpack_require__(31);
+	const sporeStorage_1 = __webpack_require__(32);
+	const sporeStructure_1 = __webpack_require__(33);
+	const sporeTower_1 = __webpack_require__(34);
+	const sporeResource_1 = __webpack_require__(35);
+	const sporeLink_1 = __webpack_require__(36);
 	class Spore {
 	    constructor() {
 	    }
@@ -154,127 +180,10 @@ module.exports =
 	const taskHarvestEnergy_1 = __webpack_require__(13);
 	const taskBuildBarrier_1 = __webpack_require__(15);
 	const sporeCreep_1 = __webpack_require__(7);
-	var GATHER_RESOURCE_STORES = {
-	    'source': function (collection, resourceType, amount, claimer, near, excludes) {
-	        if (resourceType !== RESOURCE_ENERGY) {
-	            return;
-	        }
-	        if (!(claimer instanceof Creep)) {
-	            return;
-	        }
-	        else if (claimer.getActiveBodyparts(WORK) === 0) {
-	            return;
-	        }
-	        for (let source of this.sources) {
-	            if (source.doIgnore !== true && source.energy > 0 && excludes[source.id] == null) {
-	                collection.push(source);
-	            }
-	        }
-	    },
-	    'near_dropped': function (collection, resourceType, amount, claimer, near, excludes) {
-	        let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
-	        for (let resource of nearClaimerResources) {
-	            if (resource.doIgnore !== true &&
-	                resource.resourceType === resourceType &&
-	                resource.amount > 0 &&
-	                excludes[resource.id] == null) {
-	                collection.push(resource);
-	            }
-	        }
-	        if (near != null) {
-	            let nearTargetResources = near.findInRange(FIND_DROPPED_RESOURCES, 5);
-	            for (let resource of nearTargetResources) {
-	                if (resource.doIgnore !== true &&
-	                    resource.resourceType === resourceType &&
-	                    resource.amount > 0 &&
-	                    excludes[resource.id] == null) {
-	                    collection.push(resource);
-	                }
-	            }
-	        }
-	    },
-	    'dropped': function (collection, resourceType, amount, claimer, near, excludes) {
-	        for (let resource of this.resources) {
-	            if (resource.doIgnore !== true &&
-	                resource.resourceType === resourceType &&
-	                resource.amount > 0 &&
-	                excludes[resource.id] == null) {
-	                collection.push(resource);
-	            }
-	        }
-	    },
-	    'container': function (collection, resourceType, amount, claimer, near, excludes) {
-	        for (let container of this.containers) {
-	            if (container.doIgnore !== true &&
-	                container.store[resourceType] > 0 &&
-	                excludes[container.id] == null) {
-	                collection.push(container);
-	            }
-	        }
-	    },
-	    'link': function (collection, resourceType, amount, claimer, near, excludes) {
-	        if (resourceType !== RESOURCE_ENERGY) {
-	            return;
-	        }
-	        for (let link of this.links) {
-	            if (link.doIgnore !== true &&
-	                link.energy > 0 &&
-	                link.takesTransfers &&
-	                excludes[link.id] == null) {
-	                collection.push(link);
-	            }
-	        }
-	    },
-	    'storage': function (collection, resourceType, amount, claimer, near, excludes) {
-	        if (this.storage != null &&
-	            this.storage.doIgnore !== true &&
-	            this.storage.store[resourceType] > 0 &&
-	            excludes[this.storage.id] == null) {
-	            let savings = this.budget.savings[resourceType];
-	            if (savings != null && this.storage.store[resourceType] - amount >= savings) {
-	                collection.push(this.storage);
-	            }
-	        }
-	    },
-	    'extension': function (collection, resourceType, amount, claimer, near, excludes) {
-	        if (resourceType !== RESOURCE_ENERGY) {
-	            return;
-	        }
-	        for (let extension of this.extensions) {
-	            if (extension.doIgnore !== true &&
-	                extension.energy > 0 &&
-	                excludes[extension.id] == null) {
-	                collection.push(extension);
-	            }
-	        }
-	    },
-	    'spawn': function (collection, resourceType, amount, claimer, near, excludes) {
-	        if (resourceType !== RESOURCE_ENERGY) {
-	            return;
-	        }
-	        for (let spawn of this.mySpawns) {
-	            if (spawn.doIgnore !== true &&
-	                spawn.energy > 0 &&
-	                excludes[spawn.id] == null) {
-	                collection.push(spawn);
-	            }
-	        }
-	    },
-	    'tower': function (collection, resourceType, amount, claimer, near, excludes) {
-	        if (resourceType !== RESOURCE_ENERGY) {
-	            return;
-	        }
-	        for (let tower of this.towers) {
-	            if (tower.doIgnore !== true &&
-	                tower.energy > 0 &&
-	                excludes[tower.id] == null) {
-	                collection.push(tower);
-	            }
-	        }
-	    }
-	};
+	const taskDefendRoom_1 = __webpack_require__(16);
 	// List of allies, name must be lower case.
 	const USERNAME_WHITELIST = [
+	    'pcake0rigin',
 	    'pcakecysote',
 	    'barney',
 	    'pcakecysote',
@@ -325,9 +234,6 @@ module.exports =
 	class SporeRoom extends Room {
 	    constructor(...args) {
 	        super(...args);
-	        this.untaskedCreepsByName = {};
-	        this.tasks = [];
-	        this.basicTasks = [];
 	        this._resources = null;
 	        this._resourcesFindTick = -1;
 	    }
@@ -356,7 +262,7 @@ module.exports =
 	        Object.defineProperty(this, "isReserved", { value: isReserved });
 	        return isReserved;
 	    }
-	    get priority() {
+	    static getPriority(roomName) {
 	        let memory = Memory.rooms[this.name];
 	        if (memory == null) {
 	            memory = {};
@@ -365,11 +271,15 @@ module.exports =
 	        if (memory.priority == null) {
 	            memory.priority = 100;
 	        }
-	        if (this.my && memory.priority <= 100) {
+	        if (Game.rooms[roomName] != null && Game.rooms[roomName].my && memory.priority <= 100) {
 	            memory.priority = 500;
 	        }
-	        Object.defineProperty(this, "priority", { value: memory.priority });
 	        return memory.priority;
+	    }
+	    get priority() {
+	        let priority = SporeRoom.getPriority(this.name);
+	        Object.defineProperty(this, "priority", { value: priority });
+	        return priority;
 	    }
 	    get sources() {
 	        let memory = Memory.rooms[this.name];
@@ -395,6 +305,19 @@ module.exports =
 	        }
 	        Object.defineProperty(this, "sources", { value: sources });
 	        return sources;
+	    }
+	    get extractor() {
+	        let extractors = this.find(FIND_STRUCTURES, {
+	            filter: {
+	                structureType: STRUCTURE_EXTRACTOR
+	            }
+	        });
+	        let extractor = null;
+	        if (extractors != null && extractors.length > 0) {
+	            extractor = extractors[0];
+	        }
+	        Object.defineProperty(this, "extractor", { value: extractor });
+	        return extractor;
 	    }
 	    get mySpawns() {
 	        let spawns = this.find(FIND_MY_SPAWNS);
@@ -487,6 +410,22 @@ module.exports =
 	        Object.defineProperty(this, "friendlyCreeps", { value: friendlyCreeps });
 	        return friendlyCreeps;
 	    }
+	    get injuredFriendlyCreeps() {
+	        let injuredFriendlyCreeps = this.find(FIND_CREEPS, {
+	            filter: (creep) => {
+	                return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+	            }
+	        });
+	        Object.defineProperty(this, "injuredFriendlyCreeps", { value: injuredFriendlyCreeps });
+	        return injuredFriendlyCreeps;
+	    }
+	    lookForByRadiusAt(type, location, radius, asArray) {
+	        let pos = location;
+	        if (location.pos != null) {
+	            pos = location.pos;
+	        }
+	        return this.lookForAtArea(type, Math.max(pos.y - radius, 0), Math.max(pos.x - radius, 0), Math.min(pos.y + radius, 49), Math.min(pos.x + radius, 49), asArray);
+	    }
 	    trackEconomy() {
 	        this.economy = new Economy();
 	        if (this.budget.savings[RESOURCE_ENERGY] == null) {
@@ -524,38 +463,6 @@ module.exports =
 	        console.log(this + ' economy energy supply ' + this.economy.resources.energy);
 	        console.log(this + ' economy energy demand ' + Math.ceil(this.economy.demand.energy / 1500));
 	    }
-	    claimResource(claimer, resourceType, amount, minAmount, isExtended, near, storePriorities, excludes, receipt) {
-	        if (receipt != null && receipt.target != null && excludes[receipt.target.id] == null) {
-	            let flatStorePriorities = _.flattenDeep(storePriorities);
-	            if (_.includes(flatStorePriorities, receipt.type) ||
-	                _.includes(flatStorePriorities, receipt.target.id)) {
-	                let claim = receipt.target.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
-	                if (claim !== null) {
-	                    return claim;
-	                }
-	            }
-	        }
-	        for (let priorityIndex = 0; priorityIndex < storePriorities.length; priorityIndex++) {
-	            let group = storePriorities[priorityIndex];
-	            let claimables = [];
-	            for (let index = 0; index < group.length; index++) {
-	                GATHER_RESOURCE_STORES[group[index]].bind(this)(claimables, resourceType, amount, claimer, near, excludes);
-	            }
-	            if (claimables.length > 0) {
-	                near.sortByRangeTo(claimables);
-	                for (let claimable of claimables) {
-	                    if (claimable.makeClaim == null) {
-	                        continue;
-	                    }
-	                    let newReceipt = claimable.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
-	                    if (newReceipt != null) {
-	                        return newReceipt;
-	                    }
-	                }
-	            }
-	        }
-	        return null;
-	    }
 	    getTasks() {
 	        let tasks = [];
 	        //////////////////////////////////////////////////////////////////////////////
@@ -586,12 +493,15 @@ module.exports =
 	                let task = new taskHarvestEnergy_1.HarvestEnergy(screepsPtr_1.ScreepsPtr.from(source));
 	                task.priority = 1000 /* Mandatory */ + 25;
 	                if (this.isReserved) {
-	                    console.log('////////////////////////////');
 	                    task.idealCreepBody = sporeCreep_1.CREEP_TYPE.REMOTE_MINER;
 	                }
 	                let spawn = source.pos.findClosestByPath(this.mySpawns, { ignoreCreeps: true });
 	                if (spawn != null) {
 	                    task.priority += Math.max(0, 150 - source.pos.findPathTo(spawn.pos, { ignoreCreeps: true }).length);
+	                }
+	                if (this.isReserved) {
+	                    task.id += 'E1N49';
+	                    task.roomName = 'E1N49';
 	                }
 	                tasks.push(task);
 	            }
@@ -599,6 +509,31 @@ module.exports =
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Carry remote energy
 	        if (this.isReserved) {
+	            if (this.name === 'E2N49' || this.name === 'E2N48' || this.name === 'E1N48') {
+	                let targets = [];
+	                let link = Game.getObjectById('57f697aab36576753223a1c4');
+	                if (link != null && this.name === 'E2N49') {
+	                    targets.push(screepsPtr_1.ScreepsPtr.from(Game.rooms['E1N49'].storage));
+	                }
+	                else {
+	                    targets.push(screepsPtr_1.ScreepsPtr.from(Game.rooms['E1N49'].storage));
+	                }
+	                let task = new taskTransferResource_1.TransferResource(targets, RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions([this.name], [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]));
+	                task.priority = 100 /* High */ + 200;
+	                task.id = "Remote gather " + this;
+	                task.name = task.id;
+	                task.idealCreepBody = sporeCreep_1.CREEP_TYPE.REMOTE_COURIER;
+	                task.id += 'E1N49';
+	                task.roomName = 'E1N49';
+	                task.capacityCap = 0;
+	                for (let source of this.sources) {
+	                    task.capacityCap += source.energyCapacity;
+	                }
+	                tasks.push(task);
+	                let defendTask = new taskDefendRoom_1.DefendRoom(this.name);
+	                defendTask.roomName = 'E1N49';
+	                tasks.push(defendTask);
+	            }
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Fill Spawn and Extensions
@@ -613,14 +548,15 @@ module.exports =
 	            if (transferTargets.length > 0) {
 	                let task;
 	                if (this.economy.resources[RESOURCE_ENERGY] > 0) {
-	                    task = new taskTransferResource_1.TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]);
+	                    task = new taskTransferResource_1.TransferResource(transferTargets, RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]));
 	                }
 	                else {
-	                    task = new taskTransferResource_1.TransferResource(transferTargets, RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped'], ['source']]);
+	                    task = new taskTransferResource_1.TransferResource(transferTargets, RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped'], ['source']]));
 	                }
 	                task.priority = 1000 /* Mandatory */ + 200;
 	                task.id = "Fill Spawns and Extensions " + this;
 	                task.name = task.id;
+	                //task.capacityCap = this.energyCapacityAvailable;
 	                //task.reserveWorkers = true;
 	                tasks.push(task);
 	            }
@@ -629,21 +565,23 @@ module.exports =
 	        // Fill storage
 	        {
 	            if (this.storage != null && this.storage.storeCapacityRemaining) {
-	                let transferEnergyTask = new taskTransferResource_1.TransferResource([screepsPtr_1.ScreepsPtr.from(this.storage)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container'], ['dropped']]);
+	                let transferEnergyTask = new taskTransferResource_1.TransferResource([screepsPtr_1.ScreepsPtr.from(this.storage)], RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container'], ['dropped']]));
 	                transferEnergyTask.priority = 100 /* High */;
 	                transferEnergyTask.name = "Transfer energy to " + screepsPtr_1.ScreepsPtr.from(this.storage).toHtml();
+	                transferEnergyTask.capacityCap = 600;
 	                tasks.push(transferEnergyTask);
 	            }
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Upgrade room controller
-	        if (this.controller.owner != null && this.controller.owner.username == 'pcake0rigin') {
+	        if (this.controller.owner != null && this.controller.owner.username == 'PCake0rigin') {
 	            let task = new taskUpgradeRoomController_1.UpgradeRoomController(screepsPtr_1.ScreepsPtr.from(this.controller));
+	            task.collectOptions.roomNames.push(this.name);
 	            tasks.push(task);
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Reinforce barriers
-	        {
+	        if (!this.isReserved && this.controller.level >= 2) {
 	            let sites = _.filter(this.constructionSites, function (site) {
 	                if (!site.doIgnore && site.structureType === STRUCTURE_RAMPART || site.structureType === STRUCTURE_WALL) {
 	                    return true;
@@ -721,6 +659,12 @@ module.exports =
 	                    }
 	                }
 	            }
+	            else if (this.injuredFriendlyCreeps.length > 0) {
+	                for (let tower of this.towers) {
+	                    console.log('/////////////////////////////////// ' + this.injuredFriendlyCreeps[0].name);
+	                    tower.heal(this.injuredFriendlyCreeps[0]);
+	                }
+	            }
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Structures
@@ -796,44 +740,35 @@ module.exports =
 	const task_1 = __webpack_require__(5);
 	const sporeCreep_1 = __webpack_require__(7);
 	class TransferResource extends task_1.Task {
-	    constructor(targets, resourceType, source, storePriorities) {
+	    constructor(targets, resourceType, source, options) {
 	        super(false);
 	        this.targets = targets;
 	        this.resourceType = resourceType;
 	        this.source = source;
-	        this.storePriorities = storePriorities;
+	        this.options = options;
 	        this.scheduledTransfer = 0;
 	        this.scheduledWorkers = 0;
 	        this.scheduledCarry = 0;
 	        this.reserveWorkers = false;
+	        this.capacityCap = 2000;
 	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.COURIER;
 	        this.resourcesNeeded = -1;
 	        this.needsResources = [];
 	        this.resourceCapacity = -1;
 	        this.id = "Transfer:" + resourceType + " " + targets.map(function (t) { return t.id; }).join(',');
-	        let room = null;
 	        if (source != null) {
 	            this.id += " " + source;
 	            this.roomName = source.pos.roomName;
-	            room = source.room;
 	        }
 	        else {
 	            this.id += ' ';
-	            for (let index = 0; index < storePriorities.length; index++) {
-	                this.id += storePriorities[index].join(',');
+	            for (let index = 0; index < options.storePriorities.length; index++) {
+	                this.id += options.storePriorities[index].join(',');
 	            }
 	            this.roomName = targets[0].pos.roomName;
-	            room = targets[0].room;
 	        }
 	        this.name = "Transfer " + resourceType + " to " + targets.length + " objects";
 	        this.near = source;
-	        this.calculateRequirements();
-	        if (room != null &&
-	            room.economy != null &&
-	            room.economy.resources != null &&
-	            room.economy.resources[RESOURCE_ENERGY] > 0) {
-	            this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, 2000) / CARRY_CAPACITY) * 0.8) }, 1, 3);
-	        }
 	    }
 	    calculateRequirements() {
 	        this.needsResources.length = 0;
@@ -899,11 +834,28 @@ module.exports =
 	            if (object.carryCount === object.carryCapacity && object.carry[this.resourceType] === 0) {
 	                return 0;
 	            }
+	            if (object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return 0;
+	            }
 	            return super.basicPrioritizeCreep(object, this.source, this.idealCreepBody);
 	        }
 	        return 0;
 	    }
 	    beginScheduling() {
+	        this.calculateRequirements();
+	        let room = null;
+	        if (this.source != null) {
+	            room = this.source.room;
+	        }
+	        else {
+	            room = this.targets[0].room;
+	        }
+	        if (room != null &&
+	            room.economy != null &&
+	            room.economy.resources != null &&
+	            room.economy.resources[RESOURCE_ENERGY] > 0) {
+	            this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: Math.floor((Math.min(this.resourceCapacity, this.capacityCap) / CARRY_CAPACITY) * 0.8) }, 1, 3);
+	        }
 	        this.scheduledTransfer = 0;
 	        this.scheduledWorkers = 0;
 	        this.scheduledCarry = 0;
@@ -945,8 +897,8 @@ module.exports =
 	            //console.log(creep + " resourcesNeeded: " + this.resourcesNeeded + " scheduledTransfer: " + this.scheduledTransfer + " needsResources: " + this.needsResources.length);
 	            return task_1.ERR_NO_WORK;
 	        }
-	        if (creep.type === sporeCreep_1.CREEP_TYPE.MINER.name && this.scheduledTransfer > 0) {
-	            return task_1.ERR_CANNOT_PERFORM_TASK;
+	        if (this.scheduledTransfer > 0 && (creep.type === sporeCreep_1.CREEP_TYPE.MINER.name || creep.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name)) {
+	            return task_1.ERR_SKIP_WORKER;
 	        }
 	        let remainingNeededResources = Math.max(0, this.resourcesNeeded - this.scheduledTransfer);
 	        let code;
@@ -970,7 +922,7 @@ module.exports =
 	        else if (creep.carry[this.resourceType] > 0) {
 	            if (creep.carryCount === creep.carryCapacity ||
 	                creep.carry[this.resourceType] >= remainingNeededResources ||
-	                (creep.action === sporeCreep_1.ACTION_TRANSFER && creep.carry[this.resourceType] > 0)) {
+	                ((creep.action === sporeCreep_1.ACTION_TRANSFER || creep.action === sporeCreep_1.ACTION_MOVE) && creep.carry[this.resourceType] > 0)) {
 	                code = this.scheduleTransfer(creep, this.needsResources);
 	            }
 	            else {
@@ -1024,13 +976,13 @@ module.exports =
 	        }
 	        else {
 	            let amount = Math.min(creep.carryCapacityRemaining, remainingNeededResources);
-	            code = creep.goCollect(this.resourceType, amount, amount, false, ((needsResources.length > 0) ? needsResources[0].pos : creep.pos), this.storePriorities, _.indexBy(this.targets, 'id'));
+	            code = creep.goCollect(this.resourceType, amount, amount, false, ((needsResources.length > 0) ? needsResources[0].pos : creep.pos), this.options, _.indexBy(this.targets, 'id'));
 	            if (code === task_1.ERR_NO_WORK) {
 	                if (creep.carry[this.resourceType] > 0) {
 	                    code = this.scheduleTransfer(creep, needsResources);
 	                }
 	                else {
-	                    code = creep.goCollect(this.resourceType, amount, 0, false, ((needsResources.length > 0) ? needsResources[0].pos : creep.pos), this.storePriorities, _.indexBy(this.targets, 'id'));
+	                    code = creep.goCollect(this.resourceType, amount, 0, false, ((needsResources.length > 0) ? needsResources[0].pos : creep.pos), this.options, _.indexBy(this.targets, 'id'));
 	                }
 	            }
 	        }
@@ -1051,6 +1003,7 @@ module.exports =
 	exports.NO_MORE_WORK = 123;
 	exports.ERR_NO_WORK = -400;
 	exports.ERR_CANNOT_PERFORM_TASK = -401;
+	exports.ERR_SKIP_WORKER = -402;
 	class LaborDemandType {
 	    constructor(parts, min, max) {
 	        this.parts = parts;
@@ -1115,6 +1068,9 @@ module.exports =
 	        }
 	        return new spawnRequest_1.SpawnAppointment(request.id, request.task, spawnPriority, spawn, ticksTillRequired, request.replacingCreep, request.creepBody);
 	    }
+	    shouldPlanToReplace(object) {
+	        return true;
+	    }
 	    prioritize(object) {
 	        return 0;
 	    }
@@ -1132,11 +1088,11 @@ module.exports =
 	            }
 	        }
 	        // 1 - 40
-	        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName)) {
+	        if (creep.type === idealBody.name) {
 	            objectPriority += 0.40;
 	        }
 	        // 41 - 60
-	        if (creep.type === idealBody.name) {
+	        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName)) {
 	            objectPriority += 0.2;
 	            // 61 - 70
 	            if (creep.task == this) {
@@ -1209,6 +1165,13 @@ module.exports =
 	const sporeClaimable_1 = __webpack_require__(8);
 	const bodyDefinition_1 = __webpack_require__(9);
 	const spawnRequest_1 = __webpack_require__(6);
+	class CollectOptions {
+	    constructor(roomNames, storePriorities) {
+	        this.roomNames = roomNames;
+	        this.storePriorities = storePriorities;
+	    }
+	}
+	exports.CollectOptions = CollectOptions;
 	exports.ACTION_TRANSFER = "transfer";
 	exports.ACTION_RECYCLE = "recycle";
 	exports.ACTION_COLLECT = "collect";
@@ -1227,16 +1190,21 @@ module.exports =
 	exports.CREEP_TYPE.MINER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('REMOTE_MINER');
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 6, 1, 1));
-	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 6, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 3, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 1, 1, 1));
 	exports.CREEP_TYPE.REMOTE_MINER = bodyDefinition;
+	var bodyDefinition = new bodyDefinition_1.BodyDefinition('UPGRADER');
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 15, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 1, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 1, 1, 1));
+	exports.CREEP_TYPE.UPGRADER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('COURIER');
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 12, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 12, 1, 1));
 	exports.CREEP_TYPE.COURIER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('REMOTE_COURIER');
-	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 10, 1, 1));
-	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 17, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 8, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 16, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 1, 1, 1));
 	exports.CREEP_TYPE.REMOTE_COURIER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('CITIZEN');
@@ -1244,6 +1212,15 @@ module.exports =
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 10, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 5, 1, 1));
 	exports.CREEP_TYPE.CITIZEN = bodyDefinition;
+	var bodyDefinition = new bodyDefinition_1.BodyDefinition('MASON');
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 3, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 4, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 5, 1, 1));
+	exports.CREEP_TYPE.MASON = bodyDefinition;
+	var bodyDefinition = new bodyDefinition_1.BodyDefinition('WIRE');
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 6, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 1, 1, 1));
+	exports.CREEP_TYPE.WIRE = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('RESERVER');
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 4, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CLAIM, 2, 1, 1));
@@ -1252,6 +1229,13 @@ module.exports =
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 1, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CLAIM, 1, 1, 1));
 	exports.CREEP_TYPE.CLAIMER = bodyDefinition;
+	var bodyDefinition = new bodyDefinition_1.BodyDefinition('REMOTE_DEFENDER');
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(TOUGH, 2, 1, 2));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(ATTACK, 3, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(RANGED_ATTACK, 1, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 7, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(HEAL, 1, 1, 1));
+	exports.CREEP_TYPE.REMOTE_DEFENDER = bodyDefinition;
 	class SporeCreep extends Creep {
 	    get carryCount() {
 	        return _.sum(this.carry);
@@ -1316,6 +1300,18 @@ module.exports =
 	                bodyParts.length < requirement.min) {
 	                return 0;
 	            }
+	            let totalActiveParts = 0;
+	            for (let part of bodyParts) {
+	                if (part.hits > 0) {
+	                    totalActiveParts++;
+	                    if (totalActiveParts >= requirement.min) {
+	                        break;
+	                    }
+	                }
+	            }
+	            if (totalActiveParts < requirement.min) {
+	                return 0;
+	            }
 	            totalMaxRequiredParts += requirement.max;
 	            totalRequiredParts += Math.min(bodyParts.length, requirement.max);
 	        }
@@ -1373,6 +1369,8 @@ module.exports =
 	            this._task = this.colony.tasksById[memory.taskId];
 	            if (this._task == null) {
 	                delete memory.taskId;
+	                this.taskPriority = -1;
+	                this.taskMetadata = null;
 	            }
 	        }
 	        return this._task;
@@ -1410,6 +1408,30 @@ module.exports =
 	        }
 	        else {
 	            memory.taskPriority = value;
+	        }
+	    }
+	    get taskMetadata() {
+	        if (this._taskMetadata !== undefined) {
+	            return this._taskMetadata;
+	        }
+	        let memory = this.memory;
+	        if (memory.taskMetadata != null) {
+	            this._taskMetadata = memory.taskMetadata;
+	        }
+	        else {
+	            this._taskMetadata = null;
+	        }
+	        return this._taskMetadata;
+	    }
+	    set taskMetadata(value) {
+	        this._taskMetadata = value;
+	        let memory = this.memory;
+	        if (value == null) {
+	            delete memory.taskMetadata;
+	            this._taskMetadata = null;
+	        }
+	        else {
+	            memory.taskMetadata = value;
 	        }
 	    }
 	    get action() {
@@ -1459,6 +1481,11 @@ module.exports =
 	        if (target.pos == null) {
 	            return task_1.ERR_NO_WORK;
 	        }
+	        // this.room.findPath(this.pos, target.pos, {
+	        //     costCallback: function(roomName, costMatrix) {
+	        //
+	        //     }
+	        // });
 	        let code = this.moveTo(target.pos, { noPathFinding: true });
 	        // Perform pathfinding only if we have enough CPU
 	        if (code == ERR_NOT_FOUND && Game.cpu.tickLimit - Game.cpu.getUsed() > 20) {
@@ -1679,11 +1706,11 @@ module.exports =
 	        console.log("Creep " + this.name + " goRepair error code: " + code);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goCollect(resourceType, amount, minAmount, isExtended, near, storePriorities, excludes) {
+	    goCollect(resourceType, amount, minAmount, isExtended, near, options, excludes) {
 	        if (this.action != exports.ACTION_COLLECT && this.action != exports.ACTION_MOVE) {
 	            this.claimReceipt = null;
 	        }
-	        let claimReceipt = Game.rooms[near.roomName].claimResource(this, resourceType, amount, minAmount, isExtended, near, storePriorities, excludes, this.claimReceipt);
+	        let claimReceipt = this.colony.claimResource(this, resourceType, amount, minAmount, isExtended, near, options, excludes, this.claimReceipt);
 	        if (claimReceipt == null) {
 	            return task_1.ERR_NO_WORK;
 	        }
@@ -1875,6 +1902,8 @@ module.exports =
 	    constructor(controller) {
 	        super(false);
 	        this.controller = controller;
+	        this.collectOptions = new sporeCreep_1.CollectOptions([], [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]);
+	        this.claimable = null;
 	        this.id = "Upgrade " + controller;
 	        this.name = "Upgrade " + controller.toHtml();
 	        this.possibleWorkers = -1;
@@ -1882,9 +1911,32 @@ module.exports =
 	        this.roomName = controller.pos.roomName;
 	        this.priority = 0 /* Low */;
 	        this.near = controller;
-	        let room = null;
+	        this.upgraderSlots = [];
+	        this.remainingUpgraderSlots = [];
 	        if (!controller.isShrouded) {
-	            room = controller.instance.room;
+	            let area = controller.instance.room.lookForByRadiusAt(LOOK_STRUCTURES, controller.instance, 4, true);
+	            for (let pos of area) {
+	                if (pos.structure.structureType === STRUCTURE_STORAGE) {
+	                    this.idealCreepBody = sporeCreep_1.CREEP_TYPE.UPGRADER;
+	                    this.upgraderSlots = pos.structure.pos.getWalkableSurroundingAreaInRange(controller.instance.pos, 3);
+	                    this.claimable = pos.structure;
+	                    break;
+	                }
+	                if (pos.structure.structureType === STRUCTURE_LINK) {
+	                    this.idealCreepBody = sporeCreep_1.CREEP_TYPE.UPGRADER;
+	                    this.upgraderSlots = pos.structure.pos.getWalkableSurroundingAreaInRange(controller.instance.pos, 3);
+	                    this.claimable = pos.structure;
+	                }
+	                else if (pos.structure.structureType === STRUCTURE_CONTAINER && this.near === controller) {
+	                    this.idealCreepBody = sporeCreep_1.CREEP_TYPE.UPGRADER;
+	                    this.upgraderSlots = pos.structure.pos.getWalkableSurroundingAreaInRange(controller.instance.pos, 3);
+	                    this.claimable = pos.structure;
+	                }
+	            }
+	            for (let pos of this.upgraderSlots) {
+	                this.remainingUpgraderSlots.push(pos);
+	            }
+	            //console.log(controller.pos.roomName + ' upgraderSlots ' + this.upgraderSlots.length);
 	            if (controller.instance.ticksToDowngrade < 2000) {
 	                this.priority = 1000 /* Mandatory */ * 2;
 	            }
@@ -1908,12 +1960,44 @@ module.exports =
 	        }
 	        return 0;
 	    }
+	    hasWork() {
+	        if (this.possibleWorkers === 0 || !this.controller.isValid) {
+	            return false;
+	        }
+	        // let requiredWork = 0;
+	        // let requiredWorkers = 0;
+	        // for (let laborTypeName in this.labor.types)
+	        // {
+	        //     let laborType = this.labor.types[laborTypeName];
+	        //
+	        //     if (laborType != null && laborType.parts[WORK] != null)
+	        //     {
+	        //         requiredWork += laborType.parts[WORK];
+	        //         requiredWorkers += laborType.max;
+	        //     }
+	        // }
+	        //
+	        // if (requiredWork != 0 &&
+	        //     this.scheduledWork >= requiredWork ||
+	        //     this.scheduledWorkers >= requiredWorkers)
+	        // {
+	        //
+	        // }
+	        if (this.labor.types[this.idealCreepBody.name] != null) {
+	            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
+	            if (this.scheduledWork >= this.labor.types[this.idealCreepBody.name].parts[WORK] ||
+	                this.scheduledWorkers >= this.labor.types[this.idealCreepBody.name].max) {
+	                return false;
+	            }
+	        }
+	        return true;
+	    }
 	    beginScheduling() {
 	        this.scheduledWorkers = 0;
-	        this.scheduledCarry = 0;
+	        this.scheduledWork = 0;
 	    }
 	    schedule(object) {
-	        if (this.possibleWorkers === 0 || !this.controller.isValid) {
+	        if (!this.hasWork()) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        if (!(object instanceof Creep)) {
@@ -1926,53 +2010,122 @@ module.exports =
 	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
 	            return OK;
 	        }
-	        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
-	            (creep.action === sporeCreep_1.ACTION_UPGRADE && creep.carry[RESOURCE_ENERGY] > 0)) {
-	            code = creep.goUpgrade(this.controller);
+	        if (creep.type == sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	            if (this.remainingUpgraderSlots.length <= 0) {
+	                return task_1.ERR_CANNOT_PERFORM_TASK;
+	            }
+	            let pos = this.remainingUpgraderSlots[0];
+	            if (creep.taskMetadata != null && creep.taskMetadata.type == 'UpgradeRC') {
+	                let oldPos = new RoomPosition(creep.taskMetadata.x, creep.taskMetadata.y, creep.taskMetadata.roomName);
+	                for (let index = 0; index < this.remainingUpgraderSlots.length; index++) {
+	                    let slot = this.remainingUpgraderSlots[index];
+	                    if (slot.isEqualTo(oldPos)) {
+	                        pos = oldPos;
+	                        this.remainingUpgraderSlots.splice(index, 1);
+	                        break;
+	                    }
+	                }
+	            }
+	            else {
+	                this.remainingUpgraderSlots.splice(0, 1);
+	            }
+	            if (!creep.pos.isEqualTo(pos)) {
+	                code = creep.moveTo(pos);
+	                if (code === ERR_TIRED) {
+	                    code = OK;
+	                }
+	            }
+	            else {
+	                code = OK;
+	            }
+	            if (code >= 0) {
+	                creep.taskMetadata = { type: 'UpgradeRC', x: pos.x, y: pos.y, roomName: pos.roomName };
+	            }
+	            let claimReceipt = this.claimable.makeClaim(this, RESOURCE_ENERGY, creep.carryCapacityRemaining, creep.getActiveBodyparts(WORK), false);
+	            if (claimReceipt != null) {
+	                claimReceipt.target.collect(creep, claimReceipt);
+	            }
+	            if (!this.controller.isShrouded) {
+	                creep.upgradeController(this.controller.instance);
+	            }
+	            creep.action = sporeCreep_1.ACTION_UPGRADE;
+	            creep.actionTarget = this.controller.toString();
 	        }
 	        else {
-	            let amount = creep.carryCapacityRemaining;
-	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.controller.pos, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']], {});
-	            if (code === task_1.ERR_NO_WORK) {
-	                if (creep.carry[RESOURCE_ENERGY] > 0) {
-	                    code = creep.goUpgrade(this.controller);
+	            if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
+	                (creep.action === sporeCreep_1.ACTION_UPGRADE && creep.carry[RESOURCE_ENERGY] > 0)) {
+	                code = creep.goUpgrade(this.controller);
+	            }
+	            else {
+	                let amount = creep.carryCapacityRemaining;
+	                //creep.moveOptions.favor.push({ target: this.controller, range: 3 });
+	                code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.controller.pos, this.collectOptions, {});
+	                if (code === task_1.ERR_NO_WORK) {
+	                    if (creep.carry[RESOURCE_ENERGY] > 0) {
+	                        code = creep.goUpgrade(this.controller);
+	                    }
+	                    else {
+	                        code = creep.goCollect(RESOURCE_ENERGY, amount, 0, false, this.controller.pos, this.collectOptions, {});
+	                    }
 	                }
-	                else {
-	                    code = creep.goCollect(RESOURCE_ENERGY, amount, 0, false, this.controller.pos, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']], {});
+	                if (!this.controller.isShrouded) {
+	                    creep.upgradeController(this.controller.instance);
 	                }
 	            }
 	        }
 	        if (code === OK) {
 	            this.scheduledWorkers++;
-	            let compatibleTransfer = creep.carryCapacityRemaining + creep.carry[RESOURCE_ENERGY];
-	            this.scheduledCarry += Math.floor(compatibleTransfer / CARRY_CAPACITY);
+	            this.scheduledWork += creep.getActiveBodyparts(WORK);
 	            if (this.possibleWorkers > 0) {
 	                this.possibleWorkers--;
 	            }
 	        }
-	        if (this.possibleWorkers === 0) {
+	        this.updateLaborRequirements();
+	        if (!this.hasWork()) {
 	            return task_1.NO_MORE_WORK;
 	        }
 	        return code;
 	    }
-	    endScheduling() {
+	    updateLaborRequirements() {
 	        let room = null;
 	        if (!this.controller.isShrouded) {
 	            room = this.controller.instance.room;
 	        }
-	        if (this.scheduledWorkers > 0) {
-	            let averageWorkerCapacity = (this.scheduledCarry / this.scheduledWorkers) * CARRY_CAPACITY;
+	        let maxUpgraders = 50;
+	        if (this.idealCreepBody.name === sporeCreep_1.CREEP_TYPE.UPGRADER.name && this.upgraderSlots.length > 0) {
+	            maxUpgraders = this.upgraderSlots.length;
+	        }
+	        if (room != null && room.level >= 8) {
+	            this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ work: 15 }, 1, maxUpgraders);
+	        }
+	        else {
 	            if (room != null &&
 	                room.economy != null &&
 	                room.economy.resources != null &&
-	                room.economy.resources[RESOURCE_ENERGY] > averageWorkerCapacity * 5) {
-	                this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ carry: (this.scheduledCarry + averageWorkerCapacity) }, 1, 50);
+	                room.economy.resources[RESOURCE_ENERGY] > this.scheduledWork * 300) {
+	                // if (this.scheduledWorkers >= maxUpgraders)
+	                // {
+	                //     let maxExtraCitizens = 1;
+	                //
+	                //     if (this.labor.types[CREEP_TYPE.CITIZEN.name] != null)
+	                //     {
+	                //         maxExtraCitizens = this.labor.types[CREEP_TYPE.CITIZEN.name].max;
+	                //     }
+	                //
+	                //     this.labor.types[CREEP_TYPE.CITIZEN.name] = new LaborDemandType({  }, 1, maxExtraCitizens);
+	                // }
+	                // else
+	                // {
+	                this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ work: (this.scheduledWork + 1) }, 1, maxUpgraders);
+	            }
+	            else {
+	                maxUpgraders = this.scheduledWorkers;
+	                this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ work: this.scheduledWork }, 1, maxUpgraders);
 	            }
 	        }
-	        else {
-	            //this.idealCreepBody.getPossibleParts(CLAIM)
-	            this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({}, 1, 50);
-	        }
+	    }
+	    endScheduling() {
+	        this.updateLaborRequirements();
 	    }
 	}
 	exports.UpgradeRoomController = UpgradeRoomController;
@@ -1990,16 +2143,20 @@ module.exports =
 	    constructor(structure) {
 	        super(false);
 	        this.structure = structure;
-	        this.id = "Repair " + structure;
-	        this.name = "Repair " + structure;
+	        this.id = 'Repair [structure (' + structure.lookTypeModifier + ') {room ' + this.structure.pos.roomName + '}]';
+	        this.name = "Repair " + structure.toHtml();
 	        this.priority = 75 /* MediumHigh */;
 	        this.possibleWorkers = 2;
 	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.CITIZEN;
 	        this.near = structure;
+	        this.roomName = 'E1N49';
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
 	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
+	                return 0;
+	            }
+	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
 	                return 0;
 	            }
 	            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
@@ -2017,7 +2174,7 @@ module.exports =
 	        let code;
 	        let creep = object;
 	        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
-	            (creep.action === sporeCreep_1.ACTION_REPAIR && creep.carry[RESOURCE_ENERGY] > 0)) {
+	            ((creep.action === sporeCreep_1.ACTION_REPAIR || creep.action === sporeCreep_1.ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0)) {
 	            code = creep.goRepair(this.structure);
 	        }
 	        else {
@@ -2025,7 +2182,7 @@ module.exports =
 	            if (!this.structure.isShrouded) {
 	                Math.min(creep.carryCapacityRemaining, this.structure.instance.hitsMissing / 100);
 	            }
-	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.structure.pos, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']], {});
+	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.structure.pos, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]), {});
 	        }
 	        if (code === OK && this.possibleWorkers > 0) {
 	            this.possibleWorkers--;
@@ -2220,6 +2377,9 @@ module.exports =
 	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
 	                return 0;
 	            }
+	            if (object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return 0;
+	            }
 	            return super.basicPrioritizeCreep(object, this.source, this.idealCreepBody);
 	        }
 	        return 0;
@@ -2243,8 +2403,8 @@ module.exports =
 	            return task_1.ERR_CANNOT_PERFORM_TASK;
 	        }
 	        let creep = object;
-	        if (creep.task != this && creep.task instanceof HarvestEnergy) {
-	            return task_1.ERR_CANNOT_PERFORM_TASK;
+	        if (creep.spawnRequest == null && creep.task != this && creep.task instanceof HarvestEnergy) {
+	            return task_1.ERR_SKIP_WORKER;
 	        }
 	        let code;
 	        if (creep.spawnRequest != null) {
@@ -2257,12 +2417,17 @@ module.exports =
 	        }
 	        else if (!this.source.isShrouded && this.source.instance.energy === 0) {
 	            code = creep.goMoveTo(this.source);
+	            this.doBusyWork(creep, task_1.ERR_NO_WORK);
 	        }
 	        else {
 	            code = creep.goHarvest(this.source);
+	            this.doBusyWork(creep, code);
+	        }
+	        if (code < 0) {
+	            creep.action = null;
 	        }
 	        if (creep.carry[RESOURCE_ENERGY] > 0) {
-	            let areaResults = creep.room.lookForAtArea(LOOK_STRUCTURES, creep.pos.y - 1, creep.pos.x - 1, creep.pos.y + 1, creep.pos.x + 1, true);
+	            let areaResults = creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep.pos, 1, true);
 	            let areaResultsByType = _.groupBy(areaResults, function (l) { return l.structure.structureType; });
 	            if (areaResultsByType[STRUCTURE_STORAGE] != null && areaResultsByType[STRUCTURE_STORAGE].length > 0) {
 	                let storage = areaResultsByType[STRUCTURE_STORAGE][0].structure;
@@ -2327,6 +2492,49 @@ module.exports =
 	            return task_1.NO_MORE_WORK;
 	        }
 	        return code;
+	    }
+	    doBusyWork(creep, code) {
+	        if (creep.getActiveBodyparts(CARRY) > 0) {
+	            let totalEnergyOnGround = 0;
+	            let resources = [];
+	            if (code != 0) {
+	                console.log('?+?+?+?+?+?+?+?+?+?+?+?+? ' + creep + ' ' + code);
+	            }
+	            if (code !== task_1.ERR_NO_WORK) {
+	                resources = creep.room.lookForByRadiusAt(LOOK_RESOURCES, creep.pos, 1, true);
+	                for (let look of resources) {
+	                    if (look.resource.resourceType === RESOURCE_ENERGY) {
+	                        totalEnergyOnGround += look.resource.amount;
+	                    }
+	                }
+	            }
+	            if (totalEnergyOnGround > 2000 || code === task_1.ERR_NO_WORK) {
+	                let structures = creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep.pos, 1, true);
+	                let didRepaired = false;
+	                for (let look of structures) {
+	                    if (look.structure.hits < look.structure.hitsMax) {
+	                        if (resources[0] != null) {
+	                            creep.pickup(resources[0].resource);
+	                        }
+	                        else {
+	                            creep.withdraw(look.structure, RESOURCE_ENERGY);
+	                        }
+	                        creep.repair(look.structure);
+	                        didRepaired = true;
+	                        break;
+	                    }
+	                }
+	                if (!didRepaired) {
+	                    let sites = creep.room.lookForByRadiusAt(LOOK_CONSTRUCTION_SITES, creep.pos, 1, true);
+	                    if (sites.length > 0) {
+	                        if (resources[0] != null) {
+	                            creep.pickup(resources[0].resource);
+	                        }
+	                        creep.build(sites[0].constructionSite);
+	                    }
+	                }
+	            }
+	        }
 	    }
 	    endScheduling() {
 	    }
@@ -2458,6 +2666,7 @@ module.exports =
 	"use strict";
 	const task_1 = __webpack_require__(5);
 	const sporeCreep_1 = __webpack_require__(7);
+	const screepsPtr_1 = __webpack_require__(12);
 	class BuildBarrier extends task_1.Task {
 	    constructor(barriers) {
 	        super(false);
@@ -2467,12 +2676,12 @@ module.exports =
 	        this.direRampartHits = RAMPART_DECAY_AMOUNT * 10;
 	        this.averageHits = 0;
 	        this.averageDelta = 1000;
-	        this.requiredCarryPerBarrier = 0.20;
-	        this.id = 'Reinforce barriers';
-	        this.name = 'Reinforce barriers';
+	        this.requiredCarryPerBarrier = 0.15;
+	        this.id = 'Reinforce barriers ' + barriers[0].pos.roomName;
+	        this.name = 'Reinforce barriers ' + barriers[0].pos.roomName;
 	        this.possibleWorkers = -1;
 	        this.priority = 50 /* Medium */;
-	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.CITIZEN;
+	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.MASON;
 	        let totalHits = 0;
 	        let total = 0;
 	        for (let barrier of barriers) {
@@ -2582,6 +2791,9 @@ module.exports =
 	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
 	                return 0;
 	            }
+	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return 0;
+	            }
 	            return super.basicPrioritizeCreep(object, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] }, this.idealCreepBody);
 	        }
 	        return 0;
@@ -2623,14 +2835,15 @@ module.exports =
 	            code = this.goReinforce(creep, nextBarrier);
 	        }
 	        else {
+	            creep.taskMetadata = { type: 'BuildBarrier', target: null };
 	            let amount = creep.carryCapacityRemaining;
-	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.barriers[nextBarrier].pos, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']], {});
+	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.barriers[nextBarrier].pos, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]), {});
 	            if (code === task_1.ERR_NO_WORK) {
 	                if (creep.carry[RESOURCE_ENERGY] > 0) {
 	                    code = this.goReinforce(creep, nextBarrier);
 	                }
 	                else {
-	                    code = creep.goCollect(RESOURCE_ENERGY, amount, 0, false, this.barriers[nextBarrier].pos, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']], {});
+	                    code = creep.goCollect(RESOURCE_ENERGY, amount, 0, false, this.barriers[nextBarrier].pos, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]), {});
 	                }
 	            }
 	        }
@@ -2648,12 +2861,23 @@ module.exports =
 	    }
 	    goReinforce(creep, barrierIndex) {
 	        let code;
+	        let barrier = this.barriers[barrierIndex];
+	        if (creep.taskMetadata != null &&
+	            creep.taskMetadata.type === 'BuildBarrier' &&
+	            creep.taskMetadata.target != null) {
+	            let barrierId = creep.taskMetadata.target;
+	            let object = Game.getObjectById(barrierId);
+	            if (object != null) {
+	                barrier = screepsPtr_1.ScreepsPtr.from(object);
+	            }
+	        }
 	        if (this.barriers[barrierIndex].lookType === LOOK_CONSTRUCTION_SITES) {
-	            code = creep.goBuild(this.barriers[barrierIndex]);
+	            code = creep.goBuild(barrier);
 	        }
 	        else {
-	            code = creep.goRepair(this.barriers[barrierIndex]);
+	            code = creep.goRepair(barrier);
 	        }
+	        creep.taskMetadata = { type: 'BuildBarrier', target: barrier.id };
 	        return code;
 	    }
 	    endScheduling() {
@@ -2664,6 +2888,131 @@ module.exports =
 
 /***/ },
 /* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	const task_1 = __webpack_require__(5);
+	const sporeCreep_1 = __webpack_require__(7);
+	class DefendRoom extends task_1.Task {
+	    constructor(defendingRoomName) {
+	        super(false);
+	        this.defendingRoomName = defendingRoomName;
+	        this.id = 'Defending ' + defendingRoomName;
+	        this.name = 'Defending [' + defendingRoomName + ']';
+	        this.possibleWorkers = -1;
+	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.REMOTE_DEFENDER;
+	        this.priority = 100 /* High */;
+	        this.anchor = { pos: new RoomPosition(25, 25, this.defendingRoomName), room: Game.rooms[this.defendingRoomName] };
+	        let room = Game.rooms[this.defendingRoomName];
+	        if (room != null && room.hostileCreeps.length > 0) {
+	            this.priority = 1000 /* Mandatory */ + 199;
+	        }
+	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({}, 1, 1);
+	        for (let flagName in Game.flags) {
+	            let flag = Game.flags[flagName];
+	            if (flag.color == COLOR_ORANGE && flag.secondaryColor == COLOR_ORANGE && flag.pos.roomName === this.defendingRoomName) {
+	                this.anchor = flag;
+	                break;
+	            }
+	        }
+	    }
+	    createAppointment(spawn, request) {
+	        if (request.replacingCreep != null) {
+	            return super.createBasicAppointment(spawn, request, request.replacingCreep);
+	        }
+	        return super.createBasicAppointment(spawn, request, this.anchor);
+	    }
+	    prioritize(object) {
+	        if (object instanceof Creep) {
+	            return super.basicPrioritizeCreep(object, this.anchor, this.idealCreepBody);
+	        }
+	        return 0;
+	    }
+	    beginScheduling() {
+	        this.scheduledWorkers = 0;
+	    }
+	    hasWork() {
+	        if (this.possibleWorkers === 0) {
+	            return false;
+	        }
+	        if (this.labor.types[this.idealCreepBody.name] != null) {
+	            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
+	            if (this.scheduledWorkers >= this.labor.types[this.idealCreepBody.name].max) {
+	                return false;
+	            }
+	        }
+	        return true;
+	    }
+	    schedule(object) {
+	        if (!this.hasWork()) {
+	            return task_1.ERR_NO_WORK;
+	        }
+	        if (!(object instanceof Creep)) {
+	            console.log('ERROR: Attempted to defend a room with a non-creep room object. ' + object);
+	            return task_1.ERR_CANNOT_PERFORM_TASK;
+	        }
+	        let creep = object;
+	        let code;
+	        if (creep.pos.roomName != this.defendingRoomName) {
+	            code = creep.goMoveTo(this.anchor);
+	            creep.heal(creep);
+	        }
+	        else if (creep.room.hostileCreeps.length === 0) {
+	            if (creep.room.injuredFriendlyCreeps.length > 0) {
+	                let injuredCreep = creep.room.injuredFriendlyCreeps[0];
+	                if (creep.heal(injuredCreep) == ERR_NOT_IN_RANGE) {
+	                    code = creep.moveTo(injuredCreep);
+	                    if (creep.rangedHeal(injuredCreep) == ERR_NOT_IN_RANGE) {
+	                        creep.heal(creep);
+	                    }
+	                }
+	                else {
+	                    code = OK;
+	                }
+	            }
+	            else {
+	                code = creep.goMoveTo(this.anchor);
+	            }
+	        }
+	        else {
+	            let hostile = null;
+	            if (creep.taskMetadata != null && creep.taskMetadata.target != null && creep.task == this && creep.taskMetadata.time >= Game.time - 15) {
+	                hostile = Game.getObjectById(creep.taskMetadata.target);
+	            }
+	            if (hostile == null) {
+	                hostile = creep.pos.findClosestByPath(creep.room.hostileCreeps);
+	                creep.taskMetadata = { target: hostile.id, time: Game.time };
+	            }
+	            code = creep.attack(hostile);
+	            if (code === ERR_NOT_IN_RANGE) {
+	                code = creep.moveTo(hostile);
+	                if (code === ERR_TIRED) {
+	                    code = OK;
+	                }
+	                creep.heal(creep);
+	            }
+	            creep.rangedAttack(hostile);
+	        }
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            return OK;
+	        }
+	        if (code === OK) {
+	            this.scheduledWorkers++;
+	            if (this.possibleWorkers > 0) {
+	                this.possibleWorkers--;
+	            }
+	        }
+	        if (!this.hasWork()) {
+	            return task_1.NO_MORE_WORK;
+	        }
+	        return code;
+	    }
+	}
+	exports.DefendRoom = DefendRoom;
+	//# sourceMappingURL=taskDefendRoom.js.map
+
+/***/ },
+/* 17 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -2676,11 +3025,11 @@ module.exports =
 	//# sourceMappingURL=sporeRoomObject.js.map
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	const taskBuildStructure_1 = __webpack_require__(18);
+	const taskBuildStructure_1 = __webpack_require__(19);
 	const screepsPtr_1 = __webpack_require__(12);
 	class SporeConstructionSite extends ConstructionSite {
 	    get progressRemaining() {
@@ -2712,7 +3061,7 @@ module.exports =
 	//# sourceMappingURL=sporeConstructionSite.js.map
 
 /***/ },
-/* 18 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -2744,6 +3093,8 @@ module.exports =
 	        this.scheduledWork = 0;
 	        this.desiredWork = 5;
 	        this.near = site;
+	        this.roomName = this.site.pos.roomName;
+	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({}, 1, 2);
 	    }
 	    createAppointment(spawn, request) {
 	        if (request.replacingCreep != null) {
@@ -2754,6 +3105,9 @@ module.exports =
 	    prioritize(object) {
 	        if (object instanceof Creep) {
 	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
+	                return 0;
+	            }
+	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
 	                return 0;
 	            }
 	            return super.basicPrioritizeCreep(object, this.site, this.idealCreepBody);
@@ -2778,7 +3132,7 @@ module.exports =
 	            return OK;
 	        }
 	        if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
-	            (creep.action === sporeCreep_1.ACTION_BUILD && creep.carry[RESOURCE_ENERGY] > 0)) {
+	            ((creep.action === sporeCreep_1.ACTION_BUILD || creep.action === sporeCreep_1.ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0)) {
 	            code = creep.goBuild(this.site);
 	        }
 	        else {
@@ -2786,7 +3140,7 @@ module.exports =
 	            if (!this.site.isShrouded) {
 	                Math.min(creep.carryCapacityRemaining, this.site.instance.progressRemaining);
 	            }
-	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.site.pos, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']], {});
+	            code = creep.goCollect(RESOURCE_ENERGY, amount, amount, false, this.site.pos, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]), {});
 	        }
 	        if (code === OK) {
 	            this.scheduledWork += creep.getActiveBodyparts(WORK);
@@ -2804,7 +3158,7 @@ module.exports =
 	//# sourceMappingURL=taskBuildStructure.js.map
 
 /***/ },
-/* 19 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -2812,6 +3166,7 @@ module.exports =
 	const sporeClaimable_1 = __webpack_require__(8);
 	const taskTransferResource_1 = __webpack_require__(4);
 	const screepsPtr_1 = __webpack_require__(12);
+	const sporeCreep_1 = __webpack_require__(7);
 	class SporeContainer extends StructureContainer {
 	    get storeCount() {
 	        return _.sum(this.store);
@@ -2902,8 +3257,12 @@ module.exports =
 	        //     }
 	        // }
 	        let closestSource = this.pos.findClosestInRange(this.room.sources, 2);
-	        if (closestSource == null) {
-	            let transferEnergyTask = new taskTransferResource_1.TransferResource([screepsPtr_1.ScreepsPtr.from(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['container'], ['dropped']]);
+	        let nearExtractor = false;
+	        if (this.room.extractor != null) {
+	            nearExtractor = this.pos.inRangeTo(this.room.extractor.pos, 2) === true;
+	        }
+	        if (closestSource == null && !nearExtractor) {
+	            let transferEnergyTask = new taskTransferResource_1.TransferResource([screepsPtr_1.ScreepsPtr.from(this)], RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['container'], ['dropped']]));
 	            transferEnergyTask.priority = 0 /* Low */;
 	            transferEnergyTask.name = "Fill " + screepsPtr_1.ScreepsPtr.from(this).toHtml();
 	            tasks.push(transferEnergyTask);
@@ -2952,7 +3311,7 @@ module.exports =
 	//# sourceMappingURL=sporeContainer.js.map
 
 /***/ },
-/* 20 */
+/* 21 */
 /***/ function(module, exports) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -2968,12 +3327,31 @@ module.exports =
 	        Object.defineProperty(this, "memory", { value: memory });
 	        return memory;
 	    }
+	    static getSlots(controller) {
+	        if (controller.isShrouded) {
+	            return 1;
+	        }
+	        let memory = controller.instance.memory;
+	        if (memory.claimSlots == null) {
+	            memory.claimSlots = controller.pos.getWalkableSurroundingArea();
+	        }
+	        return memory.claimSlots;
+	    }
+	    get slots() {
+	        let slots = this.memory.claimSlots;
+	        if (slots == null) {
+	            slots = this.pos.getWalkableSurroundingArea();
+	            this.memory.claimSlots = slots;
+	        }
+	        Object.defineProperty(this, "slots", { value: slots });
+	        return slots;
+	    }
 	}
 	exports.SporeController = SporeController;
 	//# sourceMappingURL=sporeController.js.map
 
 /***/ },
-/* 21 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3028,16 +3406,17 @@ module.exports =
 	//# sourceMappingURL=sporeExtension.js.map
 
 /***/ },
-/* 22 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
-	const flagBuildStructure_1 = __webpack_require__(23);
-	const flagDismantleStructure_1 = __webpack_require__(25);
-	const taskClaimRoom_1 = __webpack_require__(26);
+	const flagBuildStructure_1 = __webpack_require__(24);
+	const flagDismantleStructure_1 = __webpack_require__(26);
+	const taskClaimRoom_1 = __webpack_require__(27);
 	const screepsPtr_1 = __webpack_require__(12);
-	const taskReserveRoom_1 = __webpack_require__(27);
+	const taskReserveRoom_1 = __webpack_require__(28);
+	const taskWire_1 = __webpack_require__(29);
 	class SporeFlag extends Flag {
 	    getTasks() {
 	        let tasks = [];
@@ -3047,6 +3426,9 @@ module.exports =
 	        }
 	        else if (this.color == COLOR_RED) {
 	            tasks.push(new flagDismantleStructure_1.FlagDismantleStructure("", Game.flags[this.name]));
+	        }
+	        else if (this.color == COLOR_WHITE) {
+	            tasks.push(new taskWire_1.Wire(Game.flags[this.name].pos));
 	        }
 	        else if (this.color == COLOR_GREY) {
 	            if (this.room != null) {
@@ -3093,7 +3475,9 @@ module.exports =
 	            }
 	            else if (this.secondaryColor == COLOR_BLUE) {
 	                if (this.room == null || (this.room.controller != null && this.room.controller.owner == null && (this.room.controller.reservation == null || this.room.controller.reservation.username == 'PCake0rigin'))) {
-	                    tasks.push(new taskReserveRoom_1.ReserveRoom(screepsPtr_1.ScreepsPtr.fromPosition(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER)));
+	                    let task = new taskReserveRoom_1.ReserveRoom(screepsPtr_1.ScreepsPtr.fromPosition(this.pos, LOOK_STRUCTURES, STRUCTURE_CONTROLLER));
+	                    task.roomName = 'E1N49';
+	                    tasks.push(task);
 	                }
 	                else if (this.room != null && this.room.controller.owner.username == 'PCake0rigin') {
 	                    this.remove();
@@ -3107,15 +3491,14 @@ module.exports =
 	//# sourceMappingURL=sporeFlag.js.map
 
 /***/ },
-/* 23 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskBuildStructure_1 = __webpack_require__(18);
-	const taskDismantleStructure_1 = __webpack_require__(24);
-	const taskUpgradeRoomController_1 = __webpack_require__(10);
+	const taskBuildStructure_1 = __webpack_require__(19);
+	const taskDismantleStructure_1 = __webpack_require__(25);
 	const screepsPtr_1 = __webpack_require__(12);
 	var REQUESTED_CONSTRUCTION_SITES_THIS_TICK = {};
 	class FlagBuildStructure extends task_1.Task {
@@ -3217,8 +3600,6 @@ module.exports =
 	                return steps;
 	            }
 	            else {
-	                let step = new taskUpgradeRoomController_1.UpgradeRoomController(screepsPtr_1.ScreepsPtr.from(this.flag.room.controller));
-	                steps.push(step);
 	                return steps;
 	            }
 	        }
@@ -3230,7 +3611,7 @@ module.exports =
 	//# sourceMappingURL=flagBuildStructure.js.map
 
 /***/ },
-/* 24 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3282,13 +3663,13 @@ module.exports =
 	//# sourceMappingURL=taskDismantleStructure.js.map
 
 /***/ },
-/* 25 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskDismantleStructure_1 = __webpack_require__(24);
+	const taskDismantleStructure_1 = __webpack_require__(25);
 	const screepsPtr_1 = __webpack_require__(12);
 	class FlagDismantleStructure extends task_1.Task {
 	    constructor(parentId, flag) {
@@ -3348,7 +3729,7 @@ module.exports =
 	//# sourceMappingURL=flagDismantleStructure.js.map
 
 /***/ },
-/* 26 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3415,7 +3796,7 @@ module.exports =
 	//# sourceMappingURL=taskClaimRoom.js.map
 
 /***/ },
-/* 27 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3430,12 +3811,13 @@ module.exports =
 	        this.possibleWorkers = -1;
 	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.RESERVER;
 	        this.near = controller;
+	        this.roomName = controller.pos.roomName;
 	        if (controller.isShrouded) {
-	            this.priority = 100 /* High */;
+	            this.priority = 1000 /* Mandatory */ - 100;
 	        }
 	        else if (controller.instance.reservation != null) {
 	            if (controller.instance.reservation.ticksToEnd < 1000) {
-	                this.priority = 1000 /* Mandatory */;
+	                this.priority = 1000 /* Mandatory */ + 400;
 	            }
 	            else {
 	                this.priority = 100 /* High */;
@@ -3444,13 +3826,26 @@ module.exports =
 	        else {
 	            this.priority = 100 /* High */;
 	        }
-	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ claim: 2 }, 1, 2);
+	        if (controller.isShrouded || controller.instance.reservation == null || controller.instance.reservation.ticksToEnd < 1500) {
+	            this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({ claim: 2 }, 1, 2);
+	        }
 	    }
 	    createAppointment(spawn, request) {
 	        if (request.replacingCreep != null) {
 	            return super.createBasicAppointment(spawn, request, request.replacingCreep);
 	        }
 	        return super.createBasicAppointment(spawn, request, this.controller);
+	    }
+	    shouldPlanToReplace(object) {
+	        if (object instanceof Creep) {
+	            if (this.controller.isShrouded ||
+	                this.controller.instance.reservation == null ||
+	                this.controller.instance.reservation.username != 'PCake0rigin' ||
+	                this.controller.instance.reservation.ticksToEnd - object.ticksToLive < 1500) {
+	                return true;
+	            }
+	        }
+	        return false;
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
@@ -3459,10 +3854,15 @@ module.exports =
 	        return 0;
 	    }
 	    beginScheduling() {
+	        this.scheduledWorkers = 0;
 	        this.scheduledClaim = 0;
 	    }
 	    schedule(object) {
-	        if (this.possibleWorkers === 0 || !this.controller.isValid || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM]) {
+	        let claimLabor = 0;
+	        if (this.labor.types[this.idealCreepBody.name] != null) {
+	            claimLabor = this.labor.types[this.idealCreepBody.name].parts[CLAIM];
+	        }
+	        if (this.possibleWorkers === 0 || !this.controller.isValid || (claimLabor > 0 && this.scheduledClaim >= claimLabor)) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        if (!(object instanceof Creep)) {
@@ -3477,12 +3877,15 @@ module.exports =
 	        }
 	        code = creep.goReserve(this.controller);
 	        if (code === OK) {
+	            this.scheduledWorkers++;
 	            this.scheduledClaim += creep.getActiveBodyparts(CLAIM);
 	            if (this.possibleWorkers > 0) {
 	                this.possibleWorkers--;
 	            }
 	        }
-	        if (this.possibleWorkers === 0 || this.scheduledClaim >= this.labor.types[this.idealCreepBody.name].parts[CLAIM]) {
+	        if (this.possibleWorkers === 0 ||
+	            this.scheduledClaim >= claimLabor ||
+	            (!this.controller.isShrouded && this.scheduledWorkers >= this.controller.instance.slots)) {
 	            return task_1.NO_MORE_WORK;
 	        }
 	        return code;
@@ -3492,7 +3895,104 @@ module.exports =
 	//# sourceMappingURL=taskReserveRoom.js.map
 
 /***/ },
-/* 28 */
+/* 29 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	const task_1 = __webpack_require__(5);
+	const sporeCreep_1 = __webpack_require__(7);
+	class Wire extends task_1.Task {
+	    constructor(pos) {
+	        super(false);
+	        this.pos = pos;
+	        this.id = 'Wiring ' + pos;
+	        this.name = 'Wiring {room ' + pos.roomName + ' pos ' + pos.x + ',' + pos.y + '}';
+	        this.possibleWorkers = -1;
+	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.WIRE;
+	        this.priority = 100 /* High */ + 350;
+	        this.anchor = { pos: pos, room: Game.rooms[pos.roomName] };
+	        this.roomName = pos.roomName;
+	        this.labor.types[this.idealCreepBody.name] = new task_1.LaborDemandType({}, 1, 1);
+	    }
+	    createAppointment(spawn, request) {
+	        if (request.replacingCreep != null) {
+	            return super.createBasicAppointment(spawn, request, request.replacingCreep);
+	        }
+	        return super.createBasicAppointment(spawn, request, this.anchor);
+	    }
+	    prioritize(object) {
+	        if (object instanceof Creep) {
+	            return super.basicPrioritizeCreep(object, this.anchor, this.idealCreepBody);
+	        }
+	        return 0;
+	    }
+	    beginScheduling() {
+	        this.scheduledWorkers = 0;
+	    }
+	    hasWork() {
+	        if (this.possibleWorkers === 0) {
+	            return false;
+	        }
+	        if (this.labor.types[this.idealCreepBody.name] != null) {
+	            //console.log(this.scheduledCarry + ' >= ' + this.labor.types[this.idealCreepBody.name].parts[CARRY]);
+	            if (this.scheduledWorkers >= this.labor.types[this.idealCreepBody.name].max) {
+	                return false;
+	            }
+	        }
+	        return true;
+	    }
+	    schedule(object) {
+	        if (!this.hasWork()) {
+	            return task_1.ERR_NO_WORK;
+	        }
+	        if (!(object instanceof Creep)) {
+	            console.log('ERROR: Attempted to defend a room with a non-creep room object. ' + object);
+	            return task_1.ERR_CANNOT_PERFORM_TASK;
+	        }
+	        let creep = object;
+	        let code;
+	        if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
+	            return OK;
+	        }
+	        if (!creep.pos.isEqualTo(this.pos)) {
+	            code = creep.moveTo(this.pos);
+	            if (code === ERR_TIRED) {
+	                code = OK;
+	            }
+	        }
+	        else {
+	            code = OK;
+	            let area = creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep, 1, true);
+	            for (let spot of area) {
+	                if (spot.structure.structureType === STRUCTURE_LINK) {
+	                    creep.withdraw(spot.structure, RESOURCE_ENERGY);
+	                }
+	                if (spot.structure.structureType === STRUCTURE_TERMINAL) {
+	                    creep.withdraw(spot.structure, RESOURCE_ENERGY);
+	                }
+	                else if (spot.structure.structureType === STRUCTURE_STORAGE) {
+	                    creep.transfer(spot.structure, RESOURCE_ENERGY);
+	                }
+	            }
+	        }
+	        if (code === OK) {
+	            this.scheduledWorkers++;
+	            if (this.possibleWorkers > 0) {
+	                this.possibleWorkers--;
+	            }
+	        }
+	        if (!this.hasWork()) {
+	            return task_1.NO_MORE_WORK;
+	        }
+	        return code;
+	    }
+	}
+	exports.Wire = Wire;
+	//# sourceMappingURL=taskWire.js.map
+
+/***/ },
+/* 30 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -3506,11 +4006,17 @@ module.exports =
 	            let rangeA = cachedRange[a.id];
 	            if (rangeA == null) {
 	                rangeA = this.getRangeTo(a);
+	                if (rangeA == null) {
+	                    rangeA = Game.map.getRoomLinearDistance(this.roomName, a.roomName) * 50;
+	                }
 	                cachedRange[a.id] = rangeA;
 	            }
 	            let rangeB = cachedRange[b.id];
 	            if (rangeB == null) {
 	                rangeB = this.getRangeTo(b);
+	                if (rangeB == null) {
+	                    rangeB = Game.map.getRoomLinearDistance(this.roomName, b.roomName) * 50;
+	                }
 	                cachedRange[b.id] = rangeB;
 	            }
 	            if (rangeA < rangeB) {
@@ -3645,12 +4151,56 @@ module.exports =
 	        }
 	        return availableSlots;
 	    }
+	    getWalkableSurroundingAreaInRange(target, range) {
+	        let availableSlots = [];
+	        let room = Game.rooms[this.roomName];
+	        if (_.isNull(room)) {
+	            for (var xOffset = -1; xOffset < 2; xOffset++) {
+	                for (var yOffset = -1; yOffset < 2; yOffset++) {
+	                    if (xOffset == 0 && yOffset == 0) {
+	                        continue;
+	                    }
+	                    if (Game.map.getTerrainAt(this.x + xOffset, this.y + yOffset, this.roomName) != "wall") {
+	                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
+	                        if (target.inRangeTo(pos, range)) {
+	                            availableSlots.push(pos);
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	        else {
+	            let lookResults = room.lookAtArea(this.y - 1, this.x - 1, this.y + 1, this.x + 1);
+	            for (var xOffset = -1; xOffset < 2; xOffset++) {
+	                for (var yOffset = -1; yOffset < 2; yOffset++) {
+	                    if (xOffset == 0 && yOffset == 0) {
+	                        continue;
+	                    }
+	                    let resultArray = lookResults[this.y + yOffset][this.x + xOffset];
+	                    let hasObstacle = false;
+	                    for (let result of resultArray) {
+	                        if (_.includes(OBSTACLE_OBJECT_TYPES, result[result.type])) {
+	                            hasObstacle = true;
+	                            break;
+	                        }
+	                    }
+	                    if (hasObstacle === false) {
+	                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
+	                        if (target.inRangeTo(pos, range)) {
+	                            availableSlots.push(pos);
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	        return availableSlots;
+	    }
 	}
 	exports.SporeRoomPosition = SporeRoomPosition;
 	//# sourceMappingURL=sporeRoomPosition.js.map
 
 /***/ },
-/* 29 */
+/* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3700,14 +4250,19 @@ module.exports =
 	                requiredPartsAdded[startingRequirementIndex - 1] += requirement.increment;
 	                let totalIncrement = Math.floor(requiredPartsAdded[startingRequirementIndex - 1]) - originalRequiredPartsAdded;
 	                for (let increment = 0; increment < totalIncrement; ++increment) {
-	                    body.push(requirement.type);
+	                    if (requirement.type === TOUGH) {
+	                        body.unshift(requirement.type);
+	                    }
+	                    else {
+	                        body.push(requirement.type);
+	                    }
 	                }
 	            }
 	            else {
 	                break;
 	            }
 	        }
-	        return body;
+	        return body.reverse();
 	    }
 	    collect(collector, claimReceipt) {
 	        if (claimReceipt.target !== this) {
@@ -3755,7 +4310,7 @@ module.exports =
 	//# sourceMappingURL=sporeSpawn.js.map
 
 /***/ },
-/* 30 */
+/* 32 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3791,11 +4346,13 @@ module.exports =
 	        if (this.claims[resourceType] == null) {
 	            this.claims[resourceType] = 0;
 	        }
-	        if (resourceType != RESOURCE_ENERGY) {
-	            return null;
-	        }
 	        let claimAmount = amount;
+	        let savings = 0;
+	        if (this.room.budget.savings[resourceType] != null && this.room.budget.savings[resourceType] > 0) {
+	            savings = this.room.budget.savings[resourceType];
+	        }
 	        let remaining = this.store[resourceType] - this.claims[resourceType];
+	        remaining = Math.max(remaining - savings, 0);
 	        // ensure our remaining resource meets their claim
 	        if (claimAmount > remaining) {
 	            if (minAmount > remaining) {
@@ -3823,7 +4380,7 @@ module.exports =
 	//# sourceMappingURL=sporeStorage.js.map
 
 /***/ },
-/* 31 */
+/* 33 */
 /***/ function(module, exports) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3941,7 +4498,7 @@ module.exports =
 	//# sourceMappingURL=sporeStructure.js.map
 
 /***/ },
-/* 32 */
+/* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -3949,6 +4506,7 @@ module.exports =
 	const sporeClaimable_1 = __webpack_require__(8);
 	const taskTransferResource_1 = __webpack_require__(4);
 	const screepsPtr_1 = __webpack_require__(12);
+	const sporeCreep_1 = __webpack_require__(7);
 	class SporeTower extends StructureTower {
 	    get attackTarget() {
 	        if (this._attackTarget != null) {
@@ -3987,7 +4545,7 @@ module.exports =
 	    getTasks() {
 	        let tasks = [];
 	        if (this.energy < this.energyCapacity) {
-	            let transferEnergyTask = new taskTransferResource_1.TransferResource([screepsPtr_1.ScreepsPtr.from(this)], RESOURCE_ENERGY, null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]);
+	            let transferEnergyTask = new taskTransferResource_1.TransferResource([screepsPtr_1.ScreepsPtr.from(this)], RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]));
 	            transferEnergyTask.priority = 1000 /* Mandatory */;
 	            transferEnergyTask.name = "Fill " + screepsPtr_1.ScreepsPtr.from(this).toHtml();
 	            tasks.push(transferEnergyTask);
@@ -4039,7 +4597,7 @@ module.exports =
 	//# sourceMappingURL=sporeTower.js.map
 
 /***/ },
-/* 33 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -4090,7 +4648,7 @@ module.exports =
 	//# sourceMappingURL=sporeResource.js.map
 
 /***/ },
-/* 34 */
+/* 36 */
 /***/ function(module, exports, __webpack_require__) {
 
 	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
@@ -4340,16 +4898,16 @@ module.exports =
 	//# sourceMappingURL=sporeLink.js.map
 
 /***/ },
-/* 35 */
+/* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskRecycleCreep_1 = __webpack_require__(36);
+	const taskRecycleCreep_1 = __webpack_require__(38);
 	const screepsPtr_1 = __webpack_require__(12);
 	const spawnRequest_1 = __webpack_require__(6);
 	const sporeCreep_1 = __webpack_require__(7);
-	const taskClaimRoom_1 = __webpack_require__(26);
+	const sporeRoom_1 = __webpack_require__(3);
 	class LaborPoolType {
 	    constructor(parts, count) {
 	        this.parts = parts;
@@ -4382,6 +4940,125 @@ module.exports =
 	    }
 	}
 	exports.LaborPool = LaborPool;
+	var GATHER_RESOURCE_STORES = {
+	    'source': function (collection, resourceType, amount, claimer, near, excludes) {
+	        if (resourceType !== RESOURCE_ENERGY) {
+	            return;
+	        }
+	        if (!(claimer instanceof Creep)) {
+	            return;
+	        }
+	        else if (claimer.getActiveBodyparts(WORK) === 0) {
+	            return;
+	        }
+	        for (let source of this.sources) {
+	            if (source.doIgnore !== true && source.energy > 0 && excludes[source.id] == null) {
+	                collection.push(source);
+	            }
+	        }
+	    },
+	    'near_dropped': function (collection, resourceType, amount, claimer, near, excludes) {
+	        let nearClaimerResources = claimer.pos.findInRange(FIND_DROPPED_RESOURCES, 5);
+	        for (let resource of nearClaimerResources) {
+	            if (resource.doIgnore !== true &&
+	                resource.resourceType === resourceType &&
+	                resource.amount > 0 &&
+	                excludes[resource.id] == null) {
+	                collection.push(resource);
+	            }
+	        }
+	        if (near != null) {
+	            let nearTargetResources = near.findInRange(FIND_DROPPED_RESOURCES, 5);
+	            for (let resource of nearTargetResources) {
+	                if (resource.doIgnore !== true &&
+	                    resource.resourceType === resourceType &&
+	                    resource.amount > 0 &&
+	                    excludes[resource.id] == null) {
+	                    collection.push(resource);
+	                }
+	            }
+	        }
+	    },
+	    'dropped': function (collection, resourceType, amount, claimer, near, excludes) {
+	        for (let resource of this.resources) {
+	            if (resource.doIgnore !== true &&
+	                resource.resourceType === resourceType &&
+	                resource.amount > 0 &&
+	                excludes[resource.id] == null) {
+	                collection.push(resource);
+	            }
+	        }
+	    },
+	    'container': function (collection, resourceType, amount, claimer, near, excludes) {
+	        for (let container of this.containers) {
+	            if (container.doIgnore !== true &&
+	                container.store[resourceType] > 0 &&
+	                excludes[container.id] == null) {
+	                collection.push(container);
+	            }
+	        }
+	    },
+	    'link': function (collection, resourceType, amount, claimer, near, excludes) {
+	        if (resourceType !== RESOURCE_ENERGY) {
+	            return;
+	        }
+	        for (let link of this.links) {
+	            if (link.doIgnore !== true &&
+	                link.energy > 0 &&
+	                link.takesTransfers &&
+	                excludes[link.id] == null) {
+	                collection.push(link);
+	            }
+	        }
+	    },
+	    'storage': function (collection, resourceType, amount, claimer, near, excludes) {
+	        if (this.storage != null &&
+	            this.storage.doIgnore !== true &&
+	            this.storage.store[resourceType] > 0 &&
+	            excludes[this.storage.id] == null) {
+	            let savings = this.budget.savings[resourceType];
+	            if (savings != null && this.storage.store[resourceType] - amount >= savings) {
+	                collection.push(this.storage);
+	            }
+	        }
+	    },
+	    'extension': function (collection, resourceType, amount, claimer, near, excludes) {
+	        if (resourceType !== RESOURCE_ENERGY) {
+	            return;
+	        }
+	        for (let extension of this.extensions) {
+	            if (extension.doIgnore !== true &&
+	                extension.energy > 0 &&
+	                excludes[extension.id] == null) {
+	                collection.push(extension);
+	            }
+	        }
+	    },
+	    'spawn': function (collection, resourceType, amount, claimer, near, excludes) {
+	        if (resourceType !== RESOURCE_ENERGY) {
+	            return;
+	        }
+	        for (let spawn of this.mySpawns) {
+	            if (spawn.doIgnore !== true &&
+	                spawn.energy > 0 &&
+	                excludes[spawn.id] == null) {
+	                collection.push(spawn);
+	            }
+	        }
+	    },
+	    'tower': function (collection, resourceType, amount, claimer, near, excludes) {
+	        if (resourceType !== RESOURCE_ENERGY) {
+	            return;
+	        }
+	        for (let tower of this.towers) {
+	            if (tower.doIgnore !== true &&
+	                tower.energy > 0 &&
+	                excludes[tower.id] == null) {
+	                collection.push(tower);
+	            }
+	        }
+	    }
+	};
 	class SporeColony {
 	    constructor() {
 	        this.tasks = [];
@@ -4400,10 +5077,10 @@ module.exports =
 	        }
 	        myRooms.sort(function (a, b) {
 	            if (a.priority < b.priority) {
-	                return -1;
+	                return 1;
 	            }
 	            if (a.priority > b.priority) {
-	                return 1;
+	                return -1;
 	            }
 	            if (a.name < b.name) {
 	                return 1;
@@ -4428,11 +5105,13 @@ module.exports =
 	        this.collectTasks();
 	        let creeps = {};
 	        let taskLaborPools = {};
+	        let totalBodyCount = 0;
 	        for (let name in Game.creeps) {
 	            let creep = Game.creeps[name];
 	            if (creep.spawning) {
 	                continue;
 	            }
+	            totalBodyCount += creep.body.length;
 	            let spawnRequest = creep.spawnRequest;
 	            if (spawnRequest != null) {
 	                if (spawnRequest.id == null || spawnRequest.id.length === 0 || spawnRequest.replacingCreep == null) {
@@ -4445,11 +5124,7 @@ module.exports =
 	            creeps[creep.name] = creep;
 	            this.laborPool.addCreep(creep);
 	        }
-	        for (let room of this.myRooms) {
-	            for (let task of room.basicTasks) {
-	                this.scheduleTask(task, creeps, taskLaborPools);
-	            }
-	        }
+	        console.log('total creep body count: ' + totalBodyCount);
 	        for (let task of this.tasks) {
 	            this.scheduleTask(task, creeps, taskLaborPools);
 	        }
@@ -4466,6 +5141,7 @@ module.exports =
 	        //this.recycleCreeps(creeps);
 	    }
 	    scheduleTask(task, creeps, taskLaborPools) {
+	        let skippedCreeps = {};
 	        let priorityCache = {};
 	        taskLaborPools[task.id] = new LaborPool();
 	        task.beginScheduling();
@@ -4497,10 +5173,20 @@ module.exports =
 	                    // remove creep now that it's been scheduled
 	                    creeps[creep.name] = null;
 	                    delete creeps[creep.name];
-	                    console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
-	                    if (creep.ticksToLive < 300 && sporeCreep_1.CREEP_TYPE[creep.type] != null && creep.task != null && task.labor.types[creep.type] != null) {
+	                    if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	                        console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type + ' REPLACEMENT');
+	                    }
+	                    else {
+	                        console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
+	                    }
+	                    if (creep.ticksToLive < 300 &&
+	                        sporeCreep_1.CREEP_TYPE[creep.type] != null &&
+	                        creep.task != null &&
+	                        task.labor.types[creep.type] != null &&
+	                        task.shouldPlanToReplace(creep)) {
 	                        this.spawnRequests.push(new spawnRequest_1.SpawnRequest('replace_' + creep.name, null, creep, sporeCreep_1.CREEP_TYPE[creep.type]));
 	                    }
+	                    this.schedulePassives(creep);
 	                    if (code === task_1.NO_MORE_WORK) {
 	                        break;
 	                    }
@@ -4509,7 +5195,12 @@ module.exports =
 	                }
 	                else if (code === task_1.ERR_CANNOT_PERFORM_TASK) {
 	                    //skip this creep
+	                    skippedCreeps[creep.name] = creep;
 	                    console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
+	                }
+	                else if (code === task_1.ERR_SKIP_WORKER) {
+	                    //skip this creep
+	                    skippedCreeps[creep.name] = creep;
 	                }
 	                else {
 	                    console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
@@ -4520,22 +5211,31 @@ module.exports =
 	            }
 	        }
 	        task.endScheduling();
-	        for (let index = 0; index < prioritizedCreeps.length; index++) {
-	            for (let creep of prioritizedCreeps[index]) {
-	                if (task instanceof taskClaimRoom_1.ClaimRoom) {
-	                    console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
-	                }
-	            }
-	        }
+	        // DEBUG
+	        // for (let index = 0; index < prioritizedCreeps.length; index++)
+	        // {
+	        //     for (let creep of prioritizedCreeps[index])
+	        //     {
+	        //         if (task instanceof UpgradeRoomController)
+	        //         {
+	        //             console.log('    ' + priorityCache[creep.id] + ' - ' + creep);
+	        //         }
+	        //     }
+	        // }
 	        let laborPool = new LaborPool();
 	        for (let index = 0; index < prioritizedCreeps.length; index++) {
 	            let tierCreeps = prioritizedCreeps[index];
 	            for (let creep of tierCreeps) {
-	                if (creep.type != null && task.labor.types[creep.type] != null) {
+	                if (skippedCreeps[creep.name] == null && creep.type != null && task.labor.types[creep.type] != null) {
 	                    laborPool.addCreep(creep);
 	                }
 	            }
 	        }
+	        let log = false;
+	        // if (task instanceof UpgradeRoomController)
+	        // {
+	        //     log = true;
+	        // }
 	        for (let name in task.labor.types) {
 	            let type = task.labor.types[name];
 	            if (type == null) {
@@ -4546,12 +5246,18 @@ module.exports =
 	            }
 	            let typePool = laborPool.types[name];
 	            let doSpawn = false;
+	            if (log) {
+	                console.log(task.name + ' -> ' + name + ': ' + type.min + ' > ' + typePool.count);
+	            }
 	            if (type.min > typePool.count) {
 	                //console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
 	                doSpawn = true;
 	            }
 	            if (!doSpawn) {
 	                for (let partName in type.parts) {
+	                    if (log) {
+	                        console.log(task.name + ' -> ' + partName + ': ' + type.parts[partName] + ' > ' + typePool.parts[partName]);
+	                    }
 	                    if (type.parts[partName] > typePool.parts[partName]) {
 	                        //console.log(task.name + ' -> ' + partName + ': '+ type.parts[partName] + ' > ' + typePool.parts[partName]);
 	                        doSpawn = true;
@@ -4559,52 +5265,81 @@ module.exports =
 	                    }
 	                }
 	            }
+	            if (log) {
+	                console.log(task.name + ' -> ' + name + ': ' + type.max + ' > ' + typePool.count);
+	            }
 	            if (doSpawn && type.max > typePool.count) {
 	                //console.log(task.name + ' -> ' + name + ': '+ type.max + ' > ' + typePool.count);
 	                this.spawnRequests.push(new spawnRequest_1.SpawnRequest('new_: ' + task.id, task, null, sporeCreep_1.CREEP_TYPE[name]));
 	            }
 	        }
 	    }
+	    schedulePassives(creep) {
+	        if (creep.action === sporeCreep_1.ACTION_MOVE || creep.action == null) {
+	            let structures = creep.room.lookForAt(LOOK_STRUCTURES, creep.pos);
+	            if (structures.length > 0) {
+	                for (let structure of structures) {
+	                    if (structure.hits < structure.hitsMax) {
+	                        creep.repair(structure);
+	                        break;
+	                    }
+	                }
+	            }
+	            else {
+	                let sites = creep.room.lookForAt(LOOK_CONSTRUCTION_SITES, creep.pos);
+	                if (sites.length > 0) {
+	                    creep.build(sites[0]);
+	                }
+	            }
+	        }
+	    }
 	    collectTasks() {
 	        let globalTasks = [];
-	        for (let room of this.myRooms) {
-	            room.tasks = [];
-	            room.basicTasks = [];
-	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // turn flags into tasks
 	        for (let name in Game.flags) {
 	            let flag = Game.flags[name];
-	            if (flag.room != null && flag.room.my) {
-	                flag.room.tasks.push.apply(flag.room.tasks, flag.getTasks());
-	            }
-	            else {
-	                globalTasks.push.apply(globalTasks, flag.getTasks());
-	            }
+	            globalTasks.push.apply(globalTasks, flag.getTasks());
 	        }
 	        for (let room of this.myRooms) {
-	            room.tasks.push.apply(room.tasks, room.getTasks());
+	            globalTasks.push.apply(globalTasks, room.getTasks());
 	        }
-	        console.log("[global] basic tasks: " + this.tasks.length);
 	        this.breakdownTasks(globalTasks, this.tasks);
 	        this.sortTasks(this.tasks);
+	        console.log("total tasks: " + this.tasks.length);
 	        for (let taskIndex = 0; taskIndex < this.tasks.length; taskIndex++) {
 	            let task = this.tasks[taskIndex];
-	            console.log('   ' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
-	        }
-	        for (let room of this.myRooms) {
-	            this.breakdownTasks(room.tasks, room.basicTasks);
-	            this.sortTasks(room.basicTasks);
-	            console.log(room + " basic tasks: " + room.basicTasks.length);
-	            for (let taskIndex = 0; taskIndex < room.basicTasks.length; taskIndex++) {
-	                let task = room.basicTasks[taskIndex];
-	                console.log('   ' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
+	            if (task.roomName == null) {
+	                console.log('   [global]' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
+	            }
+	            else {
+	                console.log('   [' + task.roomName + ']' + task.priority + " -> " + ((task.name != null) ? task.name : task.id));
 	            }
 	        }
 	    }
 	    sortTasks(tasks) {
 	        // Sort the basic tasks by their priority
 	        tasks.sort(function (a, b) {
+	            if (a.roomName == null && b.roomName != null) {
+	                return 1;
+	            }
+	            if (a.roomName != null && b.roomName == null) {
+	                return -1;
+	            }
+	            if (a.roomName == 'SporeRoom') {
+	                console.log('//////////////// ' + a.name);
+	            }
+	            if (b.roomName == 'SporeRoom') {
+	                console.log('//////////////// ' + b.name);
+	            }
+	            if (a.roomName != null && b.roomName != null) {
+	                if (sporeRoom_1.SporeRoom.getPriority(a.roomName) < sporeRoom_1.SporeRoom.getPriority(b.roomName)) {
+	                    return 1;
+	                }
+	                if (sporeRoom_1.SporeRoom.getPriority(a.roomName) > sporeRoom_1.SporeRoom.getPriority(b.roomName)) {
+	                    return -1;
+	                }
+	            }
 	            if (a.priority < b.priority) {
 	                return 1;
 	            }
@@ -4749,9 +5484,11 @@ module.exports =
 	            }
 	            // global tasks should only be favored after all of the individual rooms needs are met
 	            if (taskA.roomName == null && (taskB.roomName != null && taskB.roomName === spawnRoomName)) {
+	                console.log(taskA.name + ' missing room identifier');
 	                return 1;
 	            }
 	            if ((taskA.roomName != null && taskA.roomName === spawnRoomName) && taskB.roomName == null) {
+	                console.log(taskB.name + ' missing room identifier');
 	                return -1;
 	            }
 	            // tasks in the same room as the spawn should be favored over other rooms needs
@@ -4769,14 +5506,18 @@ module.exports =
 	            if (roomA != null && roomB == null) {
 	                return -1;
 	            }
-	            if (roomA != null && roomB != null) {
-	                if (roomA.energyCapacityAvailable < roomB.energyCapacityAvailable) {
-	                    return 1;
-	                }
-	                if (roomA.energyCapacityAvailable > roomB.energyCapacityAvailable) {
-	                    return -1;
-	                }
-	            }
+	            // if (roomA != null && roomB != null)
+	            // {
+	            //     if (roomA.energyCapacityAvailable < roomB.energyCapacityAvailable)
+	            //     {
+	            //         return 1;
+	            //     }
+	            //
+	            //     if (roomA.energyCapacityAvailable > roomB.energyCapacityAvailable)
+	            //     {
+	            //         return -1;
+	            //     }
+	            // }
 	            // higher priority tasks should be favored
 	            if (taskA.priority < taskB.priority) {
 	                return 1;
@@ -4900,8 +5641,8 @@ module.exports =
 	                let bodySpawnTime = body.length * CREEP_SPAWN_TIME;
 	                if (priorityAppointment == null || appointment.ticksTillRequired + bodySpawnTime < priorityAppointment.ticksTillRequired - 10) {
 	                    priorityAppointment = appointment;
-	                    priorityBody = priorityAppointment.spawn.getBody(priorityAppointment.creepBody);
-	                    priorityBodySpawnTime = priorityBody.length * CREEP_SPAWN_TIME;
+	                    priorityBody = body; //priorityAppointment.spawn.getBody(priorityAppointment.creepBody);
+	                    priorityBodySpawnTime = bodySpawnTime; //priorityBody.length * CREEP_SPAWN_TIME;
 	                }
 	            }
 	            if (priorityAppointment != null && priorityAppointment.ticksTillRequired <= 0) {
@@ -4956,12 +5697,52 @@ module.exports =
 	            }
 	        }
 	    }
+	    claimResource(claimer, resourceType, amount, minAmount, isExtended, near, options, excludes, receipt) {
+	        if (receipt != null && receipt.target != null && excludes[receipt.target.id] == null) {
+	            let flatStorePriorities = _.flattenDeep(options.storePriorities);
+	            if (_.includes(flatStorePriorities, receipt.type) ||
+	                _.includes(flatStorePriorities, receipt.target.id)) {
+	                let claim = receipt.target.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
+	                if (claim !== null) {
+	                    return claim;
+	                }
+	            }
+	        }
+	        if (options.roomNames == null || options.roomNames.length === 0) {
+	            options.roomNames = [];
+	            options.roomNames.push(claimer.pos.roomName);
+	        }
+	        for (let priorityIndex = 0; priorityIndex < options.storePriorities.length; priorityIndex++) {
+	            let group = options.storePriorities[priorityIndex];
+	            let claimables = [];
+	            for (let index = 0; index < group.length; index++) {
+	                for (let roomName of options.roomNames) {
+	                    if (Game.rooms[roomName] != null) {
+	                        GATHER_RESOURCE_STORES[group[index]].bind(Game.rooms[roomName])(claimables, resourceType, amount, claimer, near, excludes);
+	                    }
+	                }
+	            }
+	            if (claimables.length > 0) {
+	                near.sortByRangeTo(claimables);
+	                for (let claimable of claimables) {
+	                    if (claimable.makeClaim == null) {
+	                        continue;
+	                    }
+	                    let newReceipt = claimable.makeClaim(claimer, resourceType, amount, minAmount, isExtended);
+	                    if (newReceipt != null) {
+	                        return newReceipt;
+	                    }
+	                }
+	            }
+	        }
+	        return null;
+	    }
 	}
 	exports.SporeColony = SporeColony;
 	//# sourceMappingURL=sporeColony.js.map
 
 /***/ },
-/* 36 */
+/* 38 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";

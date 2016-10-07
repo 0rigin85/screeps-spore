@@ -1,6 +1,9 @@
-import {Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK} from './task';
+import {
+    Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORKER,
+    LaborDemandType
+} from './task';
 import Dictionary = _.Dictionary;
-import {SporeCreep, ACTION_BUILD, CREEP_TYPE} from "./sporeCreep";
+import {SporeCreep, ACTION_BUILD, CREEP_TYPE, CollectOptions, ACTION_MOVE} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
 import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 import {BodyDefinition} from "./bodyDefinition";
@@ -39,6 +42,9 @@ export class BuildStructure extends Task
         this.scheduledWork = 0;
         this.desiredWork = 5;
         this.near = site;
+        this.roomName = this.site.pos.roomName;
+
+        this.labor.types[this.idealCreepBody.name] = new LaborDemandType({  }, 1, 2);
     }
 
     createAppointment(spawn: Spawn, request: SpawnRequest): SpawnAppointment
@@ -56,6 +62,11 @@ export class BuildStructure extends Task
         if (object instanceof Creep)
         {
             if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            {
+                return 0;
+            }
+
+            if (object.type === CREEP_TYPE.MINER.name || object.type === CREEP_TYPE.UPGRADER.name)
             {
                 return 0;
             }
@@ -94,7 +105,7 @@ export class BuildStructure extends Task
         }
 
         if (creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
-            (creep.action === ACTION_BUILD && creep.carry[RESOURCE_ENERGY] > 0))
+            ((creep.action === ACTION_BUILD || creep.action === ACTION_MOVE) && creep.carry[RESOURCE_ENERGY] > 0))
         {
             code = creep.goBuild(this.site);
         }
@@ -112,7 +123,7 @@ export class BuildStructure extends Task
                 amount,
                 false,
                 this.site.pos,
-                [['near_dropped'], ['link','container','storage'], ['dropped']],
+                new CollectOptions(null, [['near_dropped'], ['link','container','storage'], ['dropped']]),
                 {});
         }
 
