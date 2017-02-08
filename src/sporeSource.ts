@@ -1,5 +1,7 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {ScreepsPtr} from "./screepsPtr";
+import {SporePathOptions, SporePath, SporePathMemory} from "./sporePathFinder";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -11,6 +13,7 @@ declare global
 
         memory: SourceMemory;
         slots: number;
+        priorityModifier: number;
 
         collect(collector: any, claimReceipt: ClaimReceipt): number;
 
@@ -24,6 +27,7 @@ export interface SourceMemory
     track: boolean;
 
     claimSlots: number;
+    pathToClosestSpawn: SporePathMemory;
 }
 
 export class SourceClaims
@@ -52,6 +56,7 @@ class ScreepsSource implements Source
     doTrack: boolean;
     memory: SourceMemory;
     slots: number;
+    priorityModifier: number;
 
     collect(collector: any, claimReceipt: ClaimReceipt): number { return 0; }
 
@@ -110,8 +115,41 @@ export class SporeSource extends ScreepsSource implements Claimable
             this.memory.claimSlots = slots;
         }
 
-        Object.defineProperty(this, "slots", {value: slots});
         return slots;
+    }
+
+    get priorityModifier(): number
+    {
+        return Remember.forTick(`${this.id}.priorityModifier`, () =>
+        {
+            let pathToClosestSpawn: SporePathMemory = this.memory.pathToClosestSpawn;
+            let priorityModifier = 0;
+
+            if (pathToClosestSpawn == null || Game.time - pathToClosestSpawn.tickCalculated > 300)
+            {
+                let colony = (<any>this).colony;
+                let path: SporePath = null;
+
+                if (colony.cpuSpentPathing <= colony.pathingCpuLimit)
+                {
+                    path = colony.pathFinder.findPathTo(this.pos, _.map(this.room.mySpawns, (spawn: StructureSpawn) => {
+                        return { pos: spawn.pos, range: 1 };
+                    }));
+                }
+
+                if (path != null)
+                {
+                    this.memory.pathToClosestSpawn = path.serialize();
+                    priorityModifier += Math.max(0, 250 - path.cost);
+                }
+            }
+            else
+            {
+                priorityModifier += Math.max(0, 250 - pathToClosestSpawn.cost);
+            }
+
+            return priorityModifier;
+        });
     }
 
     get memory(): SourceMemory
@@ -131,7 +169,6 @@ export class SporeSource extends ScreepsSource implements Claimable
             roomMemory.sources[this.id] = memory;
         }
 
-        Object.defineProperty(this, "memory", {value: memory});
         return memory;
     }
 
@@ -144,7 +181,14 @@ export class SporeSource extends ScreepsSource implements Claimable
 
         if (collector.harvest != null)
         {
-            return collector.harvest(this);
+            let code = collector.harvest(this);
+
+            if (code === OK)
+            {
+                this.room.energyHarvestedSinceLastInvasion += collector.getActiveBodyparts(WORK) * 2;
+            }
+
+            return code;
         }
 
         return ERR_INVALID_ARGS;

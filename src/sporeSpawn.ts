@@ -1,6 +1,7 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {StructureMemory} from "./sporeStructure";
 import {BodyDefinition} from "./bodyDefinition";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -162,10 +163,10 @@ export class SporeSpawn extends Spawn implements Claimable
 
     private get claims(): Claims
     {
-        let claims = new Claims(this);
-
-        Object.defineProperty(this, "claims", {value: claims});
-        return claims;
+        return Remember.forTick(`${this.id}.claims`, () =>
+        {
+            return new Claims(this);
+        });
     }
 }
 

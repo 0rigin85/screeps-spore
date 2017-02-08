@@ -16,6 +16,19 @@ import {SporeTower} from "./sporeTower";
 import {SporeColony} from "./sporeColony";
 import {SporeResource} from "./sporeResource";
 import {SporeLink} from "./sporeLink";
+import {profiler} from "./screeps-profiler";
+import {Task} from "./task";
+import {BuildBarrier} from "./taskBuildBarrier";
+import {ClaimRoom} from "./taskClaimRoom";
+import {DefendRoom} from "./taskDefendRoom";
+import {DismantleStructure} from "./taskDismantleStructure";
+import {HarvestEnergy} from "./taskHarvestEnergy";
+import {RecycleCreep} from "./taskRecycleCreep";
+import {RepairStructure} from "./taskRepairStructure";
+import {ReserveRoom} from "./taskReserveRoom";
+import {TransferResource} from "./taskTransferResource";
+import {UpgradeRoomController} from "./taskUpgradeRoomController";
+import {Wire} from "./taskWire";
 
 export class Spore
 {
@@ -37,6 +50,7 @@ export class Spore
                     if (key != "constructor" && key != "colony")
                     {
                         descriptors[key] = Object.getOwnPropertyDescriptor(source, key);
+                        descriptors[key].enumerable = true;
                     }
 
                     return descriptors;
@@ -54,7 +68,7 @@ export class Spore
 
                 if (target['colony'] == null)
                 {
-                    Object.defineProperty(target, "colony", { get: function () { return Spore.colony; } });
+                    Object.defineProperty(target, "colony", { get: function () { return Spore.colony; }, configurable: true });
                 }
             });
             return target;
@@ -76,6 +90,21 @@ export class Spore
         completeAssign(StructureTower.prototype, SporeTower.prototype);
         completeAssign(Resource.prototype, SporeResource.prototype);
         completeAssign(StructureLink.prototype, SporeLink.prototype);
+
+        profiler.enable();
+        profiler.registerObject(Task.prototype, 'Task');
+        profiler.registerObject(SporeColony.prototype, 'SporeColony');
+        profiler.registerObject(BuildBarrier.prototype, 'TaskBuildBarrier');
+        profiler.registerObject(ClaimRoom.prototype, 'ClaimRoom');
+        profiler.registerObject(DefendRoom.prototype, 'DefendRoom');
+        profiler.registerObject(DismantleStructure.prototype, 'DismantleStructure');
+        profiler.registerObject(HarvestEnergy.prototype, 'HarvestEnergy');
+        profiler.registerObject(RecycleCreep.prototype, 'RecycleCreep');
+        profiler.registerObject(RepairStructure.prototype, 'RepairStructure');
+        profiler.registerObject(ReserveRoom.prototype, 'ReserveRoom');
+        profiler.registerObject(TransferResource.prototype, 'TransferResource');
+        profiler.registerObject(UpgradeRoomController.prototype, 'UpgradeRoomController');
+        profiler.registerObject(Wire.prototype, 'Wire');
     }
 }
 

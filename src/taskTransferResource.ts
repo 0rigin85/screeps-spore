@@ -4,6 +4,7 @@ import {RoomObjectLike, ScreepsPtr, EnergyContainerLike, StoreContainerLike, Car
 import {ACTION_COLLECT, ACTION_TRANSFER, SporeCreep, CREEP_TYPE, CollectOptions, ACTION_MOVE} from "./sporeCreep";
 import {BodyDefinition} from "./bodyDefinition";
 import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
+import {SporePathOptions} from "./sporePathFinder";
 
 export class TransferResource extends Task
 {
@@ -22,6 +23,7 @@ export class TransferResource extends Task
     constructor(public targets: ScreepsPtr<EnergyContainerLike | StoreContainerLike | CarryContainerLike>[],
                 public resourceType: string,
                 public source: ScreepsPtr<Source>,
+                //public resourcesPerTick: number, //resource per tick
                 public options: CollectOptions)
     {
         super(false);
@@ -46,6 +48,39 @@ export class TransferResource extends Task
 
         this.name = "Transfer " + resourceType + " to " + targets.length + " objects";
         this.near = source;
+
+        // this.toDropOff = this.colony.pathFinder.findPathTo(this.source, targets[0], new SporePathOptions(
+        //     [
+        //         { id: 'structures', cost: 255 },
+        //         { id: 'roads', cost: 1 },
+        //         { id: 'creeps', cost: 255 }
+        //     ],
+        //     { id: this.id + ':toStore', ticks: 5 }
+        // ));
+        //
+        // this.toPickUp = this.colony.pathFinder.findPathTo(targets[0], this.source, new SporePathOptions(
+        //     [
+        //         { id: 'structures', cost: 255 },
+        //         { id: 'roads', cost: 1 },
+        //         { id: 'creeps', cost: 255 }
+        //     ],
+        //     { id: this.id + ':toPickup', ticks: 5 }
+        // ));
+
+
+        // let distance = 0;
+        // let ticksPerTripToTarget = 0;
+        // let ticksPerTripToStore = 0;
+        // let maxCarryPerCreep = 0;
+        //
+        // if (targets.length === 0)
+        // {
+        //     distance = targets[0].pos.findDistanceByPathTo(this.source);
+        // }
+        //
+        // let carryRequiredPerRoundTrip = (((ticksPerTripToTarget + ticksPerTripToStore) * this.resourcesPerTick) / CARRY_CAPACITY);
+        // let numberOfCreepsRequired = Math.ceil(carryRequiredPerRoundTrip / maxCarryPerCreep);
+        // let carryPerCreep = carryRequiredPerRoundTrip / numberOfCreepsRequired;
     }
 
     calculateRequirements(): void
@@ -139,7 +174,7 @@ export class TransferResource extends Task
     {
         if (object instanceof Creep)
         {
-            if (object.carryCount === object.carryCapacity && object.carry[this.resourceType] === 0)
+            if (object.carry[this.resourceType] === 0 && object.carryCount === object.carryCapacity)
             {
                 return 0;
             }

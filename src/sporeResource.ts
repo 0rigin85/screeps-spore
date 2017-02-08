@@ -3,6 +3,7 @@
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {Task, TaskPriority} from "./task";
 import {TransferResource} from "./taskTransferResource";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -60,10 +61,10 @@ export class SporeResource extends Resource implements Claimable
 
     private get claims(): Claims
     {
-        let claims = new Claims(this);
-
-        Object.defineProperty(this, "claims", {value: claims});
-        return claims;
+        return Remember.forTick(`${this.id}.claims`, () =>
+        {
+            return new Claims(this);
+        });
     }
 }
 

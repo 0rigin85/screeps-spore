@@ -1,9 +1,7 @@
-///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
-import {Task, TaskPriority} from "./task";
-import {TransferResource} from "./taskTransferResource";
-import {StoreContainerLike, ScreepsPtr, EnergyContainerLike} from "./screepsPtr";
+import {Task} from "./task";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -139,26 +137,26 @@ export class SporeLink extends StructureLink implements Claimable
 
     get nearBySource(): Source
     {
-        if (this.memory.nearBySourceId != null)
+        return Remember.forTick(`${this.id}.nearBySource`, () =>
         {
-            let nearBySource = Game.getObjectById<Source>(this.memory.nearBySourceId);
-            Object.defineProperty(this, "nearBySource", {value: nearBySource});
+            if (this.memory.nearBySourceId != null)
+            {
+                return Game.getObjectById<Source>(this.memory.nearBySourceId);
+            }
+
+            let nearBySource = <Source>this.pos.findClosestInRange(this.room.sources, 2);
+
+            if (nearBySource == null)
+            {
+                this.memory.nearBySourceId = '';
+            }
+            else
+            {
+                this.memory.nearBySourceId = nearBySource.id;
+            }
+
             return nearBySource;
-        }
-
-        let nearBySource = <Source>this.pos.findClosestInRange(this.room.sources, 2);
-
-        if (nearBySource == null)
-        {
-            this.memory.nearBySourceId = '';
-        }
-        else
-        {
-            this.memory.nearBySourceId = nearBySource.id;
-        }
-
-        Object.defineProperty(this, "nearBySource", {value: nearBySource});
-        return nearBySource;
+        });
     }
 
     get memory(): LinkMemory
@@ -178,7 +176,6 @@ export class SporeLink extends StructureLink implements Claimable
             roomMemory.structures[this.id] = memory;
         }
 
-        Object.defineProperty(this, "memory", {value: memory});
         return memory;
     }
 
@@ -291,10 +288,10 @@ export class SporeLink extends StructureLink implements Claimable
 
     private get claims(): Claims
     {
-        let claims = new Claims(this);
-
-        Object.defineProperty(this, "claims", {value: claims});
-        return claims;
+        return Remember.forTick(`${this.id}.claims`, () =>
+        {
+            return new Claims(this);
+        });
     }
 }
 
@@ -347,6 +344,11 @@ class Bond
             return null;
         }
 
+        let startsWith = function(baseString, searchString, position?){
+            position = position || 0;
+            return baseString.substr(position, searchString.length) === searchString;
+        };
+
         for ( let flagName in Game.flags)
         {
             let flag = Game.flags[flagName];
@@ -354,7 +356,7 @@ class Bond
             if (flag != flagA &&
                 flag.color === COLOR_YELLOW &&
                 flag.secondaryColor === flagA.secondaryColor &&
-                flag.name.startsWith(flagA.name))
+                startsWith(flag.name, flagA.name))
             {
                 flagB = flag;
                 break;

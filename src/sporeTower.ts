@@ -5,6 +5,7 @@ import {Task, TaskPriority} from "./task";
 import {TransferResource} from "./taskTransferResource";
 import {ScreepsPtr} from "./screepsPtr";
 import {CollectOptions} from "./sporeCreep";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -82,7 +83,6 @@ export class SporeTower extends StructureTower implements Claimable
             roomMemory.structures[this.id] = memory;
         }
 
-        Object.defineProperty(this, "memory", {value: memory});
         return memory;
     }
 
@@ -150,10 +150,10 @@ export class SporeTower extends StructureTower implements Claimable
 
     private get claims(): Claims
     {
-        let claims = new Claims(this);
-
-        Object.defineProperty(this, "claims", {value: claims});
-        return claims;
+        return Remember.forTick(`${this.id}.claims`, () =>
+        {
+            return new Claims(this);
+        });
     }
 }
 

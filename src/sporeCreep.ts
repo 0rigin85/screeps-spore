@@ -7,6 +7,11 @@ import {RoomObjectLike, ScreepsPtr, CarryContainerLike, StoreContainerLike, Ener
 import {BodyDefinition, BodyPartRequirements} from "./bodyDefinition";
 import {SpawnRequest} from "./spawnRequest";
 import Dictionary = _.Dictionary;
+import {
+    SporePathOptions, SporePath, DIRECTION_OFFSETS, SporePathFinder, SporePathMemory,
+    FORWARD
+} from "./sporePathFinder";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -29,19 +34,18 @@ declare global
         colony: SporeColony;
 
         getEfficiencyAs(bodyDefinition: BodyDefinition) : number;
-        lookForAtArea(type: string, radius: number, asArray?: boolean): LookAtResultMatrix | LookAtResultWithPos[];
 
-        goMoveTo(target: RoomObjectLike): number;
-        goHarvest(source: ScreepsPtr<Source>): number;
-        goTransfer(resourceType: string, target: ScreepsPtr<EnergyContainerLike | StoreContainerLike | CarryContainerLike>): number;
-        goBuild(site: ScreepsPtr<ConstructionSite>): number;
-        goDismantle(structure: ScreepsPtr<Structure>): number;
-        goRepair(structure: ScreepsPtr<Structure>): number;
-        goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>): number;
-        goUpgrade(controller: ScreepsPtr<Controller>): number;
-        goReserve(controller: ScreepsPtr<Controller>): number;
-        goClaim(controller: ScreepsPtr<Controller>): number;
-        goRecycle(spawn: ScreepsPtr<Spawn>): number;
+        goMoveTo(target: RoomObjectLike, navigation?: NavigationRules): number;
+        goHarvest(source: ScreepsPtr<Source>, navigation?: NavigationRules): number;
+        goTransfer(resourceType: string, target: ScreepsPtr<EnergyContainerLike | StoreContainerLike | CarryContainerLike>, navigation?: NavigationRules): number;
+        goBuild(site: ScreepsPtr<ConstructionSite>, navigation?: NavigationRules): number;
+        goDismantle(structure: ScreepsPtr<Structure>, navigation?: NavigationRules): number;
+        goRepair(structure: ScreepsPtr<Structure>, navigation?: NavigationRules): number;
+        goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>, navigation?: NavigationRules): number;
+        goUpgrade(controller: ScreepsPtr<Controller>, navigation?: NavigationRules): number;
+        goReserve(controller: ScreepsPtr<Controller>, navigation?: NavigationRules): number;
+        goClaim(controller: ScreepsPtr<Controller>, navigation?: NavigationRules): number;
+        goRecycle(spawn: ScreepsPtr<Spawn>, navigation?: NavigationRules): number;
     }
 }
 
@@ -51,6 +55,13 @@ export class CollectOptions
     { }
 }
 
+interface NavigationRules
+{
+    path?: SporePath;
+    direction?: number;
+    range?: number;
+}
+
 interface SpawnRequestMemory
 {
     id: string;
@@ -58,8 +69,26 @@ interface SpawnRequestMemory
     replacingCreepName: string;
 }
 
+interface CreepMovementMemory
+{
+    improv: SporePathMemory;
+    mergeIndex: number;
+
+    path: SporePathMemory;
+    pathIndex: number;
+
+    expectedPosRoomName: string;
+    expectedPosX: number;
+    expectedPosY: number;
+
+    failedMoveAttempts: number;
+}
+
 export interface CreepMemory
 {
+    type: string;
+    speed: number;
+
     taskId: string;
     taskPriority: number;
     taskMetadata: any;
@@ -69,10 +98,168 @@ export interface CreepMemory
     action: string;
     actionTarget: string;
 
+    movement: CreepMovementMemory;
+
     claimReceiptTargetId: string;
     claimReceiptTargetType: string;
     claimReceiptResourceType: string;
     claimReceiptAmount: number;
+}
+
+export class SporeCreepMovement
+{
+    _improv: SporePath;
+    get improv(): SporePath
+    {
+        if (this._improv != null)
+        {
+            return this._improv;
+        }
+
+        if (this.memory.improv != null)
+        {
+            this._improv = new SporePath(this.memory.improv);
+        }
+
+        return this._improv;
+    }
+
+    set improv(value: SporePath)
+    {
+        if (value == null)
+        {
+            if (this.memory.improv != null)
+            {
+                this._improv = null;
+                this.memory.improv = null;
+                this.mergeIndex = -1;
+                this.pathIndex = -1;
+                this.expectedPosition = null;
+                this.failedMoveAttempts = 0;
+            }
+        }
+        else if ((this._improv == null && value != null) || (this._improv != null && !this._improv.isEqualTo(value)))
+        {
+            this._improv = value;
+            this.memory.improv = this._improv.serialize();
+            this.mergeIndex = -1;
+            this.expectedPosition = null;
+            this.failedMoveAttempts = 0;
+        }
+    }
+
+    get mergeIndex(): number
+    {
+        return this.memory.mergeIndex;
+    }
+
+    set mergeIndex(value: number)
+    {
+        this.memory.mergeIndex = value;
+    }
+
+    _path: SporePath;
+    get path(): SporePath
+    {
+        if (this._path != null)
+        {
+            return this._path;
+        }
+
+        if (this.memory.path != null)
+        {
+            this._path = new SporePath(this.memory.path);
+        }
+
+        return this._path;
+    }
+
+    set path(value: SporePath)
+    {
+        if (value == null)
+        {
+            if (this.memory.path != null)
+            {
+                this._path = null;
+                this.memory.path = null;
+                this.pathIndex = -1;
+                this.expectedPosition = null;
+                this.failedMoveAttempts = 0;
+
+                this.improv = null;
+            }
+        }
+        else if ((this._path == null && value != null) || (this._path != null && !this._path.isEqualTo(value)))
+        {
+            this._path = value;
+            this.memory.path = this._path.serialize();
+            this.pathIndex = -1;
+            this.expectedPosition = null;
+            this.failedMoveAttempts = 0;
+
+            this.improv = null;
+        }
+    }
+
+    get pathIndex(): number
+    {
+        if (this.memory.pathIndex == null || (this.memory.path == null && this.memory.improv == null))
+        {
+            this.memory.pathIndex = -1;
+        }
+
+        return this.memory.pathIndex;
+    }
+
+    set pathIndex(value: number)
+    {
+        this.memory.pathIndex = value;
+    }
+
+    _expectedPosition: RoomPosition;
+    get expectedPosition(): RoomPosition
+    {
+        if (this._expectedPosition != null)
+        {
+            return this._expectedPosition;
+        }
+
+        if (this.memory.expectedPosRoomName != null)
+        {
+            this._expectedPosition = new RoomPosition(this.memory.expectedPosX, this.memory.expectedPosY, this.memory.expectedPosRoomName);
+        }
+
+        return this._expectedPosition;
+    }
+
+    set expectedPosition(value: RoomPosition)
+    {
+        if (value != null)
+        {
+            this.memory.expectedPosRoomName = value.roomName;
+            this.memory.expectedPosX = value.x;
+            this.memory.expectedPosY = value.y;
+        }
+        else
+        {
+            this.memory.expectedPosRoomName = null;
+            this.memory.expectedPosX = null;
+            this.memory.expectedPosY = null;
+        }
+    }
+
+    get failedMoveAttempts(): number
+    {
+        return this.memory.failedMoveAttempts;
+    }
+
+    set failedMoveAttempts(value: number)
+    {
+        this.memory.failedMoveAttempts = value;
+    }
+
+    constructor(private memory: CreepMovementMemory)
+    { }
 }
 
 export var ACTION_TRANSFER: string = "transfer";
@@ -125,7 +312,7 @@ bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 12, 1, 1));
 CREEP_TYPE.COURIER = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('REMOTE_COURIER');
-bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 8, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 9, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CARRY, 16, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(WORK, 1, 1, 1));
 CREEP_TYPE.REMOTE_COURIER = bodyDefinition;
@@ -148,7 +335,7 @@ bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 1, 1, 1));
 CREEP_TYPE.WIRE = bodyDefinition;
 
 var bodyDefinition = new BodyDefinition('RESERVER');
-bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 4, 1, 1));
+bodyDefinition.requirements.push(new BodyPartRequirements(MOVE, 2, 1, 1));
 bodyDefinition.requirements.push(new BodyPartRequirements(CLAIM, 2, 1, 1));
 CREEP_TYPE.RESERVER = bodyDefinition;
 
@@ -297,7 +484,12 @@ export class SporeCreep extends Creep
 
     get type(): string
     {
-        return this.memory.type;
+        return (<CreepMemory>this.memory).type;
+    }
+
+    get speed(): number
+    {
+        return (<CreepMemory>this.memory).speed;
     }
 
     private _spawnRequest: SpawnRequest;
@@ -557,55 +749,346 @@ export class SporeCreep extends Creep
         }
     }
 
-    goMoveTo(target: RoomObjectLike): number
+    _movement: SporeCreepMovement;
+    get movement(): SporeCreepMovement
     {
-        if (target.pos == null)
+        return Remember.forTick(`${this.id}.movement`, () =>
         {
-            return ERR_NO_WORK;
-        }
+            let memory = <CreepMemory>this.memory;
 
-        // this.room.findPath(this.pos, target.pos, {
-        //     costCallback: function(roomName, costMatrix) {
-        //
-        //     }
-        // });
+            if (memory.movement == null)
+            {
+                memory.movement = <any>{ };
+            }
 
+            this._movement = new SporeCreepMovement(memory.movement);
+            return this._movement;
+        });
+    }
 
-        let code = this.moveTo(target.pos, {noPathFinding: true});
-
-        // Perform pathfinding only if we have enough CPU
-        if (code == ERR_NOT_FOUND && Game.cpu.tickLimit - Game.cpu.getUsed() > 20)
-        {
-            code = this.moveTo(target.pos);
-        }
-
-        if (this.doTrack)
-        {
-            console.log(this + " goMoveTo " + code);
-        }
-
-        if (code == OK ||
-            code == ERR_TIRED)
+    goMoveTo(target: RoomObjectLike | RoomPosition, navigation?: NavigationRules): number
+    {
+        // if this creep can't move right now then just early out
+        if (this.fatigue > 0)
         {
             this.action = ACTION_MOVE;
             this.actionTarget = target.toString();
             return OK;
         }
 
+        let destination: RoomPosition = <RoomPosition>target;
+
+        if ((<RoomObjectLike>target).pos != null)
+        {
+            destination = (<RoomObjectLike>target).pos;
+        }
+
+        // if an invalid destination was provided then error out
+        if (destination == null)
+        {
+            return ERR_NO_WORK;
+        }
+
+        if (navigation == null)
+        {
+            navigation = {};
+        }
+
+        // default to a range of 1 if it wasn't specified
+        if (navigation.range == null)
+        {
+            navigation.range = 1;
+        }
+
+        // default to a direction of FORWARD if it wasn't specified
+        if (navigation.direction == null)
+        {
+            navigation.direction = FORWARD;
+        }
+
+        // check to see if the creep is already in range of the target
+        if (this.pos.inRangeTo(destination, navigation.range))
+        {
+            this.action = ACTION_MOVE;
+            this.actionTarget = target.toString();
+            return OK;
+        }
+
+        if (navigation.path != null)
+        {
+            // setting a different path will also invalidate any current improv path
+            // but no changes will occur if the path is identical
+            this.movement.path = navigation.path;
+        }
+        else
+        {
+            // clear out any previous explicit path
+            this.movement.path = null;
+        }
+
+        let currentPath = this.movement.improv;
+        if (currentPath == null)
+        {
+            currentPath = this.movement.path;
+        }
+
+        // if the current paths don't lead to the destination...
+        if (currentPath != null && !currentPath.leadsTo(destination, navigation.direction, navigation.range))
+        {
+            // then clear them so we can get new ones
+            this.movement.path = null;
+            this.movement.improv = null;
+
+            // if an explicit path had been provided...
+            if (navigation.path != null)
+            {
+                // then they've provided the wrong path
+                console.log("ERROR: Attempted to move to '" + target + "' but provided an explicit path to a different location. ");
+                return ERR_CANNOT_PERFORM_TASK;
+            }
+        }
+
+        // if the creep is not on a valid path to the destination...
+        if (this.movement.pathIndex === -1)
+        {
+            // if we've already spent all our path finding CPU...
+            if (this.colony.cpuSpentPathing > this.colony.pathingCpuLimit)
+            {
+                // then early out
+                this.action = ACTION_MOVE;
+                this.actionTarget = target.toString();
+                return OK;
+            }
+
+            // create a new path to the destination
+            if (this.movement.path != null)
+            {
+                // since the creep is not on the explicit path we need to create an improv path to get it there
+                let position: RoomPosition = this.movement.path.findLastPositionInRoom(this.pos.roomName, navigation.direction);
+                let explicitPathPositions = this.movement.path.getPositions(this.pos.roomName);
+
+                let options = new SporePathOptions([]);
+                let creepCost = 4;
+
+                if (this.speed >= 5)
+                {
+                    // this creep moves full speed on swamp
+                    options.plainCost = 2;
+                    options.swampCost = 2;
+                    options.costs.push({ id: 'path', cost: 1, targets: explicitPathPositions });
+                }
+                else if (this.speed >= 1)
+                {
+                    // this creep moves full speed off-road
+                    options.plainCost = 2;
+                    options.swampCost = 10;
+                    creepCost = 20;
+                    options.costs.push({ id: 'path', cost: 1, targets: explicitPathPositions });
+                }
+                else
+                {
+                    // this creep moves slowly off-road
+                    options.plainCost = 4;
+                    options.swampCost = 20;
+                    creepCost = 40;
+
+                    options.costs.push({ id: 'path', cost: 1, targets: explicitPathPositions });
+                    options.costs.push({ id: 'roads', cost: 2 });
+                }
+
+                options.costs.push({ id: 'creeps', cost: creepCost });
+                options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
+                options.costs.push({ id: 'friendlySites', cost: 255 });
+                this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: position, range: 0 }, options);
+
+                if (this.movement.improv != null)
+                {
+                    // crop the improv path to where it first merges with the ideal path
+                    let intersection = this.movement.path.findIntersectionWith(this.movement.improv);
+                    if (intersection != null)
+                    {
+                        this.movement.improv.setIndexAsDestination(intersection.otherIndex);
+                        this.movement.mergeIndex = intersection.baseIndex;
+                        this.movement.pathIndex = 0;
+                    }
+                }
+            }
+            else
+            {
+                let options = new SporePathOptions([]);
+                let creepCost = 4;
+
+                if (this.speed >= 5)
+                {
+                    // this creep moves full speed on swamp
+                    options.plainCost = 1;
+                    options.swampCost = 1;
+                    creepCost = 2;
+                }
+                else if (this.speed >= 1)
+                {
+                    // this creep moves full speed off-road
+                    //options.plainCost = 1;
+                    //options.swampCost = 5;
+                    creepCost = 10;
+                }
+                else
+                {
+                    // this creep moves slowly off-road
+                    options.plainCost = 2;
+                    options.swampCost = 10;
+                    creepCost = 20;
+                    options.costs.push({ id: 'roads', cost: 1 });
+                }
+
+                options.costs.push({ id: 'creeps', cost: creepCost });
+                options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
+                options.costs.push({ id: 'friendlySites', cost: 255 });
+                this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: destination, range: navigation.range }, options);
+                this.movement.pathIndex = 0;
+            }
+
+            this.room.visual.text('\u{1F463}', this.pos);
+        }
+
+        currentPath = this.movement.improv;
+        if (currentPath == null)
+        {
+            currentPath = this.movement.path;
+        }
+
+        // if we still don't have a valid path at this point then the destination must be unreachable
+        if (currentPath == null)
+        {
+            //@todo check for incomplete paths?
+            return ERR_NO_WORK;
+        }
+
+        // check whether the last requested move was successful
+        if (this.movement.expectedPosition != null)
+        {
+            if (this.movement.expectedPosition.isEqualTo(this.pos))
+            {
+                this.movement.expectedPosition = null;
+                this.movement.pathIndex++;
+                this.movement.failedMoveAttempts = 0;
+            }
+            else
+            {
+                this.movement.expectedPosition = null;
+                this.movement.failedMoveAttempts++;
+            }
+        }
+
+        let visualXOffset = 0.01;
+        let visualYOffset = 0.18;
+        let style: Style = { size: 0.45 };
+
+        if (this.movement.failedMoveAttempts > 0)
+        {
+            if (this.movement.failedMoveAttempts === 1)
+            {
+                let structures = this.room.lookForAt<Structure>(LOOK_STRUCTURES, this.movement.expectedPosition);
+                for (let structure of structures)
+                {
+                    if (_.includes(OBSTACLE_OBJECT_TYPES, structure.structureType))
+                    {
+                        if (this.movement.path != null)
+                        {
+                            this.movement.path.needsUpdated = true;
+                        }
+
+                        console.log('/////////////// UNEXPECTED STRUCTURE IN PATH: ' + this.movement.improv);
+                        this.movement.improv = null;
+                        this.room.visual.text('\u{1F632}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+                        console.log('/////////////// UNEXPECTED STRUCTURE IN PATH: ' + structure);
+
+                        this.action = ACTION_MOVE;
+                        this.actionTarget = target.toString();
+
+                        return OK;
+                    }
+                }
+
+                this.room.visual.text('\u{1F612}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+            }
+            else if (this.movement.failedMoveAttempts === 2)
+            {
+                this.room.visual.text('\u{1F612}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+            }
+            else if (this.movement.failedMoveAttempts === 3)
+            {
+                this.room.visual.text('\u{1F623}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+            }
+            else if (this.movement.failedMoveAttempts === 4)
+            {
+                this.room.visual.text('\u{1F620}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+            }
+            else if (this.movement.failedMoveAttempts >= 5)
+            {
+                if (this.movement.path != null)
+                {
+                    this.movement.path.needsUpdated = true;
+                }
+
+                this.movement.improv = null;
+                this.room.visual.text('\u{1F621}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+
+                this.action = ACTION_MOVE;
+                this.actionTarget = target.toString();
+
+                return OK;
+            }
+        }
+
+        let nextDirection = currentPath.getNextMove(this.movement.pathIndex);
+
+        if (nextDirection <= 0)
+        {
+            if (this.movement.improv != null && this.movement.mergeIndex >= 0)
+            {
+                this.movement.improv = null;
+                this.movement.pathIndex = this.movement.mergeIndex;
+                this.movement.mergeIndex = -1;
+            }
+            else
+            {
+                console.log("ERROR: Attempted to move to '" + target + "' but encountered an unexpected end to that path. ");
+            }
+        }
+
+        let code = this.move(nextDirection);
+
+        if (this.doTrack)
+        {
+            console.log(this + " goMoveTo " + code);
+        }
+
+        if (code == OK)
+        {
+            this.movement.expectedPosition = SporePathFinder.getNextPositionByDirection(this.pos, nextDirection);
+
+            this.action = ACTION_MOVE;
+            this.actionTarget = target.toString();
+            return OK;
+        }
+
+        this.movement.expectedPosition = null;
+
         if (code == ERR_INVALID_TARGET)
         {
             return ERR_NO_WORK;
         }
 
-        // ERR_NO_PATH
-        // ERR_NO_BODYPART
-        // ERR_BUSY
-        // ERR_NOT_OWNER
+        // ERR_NOT_OWNER	-1	You are not the owner of this creep.
+        // ERR_BUSY	-4	The creep is still being spawned.
+        // ERR_NO_BODYPART	-12	There are no MOVE body parts in this creep’s body.
         console.log("ERROR: Attempted to move to '" + target + "' but encountered unknown error. " + code);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goHarvest(source: ScreepsPtr<Source>): number
+    goHarvest(source: ScreepsPtr<Source>, navigation?: NavigationRules): number
     {
         if (!source.isValid)
         {
@@ -616,7 +1099,7 @@ export class SporeCreep extends Creep
 
         if (source.isShrouded)
         {
-            code = this.goMoveTo(source);
+            code = this.goMoveTo(source, navigation);
         }
         else
         {
@@ -639,7 +1122,7 @@ export class SporeCreep extends Creep
             }
             else if (code === ERR_NOT_IN_RANGE)
             {
-                code = this.goMoveTo(claimReceipt.target);
+                code = this.goMoveTo(claimReceipt.target, navigation);
             }
         }
 
@@ -656,10 +1139,11 @@ export class SporeCreep extends Creep
 
 
         console.log("ERROR: Attempted to harvest '" + source + "' but encountered unknown error. " + code);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goTransfer(resourceType: string, target: ScreepsPtr<EnergyContainerLike | StoreContainerLike | CarryContainerLike>): number
+    goTransfer(resourceType: string, target: ScreepsPtr<EnergyContainerLike | StoreContainerLike | CarryContainerLike>, navigation?: NavigationRules): number
     {
         if (!target.isValid)
         {
@@ -670,7 +1154,7 @@ export class SporeCreep extends Creep
 
         if (target.isShrouded)
         {
-            code = this.goMoveTo(target);
+            code = this.goMoveTo(target, navigation);
         }
         else
         {
@@ -684,7 +1168,7 @@ export class SporeCreep extends Creep
             }
             else if (code == ERR_NOT_IN_RANGE)
             {
-                return this.goMoveTo(target);
+                return this.goMoveTo(target, navigation);
             }
         }
 
@@ -729,10 +1213,11 @@ export class SporeCreep extends Creep
 
         //ERR_NOT_ENOUGH_RESOURCES	-6	The creep does not have the given amount of resources.
         console.log("ERROR: Attempted to transfer '" + resourceType + "' to '" + target + "' but encountered unknown error. " + code);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goBuild(site: ScreepsPtr<ConstructionSite>): number
+    goBuild(site: ScreepsPtr<ConstructionSite>, navigation?: NavigationRules): number
     {
         if (!site.isValid)
         {
@@ -748,7 +1233,7 @@ export class SporeCreep extends Creep
 
         if (site.isShrouded)
         {
-            code = this.goMoveTo(site);
+            code = this.goMoveTo(site, navigation);
         }
         else
         {
@@ -762,7 +1247,7 @@ export class SporeCreep extends Creep
             }
             else if (code === ERR_NOT_IN_RANGE)
             {
-                code = this.goMoveTo(site);
+                code = this.goMoveTo(site, navigation);
             }
         }
 
@@ -784,7 +1269,7 @@ export class SporeCreep extends Creep
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goDismantle(structure: ScreepsPtr<Structure>): number
+    goDismantle(structure: ScreepsPtr<Structure>, navigation?: NavigationRules): number
     {
         if (!structure.isValid)
         {
@@ -804,7 +1289,7 @@ export class SporeCreep extends Creep
 
         if (structure.isShrouded)
         {
-            code = this.goMoveTo(structure);
+            code = this.goMoveTo(structure, navigation);
         }
         else
         {
@@ -835,7 +1320,7 @@ export class SporeCreep extends Creep
             }
             else if (code === ERR_NOT_IN_RANGE)
             {
-                code = this.goMoveTo(structure);
+                code = this.goMoveTo(structure, navigation);
 
                 if (canRangeAttack)
                 {
@@ -860,7 +1345,7 @@ export class SporeCreep extends Creep
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goRepair(structure: ScreepsPtr<Structure>): number
+    goRepair(structure: ScreepsPtr<Structure>, navigation?: NavigationRules): number
     {
         if (!structure.isValid)
         {
@@ -871,7 +1356,7 @@ export class SporeCreep extends Creep
 
         if (structure.isShrouded)
         {
-            code = this.goMoveTo(structure);
+            code = this.goMoveTo(structure, navigation);
         }
         else
         {
@@ -885,7 +1370,7 @@ export class SporeCreep extends Creep
             }
             else if(code === ERR_NOT_IN_RANGE)
             {
-                return this.goMoveTo(structure);
+                return this.goMoveTo(structure, navigation);
             }
         }
 
@@ -900,10 +1385,11 @@ export class SporeCreep extends Creep
         }
 
         console.log("Creep " + this.name + " goRepair error code: " + code);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>): number
+    goCollect(resourceType: string, amount: number, minAmount: number, isExtended: boolean, near: RoomPosition, options: CollectOptions, excludes: Dictionary<Claimable>, navigation?: NavigationRules): number
     {
         if (this.action != ACTION_COLLECT && this.action != ACTION_MOVE)
         {
@@ -930,7 +1416,7 @@ export class SporeCreep extends Creep
 
         if (code === ERR_NOT_IN_RANGE)
         {
-            code = this.goMoveTo(claimReceipt.target);
+            code = this.goMoveTo(claimReceipt.target, navigation);
         }
 
         if (code === OK)
@@ -943,15 +1429,15 @@ export class SporeCreep extends Creep
         if (code === ERR_NOT_ENOUGH_RESOURCES)
         {
             console.log("FAILED TO CONFIRM AVAILABLE RESOURCES BEFORE COLLECTING. " + this + " " + claimReceipt.target + " " + claimReceipt.amount + " " + claimReceipt.resourceType);
-
             return ERR_NO_WORK;
         }
 
         console.log(code);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goUpgrade(controller: ScreepsPtr<Controller>): number
+    goUpgrade(controller: ScreepsPtr<Controller>, navigation?: NavigationRules): number
     {
         if (!controller.isValid)
         {
@@ -962,7 +1448,7 @@ export class SporeCreep extends Creep
 
         if (controller.isShrouded)
         {
-            code = this.goMoveTo(controller);
+            code = this.goMoveTo(controller, navigation);
         }
         else
         {
@@ -977,7 +1463,7 @@ export class SporeCreep extends Creep
             }
             else if(code === ERR_NOT_IN_RANGE)
             {
-                return this.goMoveTo(controller);
+                return this.goMoveTo(controller, navigation);
             }
         }
 
@@ -987,10 +1473,11 @@ export class SporeCreep extends Creep
         }
 
         console.log("goUpgrade error code: " + code + " " + this);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goReserve(controller: ScreepsPtr<Controller>): number
+    goReserve(controller: ScreepsPtr<Controller>, navigation?: NavigationRules): number
     {
         if (!controller.isValid)
         {
@@ -1001,7 +1488,7 @@ export class SporeCreep extends Creep
 
         if (controller.isShrouded)
         {
-            code = this.goMoveTo(controller);
+            code = this.goMoveTo(controller, navigation);
         }
         else
         {
@@ -1016,7 +1503,7 @@ export class SporeCreep extends Creep
             }
             else if(code === ERR_NOT_IN_RANGE)
             {
-                return this.goMoveTo(controller);
+                return this.goMoveTo(controller, navigation);
             }
         }
 
@@ -1026,10 +1513,11 @@ export class SporeCreep extends Creep
         }
 
         console.log("goReserve error code: " + code + " " + this);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goClaim(controller: ScreepsPtr<Controller>): number
+    goClaim(controller: ScreepsPtr<Controller>, navigation?: NavigationRules): number
     {
         if (!controller.isValid)
         {
@@ -1040,7 +1528,7 @@ export class SporeCreep extends Creep
 
         if (controller.isShrouded)
         {
-            code = this.goMoveTo(controller);
+            code = this.goMoveTo(controller, navigation);
         }
         else
         {
@@ -1055,7 +1543,7 @@ export class SporeCreep extends Creep
             }
             else if(code === ERR_NOT_IN_RANGE)
             {
-                return this.goMoveTo(controller);
+                return this.goMoveTo(controller, navigation);
             }
         }
 
@@ -1065,10 +1553,11 @@ export class SporeCreep extends Creep
         }
 
         console.log("goClaim error code: " + code + " " + this);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 
-    goRecycle(spawn: ScreepsPtr<Spawn>): number
+    goRecycle(spawn: ScreepsPtr<Spawn>, navigation?: NavigationRules): number
     {
         if (!spawn.isValid)
         {
@@ -1079,11 +1568,11 @@ export class SporeCreep extends Creep
 
         if (spawn.isShrouded)
         {
-            code = this.goMoveTo(spawn);
+            code = this.goMoveTo(spawn, navigation);
         }
         else
         {
-            code = spawn.instance.recycleCreep(this);
+            code = spawn.instance.recycleCreep(<any>this);
 
             if (code === OK)
             {
@@ -1094,7 +1583,7 @@ export class SporeCreep extends Creep
             }
             else if(code === ERR_NOT_IN_RANGE)
             {
-                return this.goMoveTo(spawn);
+                return this.goMoveTo(spawn, navigation);
             }
         }
 
@@ -1104,6 +1593,7 @@ export class SporeCreep extends Creep
         }
 
         console.log("goRecycle error code: " + code);
+
         return ERR_CANNOT_PERFORM_TASK;
     }
 }

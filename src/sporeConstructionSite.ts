@@ -1,6 +1,7 @@
-import {Task, TaskPriority} from "./task";
+import {Task} from "./task";
 import {BuildStructure} from "./taskBuildStructure";
 import {ScreepsPtr} from "./screepsPtr";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -42,7 +43,6 @@ export class SporeConstructionSite extends ConstructionSite
             roomMemory.sites[this.id] = memory;
         }
 
-        Object.defineProperty(this, "memory", {value: memory});
         return memory;
     }
 

@@ -52,49 +52,29 @@ module.exports =
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const spore_1 = __webpack_require__(2);
-	const sporeColony_1 = __webpack_require__(37);
-	// // Any modules that you use that modify the game's prototypes should be require'd
-	// // before you require the profiler.
-	// import {profiler} from "./screeps-profiler";
-	//
-	// // This line monkey patches the global prototypes.
-	// profiler.enable();
-	// module.exports.loop = function() {
-	//     profiler.wrap(function() {
-	//
-	//         PathFinder.use(true);
-	//
-	//         for(let name in Memory.creeps)
-	//         {
-	//             if(!Game.creeps[name])
-	//             {
-	//                 delete Memory.creeps[name];
-	//                 console.log('Clearing non-existing creep memory:', name);
-	//             }
-	//         }
-	//
-	//         Spore.inject();
-	//         Spore.colony = new SporeColony();
-	//         Spore.colony.run();
-	//
-	//     });
-	// };
+	const sporeColony_1 = __webpack_require__(38);
+	const sporeRemember_1 = __webpack_require__(13);
+	const screeps_profiler_1 = __webpack_require__(42);
+	spore_1.Spore.inject();
 	module.exports.loop = function () {
-	    PathFinder.use(true);
-	    for (let name in Memory.creeps) {
-	        if (!Game.creeps[name]) {
-	            delete Memory.creeps[name];
-	            console.log('Clearing non-existing creep memory:', name);
+	    let cpuSpentDeserializingMemory = Game.cpu.getUsed();
+	    screeps_profiler_1.profiler.wrap(function () {
+	        PathFinder.use(true);
+	        sporeRemember_1.Remember.tick();
+	        for (let name in Memory.creeps) {
+	            if (!Game.creeps[name]) {
+	                delete Memory.creeps[name];
+	                console.log('Clearing non-existing creep memory:', name);
+	            }
 	        }
-	    }
-	    spore_1.Spore.inject();
-	    spore_1.Spore.colony = new sporeColony_1.SporeColony();
-	    spore_1.Spore.colony.run();
+	        spore_1.Spore.colony = new sporeColony_1.SporeColony();
+	        spore_1.Spore.colony.run();
+	    });
+	    console.log("DeserializingMemory CPU: <progress value='" + cpuSpentDeserializingMemory + "' max='" + 30 + "'/> [" + cpuSpentDeserializingMemory.toFixed(2) + "]");
 	};
-	//# sourceMappingURL=main.js.map
+
 
 /***/ },
 /* 2 */
@@ -103,23 +83,36 @@ module.exports =
 	"use strict";
 	const sporeRoom_1 = __webpack_require__(3);
 	const sporeCreep_1 = __webpack_require__(7);
-	const sporeSource_1 = __webpack_require__(14);
-	const sporeRoomObject_1 = __webpack_require__(17);
-	const sporeConstructionSite_1 = __webpack_require__(18);
-	const sporeContainer_1 = __webpack_require__(20);
-	const sporeController_1 = __webpack_require__(21);
-	const sporeExtension_1 = __webpack_require__(22);
-	const sporeFlag_1 = __webpack_require__(23);
-	const sporeRoomPosition_1 = __webpack_require__(30);
-	const sporeSpawn_1 = __webpack_require__(31);
-	const sporeStorage_1 = __webpack_require__(32);
-	const sporeStructure_1 = __webpack_require__(33);
-	const sporeTower_1 = __webpack_require__(34);
-	const sporeResource_1 = __webpack_require__(35);
-	const sporeLink_1 = __webpack_require__(36);
+	const sporeSource_1 = __webpack_require__(18);
+	const sporeRoomObject_1 = __webpack_require__(21);
+	const sporeConstructionSite_1 = __webpack_require__(22);
+	const sporeContainer_1 = __webpack_require__(24);
+	const sporeController_1 = __webpack_require__(25);
+	const sporeExtension_1 = __webpack_require__(26);
+	const sporeFlag_1 = __webpack_require__(27);
+	const sporeRoomPosition_1 = __webpack_require__(12);
+	const sporeSpawn_1 = __webpack_require__(34);
+	const sporeStorage_1 = __webpack_require__(35);
+	const sporeStructure_1 = __webpack_require__(36);
+	const sporeTower_1 = __webpack_require__(37);
+	const sporeColony_1 = __webpack_require__(38);
+	const sporeResource_1 = __webpack_require__(40);
+	const sporeLink_1 = __webpack_require__(41);
+	const screeps_profiler_1 = __webpack_require__(42);
+	const task_1 = __webpack_require__(5);
+	const taskBuildBarrier_1 = __webpack_require__(19);
+	const taskClaimRoom_1 = __webpack_require__(31);
+	const taskDefendRoom_1 = __webpack_require__(20);
+	const taskDismantleStructure_1 = __webpack_require__(29);
+	const taskHarvestEnergy_1 = __webpack_require__(17);
+	const taskRecycleCreep_1 = __webpack_require__(39);
+	const taskRepairStructure_1 = __webpack_require__(15);
+	const taskReserveRoom_1 = __webpack_require__(32);
+	const taskTransferResource_1 = __webpack_require__(4);
+	const taskUpgradeRoomController_1 = __webpack_require__(14);
+	const taskWire_1 = __webpack_require__(33);
 	class Spore {
-	    constructor() {
-	    }
+	    constructor() { }
 	    static inject() {
 	        if (Memory.config == null) {
 	            Memory.config = { tasks: {} };
@@ -129,6 +122,7 @@ module.exports =
 	                let descriptors = Object.getOwnPropertyNames(source).reduce((descriptors, key) => {
 	                    if (key != "constructor" && key != "colony") {
 	                        descriptors[key] = Object.getOwnPropertyDescriptor(source, key);
+	                        descriptors[key].enumerable = true;
 	                    }
 	                    return descriptors;
 	                }, {});
@@ -141,7 +135,7 @@ module.exports =
 	                });
 	                Object.defineProperties(target, descriptors);
 	                if (target['colony'] == null) {
-	                    Object.defineProperty(target, "colony", { get: function () { return Spore.colony; } });
+	                    Object.defineProperty(target, "colony", { get: function () { return Spore.colony; }, configurable: true });
 	                }
 	            });
 	            return target;
@@ -162,11 +156,25 @@ module.exports =
 	        completeAssign(StructureTower.prototype, sporeTower_1.SporeTower.prototype);
 	        completeAssign(Resource.prototype, sporeResource_1.SporeResource.prototype);
 	        completeAssign(StructureLink.prototype, sporeLink_1.SporeLink.prototype);
+	        screeps_profiler_1.profiler.enable();
+	        screeps_profiler_1.profiler.registerObject(task_1.Task.prototype, 'Task');
+	        screeps_profiler_1.profiler.registerObject(sporeColony_1.SporeColony.prototype, 'SporeColony');
+	        screeps_profiler_1.profiler.registerObject(taskBuildBarrier_1.BuildBarrier.prototype, 'TaskBuildBarrier');
+	        screeps_profiler_1.profiler.registerObject(taskClaimRoom_1.ClaimRoom.prototype, 'ClaimRoom');
+	        screeps_profiler_1.profiler.registerObject(taskDefendRoom_1.DefendRoom.prototype, 'DefendRoom');
+	        screeps_profiler_1.profiler.registerObject(taskDismantleStructure_1.DismantleStructure.prototype, 'DismantleStructure');
+	        screeps_profiler_1.profiler.registerObject(taskHarvestEnergy_1.HarvestEnergy.prototype, 'HarvestEnergy');
+	        screeps_profiler_1.profiler.registerObject(taskRecycleCreep_1.RecycleCreep.prototype, 'RecycleCreep');
+	        screeps_profiler_1.profiler.registerObject(taskRepairStructure_1.RepairStructure.prototype, 'RepairStructure');
+	        screeps_profiler_1.profiler.registerObject(taskReserveRoom_1.ReserveRoom.prototype, 'ReserveRoom');
+	        screeps_profiler_1.profiler.registerObject(taskTransferResource_1.TransferResource.prototype, 'TransferResource');
+	        screeps_profiler_1.profiler.registerObject(taskUpgradeRoomController_1.UpgradeRoomController.prototype, 'UpgradeRoomController');
+	        screeps_profiler_1.profiler.registerObject(taskWire_1.Wire.prototype, 'Wire');
 	    }
 	}
 	Spore.colony = null;
 	exports.Spore = Spore;
-	//# sourceMappingURL=spore.js.map
+
 
 /***/ },
 /* 3 */
@@ -174,17 +182,16 @@ module.exports =
 
 	"use strict";
 	const taskTransferResource_1 = __webpack_require__(4);
-	const taskUpgradeRoomController_1 = __webpack_require__(10);
-	const taskRepairStructure_1 = __webpack_require__(11);
-	const screepsPtr_1 = __webpack_require__(12);
-	const taskHarvestEnergy_1 = __webpack_require__(13);
-	const taskBuildBarrier_1 = __webpack_require__(15);
+	const taskUpgradeRoomController_1 = __webpack_require__(14);
+	const taskRepairStructure_1 = __webpack_require__(15);
+	const screepsPtr_1 = __webpack_require__(16);
+	const taskHarvestEnergy_1 = __webpack_require__(17);
+	const taskBuildBarrier_1 = __webpack_require__(19);
 	const sporeCreep_1 = __webpack_require__(7);
-	const taskDefendRoom_1 = __webpack_require__(16);
+	const taskDefendRoom_1 = __webpack_require__(20);
+	const sporeRemember_1 = __webpack_require__(13);
 	// List of allies, name must be lower case.
 	const USERNAME_WHITELIST = [
-	    'pcake0rigin',
-	    'pcakecysote',
 	    'barney',
 	    'pcakecysote',
 	    'swifty',
@@ -198,14 +205,6 @@ module.exports =
 	STRUCTURE_REPAIR_VALUES[STRUCTURE_RAMPART] = { ideal: 20000, regular: { threshold: 15000, priority: 100 /* High */ }, dire: { threshold: 10000, priority: 50 /* Medium */ } };
 	STRUCTURE_REPAIR_VALUES[STRUCTURE_WALL] = { ideal: 20000, regular: { threshold: 20000, priority: 50 /* Medium */ }, dire: { threshold: 10000, priority: 25 /* MediumLow */ } };
 	STRUCTURE_REPAIR_VALUES[STRUCTURE_LINK] = { ideal: LINK_HITS_MAX, regular: { threshold: LINK_HITS_MAX * 0.8, priority: 100 /* High */ }, dire: { threshold: LINK_HITS_MAX * 0.3, priority: 1000 /* Mandatory */ } };
-	// declare var STRUCTURE_KEEPER_LAIR: string;
-	// declare var STRUCTURE_STORAGE: string;
-	// declare var STRUCTURE_OBSERVER: string;
-	// declare var STRUCTURE_POWER_BANK: string;
-	// declare var STRUCTURE_POWER_SPAWN: string;
-	// declare var STRUCTURE_EXTRACTOR: string;
-	// declare var STRUCTURE_LAB: string;
-	// declare var STRUCTURE_TERMINAL: string;
 	class Economy {
 	    constructor() {
 	        this.resources = {};
@@ -232,11 +231,6 @@ module.exports =
 	}
 	exports.Budget = Budget;
 	class SporeRoom extends Room {
-	    constructor(...args) {
-	        super(...args);
-	        this._resources = null;
-	        this._resourcesFindTick = -1;
-	    }
 	    get budget() {
 	        let memory = Memory.rooms[this.name];
 	        if (memory == null) {
@@ -246,27 +240,23 @@ module.exports =
 	        if (memory.budget == null) {
 	            memory.budget = new Budget();
 	        }
-	        Object.defineProperty(this, "budget", { value: memory.budget });
 	        return memory.budget;
 	    }
 	    get my() {
-	        let my = this.controller != null && (this.controller.my || (this.controller.reservation != null && this.controller.reservation.username == 'PCake0rigin'));
-	        Object.defineProperty(this, "my", { value: my });
-	        return my;
+	        return this.controller != null && (this.controller.my || (this.controller.reservation != null && this.controller.reservation.username == 'PCake0rigin'));
 	    }
 	    get isReserved() {
 	        let isReserved = false;
 	        if (this.controller != null && this.controller.reservation != null) {
 	            isReserved = this.controller.reservation.username == 'PCake0rigin';
 	        }
-	        Object.defineProperty(this, "isReserved", { value: isReserved });
 	        return isReserved;
 	    }
 	    static getPriority(roomName) {
-	        let memory = Memory.rooms[this.name];
+	        let memory = Memory.rooms[roomName];
 	        if (memory == null) {
 	            memory = {};
-	            Memory.rooms[this.name] = memory;
+	            Memory.rooms[roomName] = memory;
 	        }
 	        if (memory.priority == null) {
 	            memory.priority = 100;
@@ -277,147 +267,190 @@ module.exports =
 	        return memory.priority;
 	    }
 	    get priority() {
-	        let priority = SporeRoom.getPriority(this.name);
-	        Object.defineProperty(this, "priority", { value: priority });
-	        return priority;
+	        return SporeRoom.getPriority(this.name);
 	    }
-	    get sources() {
+	    get energyHarvestedSinceLastInvasion() {
 	        let memory = Memory.rooms[this.name];
 	        if (memory == null) {
 	            memory = {};
 	            Memory.rooms[this.name] = memory;
 	        }
-	        let sources;
-	        let sourceIds = memory.sources;
-	        if (sourceIds == null) {
-	            memory.sources = {};
-	            sources = this.find(FIND_SOURCES);
-	            _.forEach(sources, function (source) { memory.sources[source.id] = {}; });
+	        if (memory.energyHarvestedSinceLastInvasion == null) {
+	            memory.energyHarvestedSinceLastInvasion = 300000;
 	        }
-	        else {
-	            sources = [];
-	            for (let id in sourceIds) {
-	                let source = Game.getObjectById(id);
-	                if (source != null) {
-	                    sources.push(source);
+	        return memory.energyHarvestedSinceLastInvasion;
+	    }
+	    set energyHarvestedSinceLastInvasion(value) {
+	        let memory = Memory.rooms[this.name];
+	        if (memory == null) {
+	            memory = {};
+	            Memory.rooms[this.name] = memory;
+	        }
+	        memory.energyHarvestedSinceLastInvasion = value;
+	    }
+	    get sources() {
+	        return sporeRemember_1.Remember.forTick(`${this.name}.sources`, () => {
+	            let memory = Memory.rooms[this.name];
+	            if (memory == null) {
+	                memory = {};
+	                Memory.rooms[this.name] = memory;
+	            }
+	            let sources;
+	            let sourceIds = memory.sources;
+	            if (sourceIds == null) {
+	                memory.sources = {};
+	                sources = this.find(FIND_SOURCES);
+	                _.forEach(sources, function (source) { memory.sources[source.id] = {}; });
+	            }
+	            else {
+	                sources = [];
+	                for (let id in sourceIds) {
+	                    let source = Game.getObjectById(id);
+	                    if (source != null) {
+	                        sources.push(source);
+	                    }
 	                }
 	            }
-	        }
-	        Object.defineProperty(this, "sources", { value: sources });
-	        return sources;
+	            return sources;
+	        });
 	    }
 	    get extractor() {
-	        let extractors = this.find(FIND_STRUCTURES, {
-	            filter: {
-	                structureType: STRUCTURE_EXTRACTOR
+	        return sporeRemember_1.Remember.forTick(`${this.name}.extractor`, () => {
+	            let extractors = this.find(FIND_STRUCTURES, {
+	                filter: {
+	                    structureType: STRUCTURE_EXTRACTOR
+	                }
+	            });
+	            let extractor = null;
+	            if (extractors != null && extractors.length > 0) {
+	                extractor = extractors[0];
 	            }
+	            return extractor;
 	        });
-	        let extractor = null;
-	        if (extractors != null && extractors.length > 0) {
-	            extractor = extractors[0];
-	        }
-	        Object.defineProperty(this, "extractor", { value: extractor });
-	        return extractor;
 	    }
 	    get mySpawns() {
-	        let spawns = this.find(FIND_MY_SPAWNS);
-	        Object.defineProperty(this, "mySpawns", { value: spawns });
-	        return spawns;
+	        return this.find(FIND_MY_SPAWNS);
 	    }
 	    get structures() {
-	        let structures = this.find(FIND_STRUCTURES);
-	        Object.defineProperty(this, "structures", { value: structures });
-	        return structures;
+	        return this.find(FIND_STRUCTURES);
+	    }
+	    get nonwalkableStructures() {
+	        return sporeRemember_1.Remember.forTick(`${this.name}.nonwalkableStructures`, () => {
+	            return _.filter(this.structures, (structure) => {
+	                return _.includes(OBSTACLE_OBJECT_TYPES, structure.structureType);
+	            });
+	        });
+	    }
+	    get roads() {
+	        return sporeRemember_1.Remember.forTick(`${this.name}.roads`, () => {
+	            return this.find(FIND_STRUCTURES, {
+	                filter: {
+	                    structureType: STRUCTURE_ROAD
+	                }
+	            });
+	        });
 	    }
 	    get extensions() {
-	        let extensions = this.find(FIND_STRUCTURES, {
-	            filter: {
-	                structureType: STRUCTURE_EXTENSION
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.extensions`, () => {
+	            return this.find(FIND_STRUCTURES, {
+	                filter: {
+	                    structureType: STRUCTURE_EXTENSION
+	                }
+	            });
 	        });
-	        //Object.defineProperty(this, "extensions", {value: extensions});
-	        return extensions;
 	    }
 	    get containers() {
-	        let containers = this.find(FIND_STRUCTURES, {
-	            filter: {
-	                structureType: STRUCTURE_CONTAINER
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.containers`, () => {
+	            return this.find(FIND_STRUCTURES, {
+	                filter: {
+	                    structureType: STRUCTURE_CONTAINER
+	                }
+	            });
 	        });
-	        Object.defineProperty(this, "containers", { value: containers });
-	        return containers;
 	    }
 	    get ramparts() {
-	        let ramparts = this.find(FIND_STRUCTURES, {
-	            filter: {
-	                structureType: STRUCTURE_RAMPART
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.ramparts`, () => {
+	            return this.find(FIND_STRUCTURES, {
+	                filter: {
+	                    structureType: STRUCTURE_RAMPART
+	                }
+	            });
 	        });
-	        Object.defineProperty(this, "ramparts", { value: ramparts });
-	        return ramparts;
 	    }
 	    get towers() {
-	        let towers = this.find(FIND_STRUCTURES, {
-	            filter: {
-	                structureType: STRUCTURE_TOWER
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.towers`, () => {
+	            return this.find(FIND_STRUCTURES, {
+	                filter: {
+	                    structureType: STRUCTURE_TOWER
+	                }
+	            });
 	        });
-	        Object.defineProperty(this, "towers", { value: towers });
-	        return towers;
 	    }
 	    get links() {
-	        let links = this.find(FIND_STRUCTURES, {
-	            filter: {
-	                structureType: STRUCTURE_LINK
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.links`, () => {
+	            return this.find(FIND_STRUCTURES, {
+	                filter: {
+	                    structureType: STRUCTURE_LINK
+	                }
+	            });
 	        });
-	        Object.defineProperty(this, "links", { value: links });
-	        return links;
 	    }
 	    get resources() {
-	        if (this._resources != null && this._resourcesFindTick === Game.time) {
-	            return this._resources;
-	        }
-	        this._resources = this.find(FIND_DROPPED_RESOURCES);
-	        this._resourcesFindTick = Game.time;
-	        return this._resources;
+	        return this.find(FIND_DROPPED_RESOURCES);
 	    }
 	    get constructionSites() {
-	        let constructionSites = this.find(FIND_CONSTRUCTION_SITES);
-	        Object.defineProperty(this, "constructionSites", { value: constructionSites });
-	        return constructionSites;
+	        return this.find(FIND_CONSTRUCTION_SITES);
+	    }
+	    get creeps() {
+	        return this.find(FIND_CREEPS);
 	    }
 	    get myCreeps() {
-	        let myCreeps = this.find(FIND_MY_CREEPS);
-	        Object.defineProperty(this, "myCreeps", { value: myCreeps });
-	        return myCreeps;
+	        return this.find(FIND_MY_CREEPS);
 	    }
 	    get hostileCreeps() {
-	        let hostilesCreeps = this.find(FIND_HOSTILE_CREEPS, {
-	            filter: (creep) => {
-	                return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.hostileCreeps`, () => {
+	            return this.find(FIND_HOSTILE_CREEPS, {
+	                filter: (creep) => {
+	                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
+	                }
+	            });
 	        });
-	        Object.defineProperty(this, "hostileCreeps", { value: hostilesCreeps });
-	        return hostilesCreeps;
 	    }
 	    get friendlyCreeps() {
-	        let friendlyCreeps = this.find(FIND_HOSTILE_CREEPS, {
-	            filter: (creep) => {
-	                return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.friendlyCreeps`, () => {
+	            return this.find(FIND_HOSTILE_CREEPS, {
+	                filter: (creep) => {
+	                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+	                }
+	            });
 	        });
-	        Object.defineProperty(this, "friendlyCreeps", { value: friendlyCreeps });
-	        return friendlyCreeps;
 	    }
 	    get injuredFriendlyCreeps() {
-	        let injuredFriendlyCreeps = this.find(FIND_CREEPS, {
-	            filter: (creep) => {
-	                return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-	            }
+	        return sporeRemember_1.Remember.forTick(`${this.name}.injuredFriendlyCreeps`, () => {
+	            return this.find(FIND_CREEPS, {
+	                filter: (creep) => {
+	                    return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+	                }
+	            });
 	        });
-	        Object.defineProperty(this, "injuredFriendlyCreeps", { value: injuredFriendlyCreeps });
-	        return injuredFriendlyCreeps;
+	    }
+	    get sourceKeepers() {
+	        return sporeRemember_1.Remember.forTick(`${this.name}.sourceKeepers`, () => {
+	            return this.find(FIND_CREEPS, {
+	                filter: (creep) => {
+	                    return creep.owner.username === "Source Keeper";
+	                }
+	            });
+	        });
+	    }
+	    get invaders() {
+	        return sporeRemember_1.Remember.forTick(`${this.name}.invaders`, () => {
+	            return this.find(FIND_CREEPS, {
+	                filter: (creep) => {
+	                    return creep.owner.username === "Invader";
+	                }
+	            });
+	        });
 	    }
 	    lookForByRadiusAt(type, location, radius, asArray) {
 	        let pos = location;
@@ -468,7 +501,7 @@ module.exports =
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Activate safe mode
 	        {
-	            if (this.controller.safeModeAvailable > 0 && this.controller.safeMode == null) {
+	            if (this.controller.safeModeAvailable > 0 && this.controller.safeMode == null && this.hostileCreeps.length > 0) {
 	                let structures = _.filter(this.structures, function (structure) {
 	                    return !!(structure.structureType !== STRUCTURE_RAMPART &&
 	                        structure.structureType !== STRUCTURE_WALL &&
@@ -491,13 +524,9 @@ module.exports =
 	                    continue;
 	                }
 	                let task = new taskHarvestEnergy_1.HarvestEnergy(screepsPtr_1.ScreepsPtr.from(source));
-	                task.priority = 1000 /* Mandatory */ + 25;
+	                task.priority = 1000 /* Mandatory */ + 25 + source.priorityModifier;
 	                if (this.isReserved) {
 	                    task.idealCreepBody = sporeCreep_1.CREEP_TYPE.REMOTE_MINER;
-	                }
-	                let spawn = source.pos.findClosestByPath(this.mySpawns, { ignoreCreeps: true });
-	                if (spawn != null) {
-	                    task.priority += Math.max(0, 150 - source.pos.findPathTo(spawn.pos, { ignoreCreeps: true }).length);
 	                }
 	                if (this.isReserved) {
 	                    task.id += 'E1N49';
@@ -519,7 +548,7 @@ module.exports =
 	                    targets.push(screepsPtr_1.ScreepsPtr.from(Game.rooms['E1N49'].storage));
 	                }
 	                let task = new taskTransferResource_1.TransferResource(targets, RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions([this.name], [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]));
-	                task.priority = 100 /* High */ + 200;
+	                task.priority = 100 /* High */ + 300;
 	                task.id = "Remote gather " + this;
 	                task.name = task.id;
 	                task.idealCreepBody = sporeCreep_1.CREEP_TYPE.REMOTE_COURIER;
@@ -530,9 +559,31 @@ module.exports =
 	                    task.capacityCap += source.energyCapacity;
 	                }
 	                tasks.push(task);
-	                let defendTask = new taskDefendRoom_1.DefendRoom(this.name);
-	                defendTask.roomName = 'E1N49';
-	                tasks.push(defendTask);
+	                if (this.energyHarvestedSinceLastInvasion > 70000 || this.invaders.length > 0) {
+	                    let defendTask = new taskDefendRoom_1.DefendRoom(this.name);
+	                    defendTask.roomName = 'E1N49';
+	                    tasks.push(defendTask);
+	                }
+	            }
+	            if (this.invaders.length > 0) {
+	                if (this.energyHarvestedSinceLastInvasion > 500) {
+	                    let hasDefender = false;
+	                    for (let creep of this.myCreeps) {
+	                        if (creep.type === sporeCreep_1.CREEP_TYPE.REMOTE_DEFENDER.name) {
+	                            hasDefender = true;
+	                            break;
+	                        }
+	                    }
+	                    if (!hasDefender) {
+	                        console.log('Invasion has occurred with no REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion);
+	                        Game.notify('[' + this.name + '] Invasion has occurred with no REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion, 10);
+	                    }
+	                    else {
+	                        console.log('Invasion has occurred while protected by a REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion);
+	                        Game.notify('[' + this.name + '] Invasion has occurred while protected by a REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion, 10);
+	                    }
+	                }
+	                this.energyHarvestedSinceLastInvasion = 0;
 	            }
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
@@ -553,7 +604,7 @@ module.exports =
 	                else {
 	                    task = new taskTransferResource_1.TransferResource(transferTargets, RESOURCE_ENERGY, null, new sporeCreep_1.CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped'], ['source']]));
 	                }
-	                task.priority = 1000 /* Mandatory */ + 200;
+	                task.priority = 1000 /* Mandatory */ + 300;
 	                task.id = "Fill Spawns and Extensions " + this;
 	                task.name = task.id;
 	                //task.capacityCap = this.energyCapacityAvailable;
@@ -614,15 +665,39 @@ module.exports =
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Manage Ramparts
 	        {
-	            this.ramparts.forEach(x => {
-	                let site = x.pos.lookFor(LOOK_CONSTRUCTION_SITES);
-	                if (site == null || site.length === 0) {
-	                    x.setPublic(x.pos.findInRange(this.hostileCreeps, 2).length === 0);
+	            if (this.hostileCreeps.length > 0 || this.friendlyCreeps.length > 0) {
+	                if (this.hostileCreeps.length > 5) {
+	                    for (let rampart of this.ramparts) {
+	                        rampart.setPublic(false);
+	                    }
 	                }
 	                else {
-	                    x.setPublic(false);
+	                    for (let creep of this.hostileCreeps) {
+	                        let lookArea = creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep, 2, true);
+	                        for (let spot of lookArea) {
+	                            if (spot.structure != null && spot.structure.structureType === STRUCTURE_RAMPART) {
+	                                spot.structure.setPublic(false);
+	                            }
+	                        }
+	                    }
+	                    for (let creep of this.friendlyCreeps) {
+	                        let lookArea = creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep, 2, true);
+	                        for (let spot of lookArea) {
+	                            if (spot.structure != null && spot.structure.structureType === STRUCTURE_RAMPART) {
+	                                let rampart = spot.structure;
+	                                let site = rampart.pos.lookFor(LOOK_CONSTRUCTION_SITES);
+	                                if (site == null || site.length === 0) {
+	                                    rampart.setPublic(true);
+	                                }
+	                                else {
+	                                    rampart.setPublic(false);
+	                                }
+	                                rampart.setPublic(false);
+	                            }
+	                        }
+	                    }
 	                }
-	            });
+	            }
 	        }
 	        //////////////////////////////////////////////////////////////////////////////
 	        // Construction sites
@@ -730,7 +805,7 @@ module.exports =
 	    }
 	}
 	exports.SporeRoom = SporeRoom;
-	//# sourceMappingURL=sporeRoom.js.map
+
 
 /***/ },
 /* 4 */
@@ -740,7 +815,9 @@ module.exports =
 	const task_1 = __webpack_require__(5);
 	const sporeCreep_1 = __webpack_require__(7);
 	class TransferResource extends task_1.Task {
-	    constructor(targets, resourceType, source, options) {
+	    constructor(targets, resourceType, source, 
+	        //public resourcesPerTick: number, //resource per tick
+	        options) {
 	        super(false);
 	        this.targets = targets;
 	        this.resourceType = resourceType;
@@ -769,6 +846,36 @@ module.exports =
 	        }
 	        this.name = "Transfer " + resourceType + " to " + targets.length + " objects";
 	        this.near = source;
+	        // this.toDropOff = this.colony.pathFinder.findPathTo(this.source, targets[0], new SporePathOptions(
+	        //     [
+	        //         { id: 'structures', cost: 255 },
+	        //         { id: 'roads', cost: 1 },
+	        //         { id: 'creeps', cost: 255 }
+	        //     ],
+	        //     { id: this.id + ':toStore', ticks: 5 }
+	        // ));
+	        //
+	        // this.toPickUp = this.colony.pathFinder.findPathTo(targets[0], this.source, new SporePathOptions(
+	        //     [
+	        //         { id: 'structures', cost: 255 },
+	        //         { id: 'roads', cost: 1 },
+	        //         { id: 'creeps', cost: 255 }
+	        //     ],
+	        //     { id: this.id + ':toPickup', ticks: 5 }
+	        // ));
+	        // let distance = 0;
+	        // let ticksPerTripToTarget = 0;
+	        // let ticksPerTripToStore = 0;
+	        // let maxCarryPerCreep = 0;
+	        //
+	        // if (targets.length === 0)
+	        // {
+	        //     distance = targets[0].pos.findDistanceByPathTo(this.source);
+	        // }
+	        //
+	        // let carryRequiredPerRoundTrip = (((ticksPerTripToTarget + ticksPerTripToStore) * this.resourcesPerTick) / CARRY_CAPACITY);
+	        // let numberOfCreepsRequired = Math.ceil(carryRequiredPerRoundTrip / maxCarryPerCreep);
+	        // let carryPerCreep = carryRequiredPerRoundTrip / numberOfCreepsRequired;
 	    }
 	    calculateRequirements() {
 	        this.needsResources.length = 0;
@@ -831,7 +938,7 @@ module.exports =
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
-	            if (object.carryCount === object.carryCapacity && object.carry[this.resourceType] === 0) {
+	            if (object.carry[this.resourceType] === 0 && object.carryCount === object.carryCapacity) {
 	                return 0;
 	            }
 	            if (object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
@@ -992,7 +1099,7 @@ module.exports =
 	    }
 	}
 	exports.TransferResource = TransferResource;
-	//# sourceMappingURL=taskTransferResource.js.map
+
 
 /***/ },
 /* 5 */
@@ -1047,7 +1154,7 @@ module.exports =
 	                spawnDistanceFromNear = (new RoomPosition(spawn.pos.x, spawn.pos.y - 1, spawn.pos.roomName)).findDistanceByPathTo(near, { ignoreCreeps: true });
 	            }
 	            else {
-	                spawnDistanceFromNear = Map.getRoomLinearDistance(spawn.pos.roomName, near.pos.roomName) * 50;
+	                spawnDistanceFromNear = Game.map.getRoomLinearDistance(spawn.pos.roomName, near.pos.roomName) * 50;
 	            }
 	        }
 	        if (spawnDistanceFromNear < 250) {
@@ -1125,7 +1232,7 @@ module.exports =
 	    }
 	}
 	exports.Task = Task;
-	//# sourceMappingURL=task.js.map
+
 
 /***/ },
 /* 6 */
@@ -1153,18 +1260,19 @@ module.exports =
 	    }
 	}
 	exports.SpawnAppointment = SpawnAppointment;
-	//# sourceMappingURL=spawnRequest.js.map
+
 
 /***/ },
 /* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
 	const task_1 = __webpack_require__(5);
 	const sporeClaimable_1 = __webpack_require__(8);
 	const bodyDefinition_1 = __webpack_require__(9);
 	const spawnRequest_1 = __webpack_require__(6);
+	const sporePathFinder_1 = __webpack_require__(10);
+	const sporeRemember_1 = __webpack_require__(13);
 	class CollectOptions {
 	    constructor(roomNames, storePriorities) {
 	        this.roomNames = roomNames;
@@ -1172,6 +1280,111 @@ module.exports =
 	    }
 	}
 	exports.CollectOptions = CollectOptions;
+	class SporeCreepMovement {
+	    constructor(memory) {
+	        this.memory = memory;
+	    }
+	    get improv() {
+	        if (this._improv != null) {
+	            return this._improv;
+	        }
+	        if (this.memory.improv != null) {
+	            this._improv = new sporePathFinder_1.SporePath(this.memory.improv);
+	        }
+	        return this._improv;
+	    }
+	    set improv(value) {
+	        if (value == null) {
+	            if (this.memory.improv != null) {
+	                this._improv = null;
+	                this.memory.improv = null;
+	                this.mergeIndex = -1;
+	                this.pathIndex = -1;
+	                this.expectedPosition = null;
+	                this.failedMoveAttempts = 0;
+	            }
+	        }
+	        else if ((this._improv == null && value != null) || (this._improv != null && !this._improv.isEqualTo(value))) {
+	            this._improv = value;
+	            this.memory.improv = this._improv.serialize();
+	            this.mergeIndex = -1;
+	            this.expectedPosition = null;
+	            this.failedMoveAttempts = 0;
+	        }
+	    }
+	    get mergeIndex() {
+	        return this.memory.mergeIndex;
+	    }
+	    set mergeIndex(value) {
+	        this.memory.mergeIndex = value;
+	    }
+	    get path() {
+	        if (this._path != null) {
+	            return this._path;
+	        }
+	        if (this.memory.path != null) {
+	            this._path = new sporePathFinder_1.SporePath(this.memory.path);
+	        }
+	        return this._path;
+	    }
+	    set path(value) {
+	        if (value == null) {
+	            if (this.memory.path != null) {
+	                this._path = null;
+	                this.memory.path = null;
+	                this.pathIndex = -1;
+	                this.expectedPosition = null;
+	                this.failedMoveAttempts = 0;
+	                this.improv = null;
+	            }
+	        }
+	        else if ((this._path == null && value != null) || (this._path != null && !this._path.isEqualTo(value))) {
+	            this._path = value;
+	            this.memory.path = this._path.serialize();
+	            this.pathIndex = -1;
+	            this.expectedPosition = null;
+	            this.failedMoveAttempts = 0;
+	            this.improv = null;
+	        }
+	    }
+	    get pathIndex() {
+	        if (this.memory.pathIndex == null || (this.memory.path == null && this.memory.improv == null)) {
+	            this.memory.pathIndex = -1;
+	        }
+	        return this.memory.pathIndex;
+	    }
+	    set pathIndex(value) {
+	        this.memory.pathIndex = value;
+	    }
+	    get expectedPosition() {
+	        if (this._expectedPosition != null) {
+	            return this._expectedPosition;
+	        }
+	        if (this.memory.expectedPosRoomName != null) {
+	            this._expectedPosition = new RoomPosition(this.memory.expectedPosX, this.memory.expectedPosY, this.memory.expectedPosRoomName);
+	        }
+	        return this._expectedPosition;
+	    }
+	    set expectedPosition(value) {
+	        if (value != null) {
+	            this.memory.expectedPosRoomName = value.roomName;
+	            this.memory.expectedPosX = value.x;
+	            this.memory.expectedPosY = value.y;
+	        }
+	        else {
+	            this.memory.expectedPosRoomName = null;
+	            this.memory.expectedPosX = null;
+	            this.memory.expectedPosY = null;
+	        }
+	    }
+	    get failedMoveAttempts() {
+	        return this.memory.failedMoveAttempts;
+	    }
+	    set failedMoveAttempts(value) {
+	        this.memory.failedMoveAttempts = value;
+	    }
+	}
+	exports.SporeCreepMovement = SporeCreepMovement;
 	exports.ACTION_TRANSFER = "transfer";
 	exports.ACTION_RECYCLE = "recycle";
 	exports.ACTION_COLLECT = "collect";
@@ -1203,7 +1416,7 @@ module.exports =
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 12, 1, 1));
 	exports.CREEP_TYPE.COURIER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('REMOTE_COURIER');
-	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 8, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 9, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CARRY, 16, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(WORK, 1, 1, 1));
 	exports.CREEP_TYPE.REMOTE_COURIER = bodyDefinition;
@@ -1222,7 +1435,7 @@ module.exports =
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 1, 1, 1));
 	exports.CREEP_TYPE.WIRE = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('RESERVER');
-	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 4, 1, 1));
+	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(MOVE, 2, 1, 1));
 	bodyDefinition.requirements.push(new bodyDefinition_1.BodyPartRequirements(CLAIM, 2, 1, 1));
 	exports.CREEP_TYPE.RESERVER = bodyDefinition;
 	var bodyDefinition = new bodyDefinition_1.BodyDefinition('CLAIMER');
@@ -1319,6 +1532,9 @@ module.exports =
 	    }
 	    get type() {
 	        return this.memory.type;
+	    }
+	    get speed() {
+	        return this.memory.speed;
 	    }
 	    get spawnRequest() {
 	        if (this._spawnRequest != null) {
@@ -1477,46 +1693,255 @@ module.exports =
 	            memory.actionTarget = value;
 	        }
 	    }
-	    goMoveTo(target) {
-	        if (target.pos == null) {
-	            return task_1.ERR_NO_WORK;
-	        }
-	        // this.room.findPath(this.pos, target.pos, {
-	        //     costCallback: function(roomName, costMatrix) {
-	        //
-	        //     }
-	        // });
-	        let code = this.moveTo(target.pos, { noPathFinding: true });
-	        // Perform pathfinding only if we have enough CPU
-	        if (code == ERR_NOT_FOUND && Game.cpu.tickLimit - Game.cpu.getUsed() > 20) {
-	            code = this.moveTo(target.pos);
-	        }
-	        if (this.doTrack) {
-	            console.log(this + " goMoveTo " + code);
-	        }
-	        if (code == OK ||
-	            code == ERR_TIRED) {
+	    get movement() {
+	        return sporeRemember_1.Remember.forTick(`${this.id}.movement`, () => {
+	            let memory = this.memory;
+	            if (memory.movement == null) {
+	                memory.movement = {};
+	            }
+	            this._movement = new SporeCreepMovement(memory.movement);
+	            return this._movement;
+	        });
+	    }
+	    goMoveTo(target, navigation) {
+	        // if this creep can't move right now then just early out
+	        if (this.fatigue > 0) {
 	            this.action = exports.ACTION_MOVE;
 	            this.actionTarget = target.toString();
 	            return OK;
 	        }
+	        let destination = target;
+	        if (target.pos != null) {
+	            destination = target.pos;
+	        }
+	        // if an invalid destination was provided then error out
+	        if (destination == null) {
+	            return task_1.ERR_NO_WORK;
+	        }
+	        if (navigation == null) {
+	            navigation = {};
+	        }
+	        // default to a range of 1 if it wasn't specified
+	        if (navigation.range == null) {
+	            navigation.range = 1;
+	        }
+	        // default to a direction of FORWARD if it wasn't specified
+	        if (navigation.direction == null) {
+	            navigation.direction = sporePathFinder_1.FORWARD;
+	        }
+	        // check to see if the creep is already in range of the target
+	        if (this.pos.inRangeTo(destination, navigation.range)) {
+	            this.action = exports.ACTION_MOVE;
+	            this.actionTarget = target.toString();
+	            return OK;
+	        }
+	        if (navigation.path != null) {
+	            // setting a different path will also invalidate any current improv path
+	            // but no changes will occur if the path is identical
+	            this.movement.path = navigation.path;
+	        }
+	        else {
+	            // clear out any previous explicit path
+	            this.movement.path = null;
+	        }
+	        let currentPath = this.movement.improv;
+	        if (currentPath == null) {
+	            currentPath = this.movement.path;
+	        }
+	        // if the current paths don't lead to the destination...
+	        if (currentPath != null && !currentPath.leadsTo(destination, navigation.direction, navigation.range)) {
+	            // then clear them so we can get new ones
+	            this.movement.path = null;
+	            this.movement.improv = null;
+	            // if an explicit path had been provided...
+	            if (navigation.path != null) {
+	                // then they've provided the wrong path
+	                console.log("ERROR: Attempted to move to '" + target + "' but provided an explicit path to a different location. ");
+	                return task_1.ERR_CANNOT_PERFORM_TASK;
+	            }
+	        }
+	        // if the creep is not on a valid path to the destination...
+	        if (this.movement.pathIndex === -1) {
+	            // if we've already spent all our path finding CPU...
+	            if (this.colony.cpuSpentPathing > this.colony.pathingCpuLimit) {
+	                // then early out
+	                this.action = exports.ACTION_MOVE;
+	                this.actionTarget = target.toString();
+	                return OK;
+	            }
+	            // create a new path to the destination
+	            if (this.movement.path != null) {
+	                // since the creep is not on the explicit path we need to create an improv path to get it there
+	                let position = this.movement.path.findLastPositionInRoom(this.pos.roomName, navigation.direction);
+	                let explicitPathPositions = this.movement.path.getPositions(this.pos.roomName);
+	                let options = new sporePathFinder_1.SporePathOptions([]);
+	                let creepCost = 4;
+	                if (this.speed >= 5) {
+	                    // this creep moves full speed on swamp
+	                    options.plainCost = 2;
+	                    options.swampCost = 2;
+	                    options.costs.push({ id: 'path', cost: 1, targets: explicitPathPositions });
+	                }
+	                else if (this.speed >= 1) {
+	                    // this creep moves full speed off-road
+	                    options.plainCost = 2;
+	                    options.swampCost = 10;
+	                    creepCost = 20;
+	                    options.costs.push({ id: 'path', cost: 1, targets: explicitPathPositions });
+	                }
+	                else {
+	                    // this creep moves slowly off-road
+	                    options.plainCost = 4;
+	                    options.swampCost = 20;
+	                    creepCost = 40;
+	                    options.costs.push({ id: 'path', cost: 1, targets: explicitPathPositions });
+	                    options.costs.push({ id: 'roads', cost: 2 });
+	                }
+	                options.costs.push({ id: 'creeps', cost: creepCost });
+	                options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
+	                options.costs.push({ id: 'friendlySites', cost: 255 });
+	                this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: position, range: 0 }, options);
+	                if (this.movement.improv != null) {
+	                    // crop the improv path to where it first merges with the ideal path
+	                    let intersection = this.movement.path.findIntersectionWith(this.movement.improv);
+	                    if (intersection != null) {
+	                        this.movement.improv.setIndexAsDestination(intersection.otherIndex);
+	                        this.movement.mergeIndex = intersection.baseIndex;
+	                        this.movement.pathIndex = 0;
+	                    }
+	                }
+	            }
+	            else {
+	                let options = new sporePathFinder_1.SporePathOptions([]);
+	                let creepCost = 4;
+	                if (this.speed >= 5) {
+	                    // this creep moves full speed on swamp
+	                    options.plainCost = 1;
+	                    options.swampCost = 1;
+	                    creepCost = 2;
+	                }
+	                else if (this.speed >= 1) {
+	                    // this creep moves full speed off-road
+	                    //options.plainCost = 1;
+	                    //options.swampCost = 5;
+	                    creepCost = 10;
+	                }
+	                else {
+	                    // this creep moves slowly off-road
+	                    options.plainCost = 2;
+	                    options.swampCost = 10;
+	                    creepCost = 20;
+	                    options.costs.push({ id: 'roads', cost: 1 });
+	                }
+	                options.costs.push({ id: 'creeps', cost: creepCost });
+	                options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
+	                options.costs.push({ id: 'friendlySites', cost: 255 });
+	                this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: destination, range: navigation.range }, options);
+	                this.movement.pathIndex = 0;
+	            }
+	            this.room.visual.text('\u{1F463}', this.pos);
+	        }
+	        currentPath = this.movement.improv;
+	        if (currentPath == null) {
+	            currentPath = this.movement.path;
+	        }
+	        // if we still don't have a valid path at this point then the destination must be unreachable
+	        if (currentPath == null) {
+	            //@todo check for incomplete paths?
+	            return task_1.ERR_NO_WORK;
+	        }
+	        // check whether the last requested move was successful
+	        if (this.movement.expectedPosition != null) {
+	            if (this.movement.expectedPosition.isEqualTo(this.pos)) {
+	                this.movement.expectedPosition = null;
+	                this.movement.pathIndex++;
+	                this.movement.failedMoveAttempts = 0;
+	            }
+	            else {
+	                this.movement.expectedPosition = null;
+	                this.movement.failedMoveAttempts++;
+	            }
+	        }
+	        let visualXOffset = 0.01;
+	        let visualYOffset = 0.18;
+	        let style = { size: 0.45 };
+	        if (this.movement.failedMoveAttempts > 0) {
+	            if (this.movement.failedMoveAttempts === 1) {
+	                let structures = this.room.lookForAt(LOOK_STRUCTURES, this.movement.expectedPosition);
+	                for (let structure of structures) {
+	                    if (_.includes(OBSTACLE_OBJECT_TYPES, structure.structureType)) {
+	                        if (this.movement.path != null) {
+	                            this.movement.path.needsUpdated = true;
+	                        }
+	                        console.log('/////////////// UNEXPECTED STRUCTURE IN PATH: ' + this.movement.improv);
+	                        this.movement.improv = null;
+	                        this.room.visual.text('\u{1F632}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+	                        console.log('/////////////// UNEXPECTED STRUCTURE IN PATH: ' + structure);
+	                        this.action = exports.ACTION_MOVE;
+	                        this.actionTarget = target.toString();
+	                        return OK;
+	                    }
+	                }
+	                this.room.visual.text('\u{1F612}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+	            }
+	            else if (this.movement.failedMoveAttempts === 2) {
+	                this.room.visual.text('\u{1F612}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+	            }
+	            else if (this.movement.failedMoveAttempts === 3) {
+	                this.room.visual.text('\u{1F623}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+	            }
+	            else if (this.movement.failedMoveAttempts === 4) {
+	                this.room.visual.text('\u{1F620}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+	            }
+	            else if (this.movement.failedMoveAttempts >= 5) {
+	                if (this.movement.path != null) {
+	                    this.movement.path.needsUpdated = true;
+	                }
+	                this.movement.improv = null;
+	                this.room.visual.text('\u{1F621}', this.pos.x + visualXOffset, this.pos.y + visualYOffset, style);
+	                this.action = exports.ACTION_MOVE;
+	                this.actionTarget = target.toString();
+	                return OK;
+	            }
+	        }
+	        let nextDirection = currentPath.getNextMove(this.movement.pathIndex);
+	        if (nextDirection <= 0) {
+	            if (this.movement.improv != null && this.movement.mergeIndex >= 0) {
+	                this.movement.improv = null;
+	                this.movement.pathIndex = this.movement.mergeIndex;
+	                this.movement.mergeIndex = -1;
+	            }
+	            else {
+	                console.log("ERROR: Attempted to move to '" + target + "' but encountered an unexpected end to that path. ");
+	            }
+	        }
+	        let code = this.move(nextDirection);
+	        if (this.doTrack) {
+	            console.log(this + " goMoveTo " + code);
+	        }
+	        if (code == OK) {
+	            this.movement.expectedPosition = sporePathFinder_1.SporePathFinder.getNextPositionByDirection(this.pos, nextDirection);
+	            this.action = exports.ACTION_MOVE;
+	            this.actionTarget = target.toString();
+	            return OK;
+	        }
+	        this.movement.expectedPosition = null;
 	        if (code == ERR_INVALID_TARGET) {
 	            return task_1.ERR_NO_WORK;
 	        }
-	        // ERR_NO_PATH
-	        // ERR_NO_BODYPART
-	        // ERR_BUSY
-	        // ERR_NOT_OWNER
+	        // ERR_NOT_OWNER	-1	You are not the owner of this creep.
+	        // ERR_BUSY	-4	The creep is still being spawned.
+	        // ERR_NO_BODYPART	-12	There are no MOVE body parts in this creep’s body.
 	        console.log("ERROR: Attempted to move to '" + target + "' but encountered unknown error. " + code);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goHarvest(source) {
+	    goHarvest(source, navigation) {
 	        if (!source.isValid) {
 	            return ERR_INVALID_TARGET;
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (source.isShrouded) {
-	            code = this.goMoveTo(source);
+	            code = this.goMoveTo(source, navigation);
 	        }
 	        else {
 	            let claimReceipt = source.instance.makeClaim(this, RESOURCE_ENERGY, this.carryCapacityRemaining, this.carryCapacityRemaining, true);
@@ -1531,7 +1956,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                code = this.goMoveTo(claimReceipt.target);
+	                code = this.goMoveTo(claimReceipt.target, navigation);
 	            }
 	        }
 	        if (code === OK) {
@@ -1544,13 +1969,13 @@ module.exports =
 	        console.log("ERROR: Attempted to harvest '" + source + "' but encountered unknown error. " + code);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goTransfer(resourceType, target) {
+	    goTransfer(resourceType, target, navigation) {
 	        if (!target.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (target.isShrouded) {
-	            code = this.goMoveTo(target);
+	            code = this.goMoveTo(target, navigation);
 	        }
 	        else {
 	            code = this.transfer(target.instance, resourceType);
@@ -1560,7 +1985,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code == ERR_NOT_IN_RANGE) {
-	                return this.goMoveTo(target);
+	                return this.goMoveTo(target, navigation);
 	            }
 	        }
 	        if (this.doTrack) {
@@ -1592,7 +2017,7 @@ module.exports =
 	        console.log("ERROR: Attempted to transfer '" + resourceType + "' to '" + target + "' but encountered unknown error. " + code);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goBuild(site) {
+	    goBuild(site, navigation) {
 	        if (!site.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
@@ -1601,7 +2026,7 @@ module.exports =
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (site.isShrouded) {
-	            code = this.goMoveTo(site);
+	            code = this.goMoveTo(site, navigation);
 	        }
 	        else {
 	            code = this.build(site.instance);
@@ -1611,7 +2036,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                code = this.goMoveTo(site);
+	                code = this.goMoveTo(site, navigation);
 	            }
 	        }
 	        if (code === OK) {
@@ -1627,7 +2052,7 @@ module.exports =
 	        // ERR_NO_BODYPART
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goDismantle(structure) {
+	    goDismantle(structure, navigation) {
 	        if (!structure.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
@@ -1639,7 +2064,7 @@ module.exports =
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (structure.isShrouded) {
-	            code = this.goMoveTo(structure);
+	            code = this.goMoveTo(structure, navigation);
 	        }
 	        else {
 	            structure.instance.notifyWhenAttacked(false);
@@ -1661,7 +2086,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                code = this.goMoveTo(structure);
+	                code = this.goMoveTo(structure, navigation);
 	                if (canRangeAttack) {
 	                    this.rangedAttack(structure.instance);
 	                }
@@ -1678,13 +2103,13 @@ module.exports =
 	        // ERR_NO_BODYPART
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goRepair(structure) {
+	    goRepair(structure, navigation) {
 	        if (!structure.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (structure.isShrouded) {
-	            code = this.goMoveTo(structure);
+	            code = this.goMoveTo(structure, navigation);
 	        }
 	        else {
 	            code = this.repair(structure.instance);
@@ -1694,7 +2119,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                return this.goMoveTo(structure);
+	                return this.goMoveTo(structure, navigation);
 	            }
 	        }
 	        if (code === OK) {
@@ -1706,7 +2131,7 @@ module.exports =
 	        console.log("Creep " + this.name + " goRepair error code: " + code);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goCollect(resourceType, amount, minAmount, isExtended, near, options, excludes) {
+	    goCollect(resourceType, amount, minAmount, isExtended, near, options, excludes, navigation) {
 	        if (this.action != exports.ACTION_COLLECT && this.action != exports.ACTION_MOVE) {
 	            this.claimReceipt = null;
 	        }
@@ -1722,7 +2147,7 @@ module.exports =
 	            return OK;
 	        }
 	        if (code === ERR_NOT_IN_RANGE) {
-	            code = this.goMoveTo(claimReceipt.target);
+	            code = this.goMoveTo(claimReceipt.target, navigation);
 	        }
 	        if (code === OK) {
 	            return OK;
@@ -1735,13 +2160,13 @@ module.exports =
 	        console.log(code);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goUpgrade(controller) {
+	    goUpgrade(controller, navigation) {
 	        if (!controller.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (controller.isShrouded) {
-	            code = this.goMoveTo(controller);
+	            code = this.goMoveTo(controller, navigation);
 	        }
 	        else {
 	            code = this.upgradeController(controller.instance);
@@ -1752,7 +2177,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                return this.goMoveTo(controller);
+	                return this.goMoveTo(controller, navigation);
 	            }
 	        }
 	        if (code === OK) {
@@ -1761,13 +2186,13 @@ module.exports =
 	        console.log("goUpgrade error code: " + code + " " + this);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goReserve(controller) {
+	    goReserve(controller, navigation) {
 	        if (!controller.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (controller.isShrouded) {
-	            code = this.goMoveTo(controller);
+	            code = this.goMoveTo(controller, navigation);
 	        }
 	        else {
 	            code = this.reserveController(controller.instance);
@@ -1778,7 +2203,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                return this.goMoveTo(controller);
+	                return this.goMoveTo(controller, navigation);
 	            }
 	        }
 	        if (code === OK) {
@@ -1787,13 +2212,13 @@ module.exports =
 	        console.log("goReserve error code: " + code + " " + this);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goClaim(controller) {
+	    goClaim(controller, navigation) {
 	        if (!controller.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (controller.isShrouded) {
-	            code = this.goMoveTo(controller);
+	            code = this.goMoveTo(controller, navigation);
 	        }
 	        else {
 	            code = this.claimController(controller.instance);
@@ -1804,7 +2229,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                return this.goMoveTo(controller);
+	                return this.goMoveTo(controller, navigation);
 	            }
 	        }
 	        if (code === OK) {
@@ -1813,13 +2238,13 @@ module.exports =
 	        console.log("goClaim error code: " + code + " " + this);
 	        return task_1.ERR_CANNOT_PERFORM_TASK;
 	    }
-	    goRecycle(spawn) {
+	    goRecycle(spawn, navigation) {
 	        if (!spawn.isValid) {
 	            return task_1.ERR_NO_WORK;
 	        }
 	        let code = task_1.ERR_NO_WORK;
 	        if (spawn.isShrouded) {
-	            code = this.goMoveTo(spawn);
+	            code = this.goMoveTo(spawn, navigation);
 	        }
 	        else {
 	            code = spawn.instance.recycleCreep(this);
@@ -1830,7 +2255,7 @@ module.exports =
 	                return OK;
 	            }
 	            else if (code === ERR_NOT_IN_RANGE) {
-	                return this.goMoveTo(spawn);
+	                return this.goMoveTo(spawn, navigation);
 	            }
 	        }
 	        if (code === OK) {
@@ -1841,7 +2266,7 @@ module.exports =
 	    }
 	}
 	exports.SporeCreep = SporeCreep;
-	//# sourceMappingURL=sporeCreep.js.map
+
 
 /***/ },
 /* 8 */
@@ -1857,7 +2282,7 @@ module.exports =
 	    }
 	}
 	exports.ClaimReceipt = ClaimReceipt;
-	//# sourceMappingURL=sporeClaimable.js.map
+
 
 /***/ },
 /* 9 */
@@ -1888,13 +2313,704 @@ module.exports =
 	    }
 	}
 	exports.BodyPartRequirements = BodyPartRequirements;
-	//# sourceMappingURL=bodyDefinition.js.map
+
 
 /***/ },
 /* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
+	"use strict";
+	const sporeCostMatrix_1 = __webpack_require__(11);
+	const sporeRoomPosition_1 = __webpack_require__(12);
+	class SporePathOptions {
+	    constructor(costs, persist) {
+	        this.costs = costs;
+	        this.persist = persist;
+	        this.plainCost = 1;
+	        this.swampCost = 5;
+	        this.maxRooms = 16;
+	        this.maxOps = 2000;
+	    }
+	}
+	SporePathOptions.Default = new SporePathOptions([], null);
+	exports.SporePathOptions = SporePathOptions;
+	class SporePath {
+	    constructor(memory) {
+	        this.memory = memory;
+	        if (memory.rooms == null) {
+	            this._cacheRoomBoundaries();
+	        }
+	    }
+	    get ops() {
+	        return this.memory.ops;
+	    }
+	    get cost() {
+	        return this.memory.cost;
+	    }
+	    get incomplete() {
+	        return this.memory.incomplete === true;
+	    }
+	    get needsUpdated() {
+	        return this.memory.needsUpdated;
+	    }
+	    set needsUpdated(value) {
+	        this.memory.needsUpdated = value;
+	    }
+	    get start() {
+	        if (this._start != null) {
+	            return this._start;
+	        }
+	        this._start = sporeRoomPosition_1.SporeRoomPosition.deserialize(this.memory.start);
+	        return this._start;
+	    }
+	    get end() {
+	        if (this._end != null) {
+	            return this._end;
+	        }
+	        this._end = sporeRoomPosition_1.SporeRoomPosition.deserialize(this.memory.end);
+	        return this._end;
+	    }
+	    getNextMove(index) {
+	        if (index >= 0 && index < this.memory.directions.length) {
+	            return +(this.memory.directions[index]);
+	        }
+	        return 0;
+	    }
+	    getPositions(roomName) {
+	        if (this._positions != null) {
+	            return _.filter(this._positions, { 'roomName': roomName });
+	        }
+	        if (this.memory.rooms[roomName] == null) {
+	            return [];
+	        }
+	        let result = [];
+	        let lastRoomPosition = sporeRoomPosition_1.SporeRoomPosition.deserialize(this.memory.rooms[roomName].entrance);
+	        let index = this.memory.rooms[roomName].entranceIndex;
+	        for (; index < this.memory.directions.length; ++index) {
+	            result.push(lastRoomPosition);
+	            let direction = +this.memory.directions[index];
+	            lastRoomPosition = SporePathFinder.getNextPositionByDirection(lastRoomPosition, direction);
+	        }
+	        result.push(lastRoomPosition);
+	        return result;
+	    }
+	    findLastPositionInRoom(roomName, direction) {
+	        if (direction === exports.FORWARD) {
+	            if (this.memory.rooms[roomName].exit == null) {
+	                if (this.end.roomName === roomName) {
+	                    return this.end;
+	                }
+	                else {
+	                    return null;
+	                }
+	            }
+	            return sporeRoomPosition_1.SporeRoomPosition.deserialize(this.memory.rooms[roomName].exit);
+	        }
+	        else if (direction === exports.REVERSE) {
+	            if (this.memory.rooms[roomName].entrance == null) {
+	                if (this.start.roomName === roomName) {
+	                    return this.start;
+	                }
+	                else {
+	                    return null;
+	                }
+	            }
+	            return sporeRoomPosition_1.SporeRoomPosition.deserialize(this.memory.rooms[roomName].entrance);
+	        }
+	        return null;
+	    }
+	    getSubPath(roomName) {
+	        let startIndex = this.memory.rooms[roomName].entranceIndex;
+	        let start = this.memory.rooms[roomName].entrance;
+	        if (start == null) {
+	            startIndex = 0;
+	            start = this.memory.start;
+	        }
+	        let endIndex = this.memory.rooms[roomName].exitIndex;
+	        let end = this.memory.rooms[roomName].exit;
+	        if (end == null) {
+	            endIndex = this.memory.directions.length;
+	            end = this.memory.end;
+	        }
+	        let directions = this.memory.directions.substring(startIndex, endIndex);
+	        return new SporePath({
+	            ops: -1,
+	            cost: -1,
+	            start: start,
+	            end: end,
+	            directions: directions,
+	            rooms: {},
+	            tickCalculated: this.memory.tickCalculated,
+	            tickLifespan: this.memory.tickLifespan,
+	            needsUpdated: false
+	        });
+	    }
+	    findIntersectionWith(other) {
+	        //@todo make this faster?
+	        let lastRoomPosition = other.start;
+	        for (let otherIndex = 0; otherIndex < other.memory.directions.length; ++otherIndex) {
+	            let direction = +this.memory.directions[otherIndex];
+	            lastRoomPosition = SporePathFinder.getNextPositionByDirection(lastRoomPosition, direction);
+	            let baseIndex = this._getIndexOnPath(lastRoomPosition);
+	            if (baseIndex >= 0) {
+	                return { baseIndex: baseIndex, otherIndex: otherIndex };
+	            }
+	        }
+	        return null;
+	    }
+	    _getIndexOnPath(pos) {
+	        if (this._positionsMap == null) {
+	            this._positionsMap = {};
+	            let lastRoomPosition = this.start;
+	            for (let index = 0; index < this.memory.directions.length; ++index) {
+	                this._cachePositionToMap(lastRoomPosition, index);
+	                let direction = +this.memory.directions[index];
+	                lastRoomPosition = SporePathFinder.getNextPositionByDirection(lastRoomPosition, direction);
+	            }
+	            this._cachePositionToMap(lastRoomPosition, this.memory.directions.length);
+	        }
+	        let map = this._positionsMap[pos.x];
+	        if (map == null) {
+	            return -1;
+	        }
+	        map = map[pos.y];
+	        if (map == null) {
+	            return -1;
+	        }
+	        map = map[pos.roomName];
+	        if (map == null) {
+	            return -1;
+	        }
+	        return map;
+	    }
+	    _cachePositionToMap(pos, index) {
+	        let x = this._positionsMap[pos.x];
+	        if (x == null) {
+	            let roomName = {};
+	            roomName[pos.roomName] = index;
+	            this._positionsMap[pos.x] = { [pos.y]: roomName };
+	        }
+	        let y = x[pos.y];
+	        if (y == null) {
+	            let roomName = {};
+	            roomName[pos.roomName] = index;
+	            x[pos.y] = roomName;
+	        }
+	        if (y[pos.roomName] == null) {
+	            y[pos.roomName] = index;
+	        }
+	    }
+	    _cacheRoomBoundaries() {
+	        this.memory.rooms = {};
+	        // assuming that a creep won't walk along the room edge
+	        // we can then assume any position at 0 or 50 is an entrance or exit
+	        let lastRoomPosition = this.start;
+	        for (let index = 0; index < this.memory.directions.length; ++index) {
+	            if (lastRoomPosition.x === 0 || lastRoomPosition.x === 50 ||
+	                lastRoomPosition.y === 0 || lastRoomPosition.y === 50) {
+	                if (this.memory.rooms[lastRoomPosition.roomName] == null) {
+	                    this.memory.rooms[lastRoomPosition.roomName] = {};
+	                }
+	                if (this.memory.rooms[lastRoomPosition.roomName].entrance == null) {
+	                    this.memory.rooms[lastRoomPosition.roomName].entrance = sporeRoomPosition_1.SporeRoomPosition.serialize(lastRoomPosition);
+	                    this.memory.rooms[lastRoomPosition.roomName].entranceIndex = index;
+	                }
+	                else if (this.memory.rooms[lastRoomPosition.roomName].exit == null) {
+	                    this.memory.rooms[lastRoomPosition.roomName].exit = sporeRoomPosition_1.SporeRoomPosition.serialize(lastRoomPosition);
+	                    this.memory.rooms[lastRoomPosition.roomName].exitIndex = index;
+	                }
+	                else {
+	                    console.log('///////////////////////////////// ERROR CACHING ROOM BOUNDARIES');
+	                }
+	            }
+	            let direction = +this.memory.directions[index];
+	            lastRoomPosition = SporePathFinder.getNextPositionByDirection(lastRoomPosition, direction);
+	        }
+	    }
+	    setIndexAsDestination(index) {
+	        this.memory.directions = this.memory.directions.substr(0, index);
+	        let lastRoomPosition = this.start;
+	        for (let index = 0; index < this.memory.directions.length; ++index) {
+	            this._cachePositionToMap(lastRoomPosition, index);
+	            let direction = +this.memory.directions[index];
+	            lastRoomPosition = SporePathFinder.getNextPositionByDirection(lastRoomPosition, direction);
+	        }
+	    }
+	    leadsTo(pos, direction, range) {
+	        if (direction === exports.FORWARD) {
+	            return this.end.inRangeTo(pos, range);
+	        }
+	        else if (direction === exports.REVERSE) {
+	            return this.start.inRangeTo(pos, range);
+	        }
+	        return false;
+	    }
+	    isEqualTo(other) {
+	        return !!(this.memory.start === other.memory.start &&
+	            this.memory.end === other.memory.end &&
+	            this.memory.directions === other.memory.directions);
+	    }
+	    serialize() {
+	        return this.memory;
+	    }
+	}
+	exports.SporePath = SporePath;
+	exports.NON_WALKABLE = 255;
+	exports.FORWARD = 1;
+	exports.REVERSE = -1;
+	exports.DIRECTION_OFFSETS = [];
+	exports.DIRECTION_OFFSETS.push({ x: 0, y: 0 }); // NONE
+	exports.DIRECTION_OFFSETS.push({ x: 0, y: -1 }); // TOP
+	exports.DIRECTION_OFFSETS.push({ x: 1, y: -1 }); // TOP_RIGHT
+	exports.DIRECTION_OFFSETS.push({ x: 1, y: 0 }); // RIGHT
+	exports.DIRECTION_OFFSETS.push({ x: 1, y: 1 }); // BOTTOM_RIGHT
+	exports.DIRECTION_OFFSETS.push({ x: 0, y: 1 }); // BOTTOM
+	exports.DIRECTION_OFFSETS.push({ x: -1, y: 1 }); // BOTTOM_LEFT
+	exports.DIRECTION_OFFSETS.push({ x: -1, y: 0 }); // LEFT
+	exports.DIRECTION_OFFSETS.push({ x: -1, y: -1 }); // TOP_LEFT
+	exports.OFFSETS_DIRECTION = [];
+	exports.OFFSETS_DIRECTION.push([]);
+	exports.OFFSETS_DIRECTION[0].push(TOP_LEFT);
+	exports.OFFSETS_DIRECTION[0].push(LEFT);
+	exports.OFFSETS_DIRECTION[0].push(BOTTOM_LEFT);
+	exports.OFFSETS_DIRECTION.push([]);
+	exports.OFFSETS_DIRECTION[1].push(TOP);
+	exports.OFFSETS_DIRECTION[1].push(0);
+	exports.OFFSETS_DIRECTION[1].push(BOTTOM);
+	exports.OFFSETS_DIRECTION.push([]);
+	exports.OFFSETS_DIRECTION[2].push(TOP_RIGHT);
+	exports.OFFSETS_DIRECTION[2].push(RIGHT);
+	exports.OFFSETS_DIRECTION[2].push(BOTTOM_RIGHT);
+	class SporePathFinder {
+	    constructor() {
+	        this._costMatrixCache = new sporeCostMatrix_1.SporeCostMatrixCache();
+	        this._pathCache = {};
+	        let paths = Memory.paths;
+	        if (paths == null) {
+	            Memory.paths = {};
+	            paths = Memory.paths;
+	        }
+	        let pathIds = Object.keys(paths);
+	        for (let pathId in pathIds) {
+	            let path = paths[pathId];
+	            if (path.tickLifespan >= Game.time - path.tickCalculated) {
+	                this._pathCache[pathId] = path; // we'll deserialize the path on demand
+	            }
+	            else {
+	                delete paths[pathId];
+	            }
+	        }
+	    }
+	    static serializeDirections(start, path) {
+	        if (path == null || path.length === 0) {
+	            return '';
+	        }
+	        let value = '';
+	        value += exports.OFFSETS_DIRECTION[(path[0].x - start.x) + 1][(path[0].y - start.y) + 1];
+	        for (let index = 1; index < path.length; ++index) {
+	            // 49 -> 0
+	            // 0 -> 49
+	            value += exports.OFFSETS_DIRECTION[Math.min(Math.max((path[index].x - path[index - 1].x), -1), 1) + 1][Math.min(Math.max((path[index].y - path[index - 1].y), -1), 1) + 1];
+	        }
+	        return value;
+	    }
+	    static deserializeDirections(value, start) {
+	        let path = [];
+	        if (value == null || value.length === 0) {
+	            return path;
+	        }
+	        let lastRoomPosition = start;
+	        path.push(lastRoomPosition);
+	        for (let index = 0; index < value.length; ++index) {
+	            let direction = +value[index];
+	            lastRoomPosition = SporePathFinder.getNextPositionByDirection(lastRoomPosition, direction);
+	            path.push(lastRoomPosition);
+	        }
+	        return path;
+	    }
+	    static getNextPositionByDirection(pos, direction) {
+	        let transitionedRooms = false;
+	        let offsets = exports.DIRECTION_OFFSETS[direction];
+	        let roomXOffset = 0;
+	        let roomYOffset = 0;
+	        let x = pos.x + offsets.x;
+	        let y = pos.y + offsets.y;
+	        let roomName = pos.roomName;
+	        if (x >= 49) {
+	            x = 0;
+	            ++roomXOffset;
+	            transitionedRooms = true;
+	        }
+	        else if (x <= 0) {
+	            x = 49;
+	            --roomXOffset;
+	            transitionedRooms = true;
+	        }
+	        if (y >= 49) {
+	            y = 0;
+	            ++roomYOffset;
+	            transitionedRooms = true;
+	        }
+	        else if (y <= 0) {
+	            y = 49;
+	            --roomYOffset;
+	            transitionedRooms = true;
+	        }
+	        if (transitionedRooms) {
+	            let horizontalRoomDirection = pos.roomName[0];
+	            let verticalRoomDirectionIndex = pos.roomName.indexOf('N');
+	            if (verticalRoomDirectionIndex === -1) {
+	                verticalRoomDirectionIndex = pos.roomName.indexOf('S');
+	            }
+	            let verticalRoomDirection = pos.roomName.slice(verticalRoomDirectionIndex, 1);
+	            let roomX = +pos.roomName.substring(1, verticalRoomDirectionIndex);
+	            let roomY = +pos.roomName.substring(verticalRoomDirectionIndex + 1, pos.roomName.length);
+	            if (roomX < 0) {
+	                if (horizontalRoomDirection === 'E') {
+	                    horizontalRoomDirection = 'W';
+	                }
+	                else {
+	                    horizontalRoomDirection = 'E';
+	                }
+	            }
+	            if (roomY < 0) {
+	                if (verticalRoomDirection === 'N') {
+	                    verticalRoomDirection = 'S';
+	                }
+	                else {
+	                    horizontalRoomDirection = 'N';
+	                }
+	            }
+	            roomName = horizontalRoomDirection + (roomX + roomXOffset) + verticalRoomDirection + (roomY + roomYOffset);
+	        }
+	        return new RoomPosition(x, y, roomName);
+	    }
+	    findPathTo(origin, goals, options) {
+	        if (options == null) {
+	            options = SporePathOptions.Default;
+	        }
+	        let persistId = options.persist;
+	        let persistTicks = 0;
+	        // if (options.persist != null && (<any>options.persist).id != null)
+	        // {
+	        //     persistId = (<any>options.persist).id;
+	        //     persistTicks = (<any>options.persist).ticks;
+	        // }
+	        //
+	        // if (persistId == null || persistId.length === 0)
+	        // {
+	        //     persistId = _.join(_.map(options.costs, function(cost: SporeCostMatrixOption){ return cost.id; }));
+	        //     persistTicks = 0;
+	        // }
+	        let path; // = this._pathCache[persistId];
+	        if (path != null) {
+	            return path;
+	        }
+	        console.log('//////////// New Path ');
+	        let rawPath = PathFinder.search(origin, goals, {
+	            plainCost: options.plainCost,
+	            swampCost: options.swampCost,
+	            roomCallback: function (roomName) {
+	                return this._costMatrixCache.findCostMatrix(roomName, options.costs);
+	            }.bind(this)
+	        });
+	        if (rawPath.path == null || rawPath.path.length === 0) {
+	            return null;
+	        }
+	        let pathMemory = {
+	            ops: rawPath.ops,
+	            cost: rawPath.cost,
+	            incomplete: rawPath.incomplete,
+	            start: origin.serialize(),
+	            end: rawPath.path[rawPath.path.length - 1].serialize(),
+	            directions: SporePathFinder.serializeDirections(origin, rawPath.path),
+	            rooms: {},
+	            tickCalculated: Game.time,
+	            tickLifespan: persistTicks,
+	            needsUpdated: false
+	        };
+	        path = new SporePath(pathMemory);
+	        path._positions = rawPath.path;
+	        // if (persistId != null && persistId.length > 0)
+	        // {
+	        //     this._pathCache[persistId] = path;
+	        //
+	        //     if (persistTicks > 0)
+	        //     {
+	        //         Memory.paths[persistId] = pathMemory
+	        //     }
+	        // }
+	        return path;
+	    }
+	}
+	exports.SporePathFinder = SporePathFinder;
+
+
+/***/ },
+/* 11 */
+/***/ function(module, exports) {
+
+	"use strict";
+	class SporeCostMatrixCache {
+	    constructor() {
+	        this.rootNode = new CostMatrixNode('', null);
+	    }
+	    findCostMatrix(roomName, options) {
+	        if (options == null || options.length === 0) {
+	            return null;
+	        }
+	        let room = Game.rooms[roomName];
+	        let currentNode = this.rootNode;
+	        for (let option of options) {
+	            let matchingChild = null;
+	            if (currentNode.children == null) {
+	                currentNode.children = [];
+	            }
+	            for (let node of currentNode.children) {
+	                if (node.id === option.id) {
+	                    matchingChild = node;
+	                    break;
+	                }
+	            }
+	            if (matchingChild == null) {
+	                let newCostMatrix = currentNode.value;
+	                if (newCostMatrix == null) {
+	                    newCostMatrix = new PathFinder.CostMatrix();
+	                }
+	                let targets = option.targets;
+	                if (targets == null && room != null) {
+	                    targets = room[option.id];
+	                    if (typeof targets === 'function') {
+	                        targets = targets();
+	                    }
+	                }
+	                if (targets != null) {
+	                    for (let target of targets) {
+	                        if (target instanceof RoomPosition) {
+	                            newCostMatrix.set(target.x, target.y, option.cost);
+	                        }
+	                        else {
+	                            newCostMatrix.set(target.pos.x, target.pos.y, option.cost);
+	                        }
+	                    }
+	                }
+	                console.log('//////////// New Cost Matrix: ' + option.id);
+	                let newChild = new CostMatrixNode(option.id, newCostMatrix);
+	                currentNode.children.push(newChild);
+	                matchingChild = newChild;
+	            }
+	            currentNode = matchingChild;
+	        }
+	        return currentNode.value;
+	    }
+	}
+	exports.SporeCostMatrixCache = SporeCostMatrixCache;
+	class CostMatrixNode {
+	    constructor(id, value) {
+	        this.id = id;
+	        this.value = value;
+	    }
+	}
+
+
+/***/ },
+/* 12 */
+/***/ function(module, exports) {
+
+	"use strict";
+	class SporeRoomPosition extends RoomPosition {
+	    static serialize(pos) {
+	        return pos.x + ',' + pos.y + ',' + pos.roomName;
+	    }
+	    serialize() {
+	        return this.x + ',' + this.y + ',' + this.roomName;
+	    }
+	    static deserialize(value) {
+	        let parameters = value.split(',');
+	        return new RoomPosition(+parameters[0], +parameters[1], parameters[2]);
+	    }
+	    sortByRangeTo(targets) {
+	        let cachedRange = {};
+	        targets.sort(function (a, b) {
+	            let rangeA = cachedRange[a.id];
+	            if (rangeA == null) {
+	                rangeA = this.getRangeTo(a);
+	                if (rangeA == null) {
+	                    rangeA = Game.map.getRoomLinearDistance(this.roomName, a.roomName) * 50;
+	                }
+	                cachedRange[a.id] = rangeA;
+	            }
+	            let rangeB = cachedRange[b.id];
+	            if (rangeB == null) {
+	                rangeB = this.getRangeTo(b);
+	                if (rangeB == null) {
+	                    rangeB = Game.map.getRoomLinearDistance(this.roomName, b.roomName) * 50;
+	                }
+	                cachedRange[b.id] = rangeB;
+	            }
+	            if (rangeA < rangeB) {
+	                return -1;
+	            }
+	            if (rangeA > rangeB) {
+	                return 1;
+	            }
+	            return 0;
+	        }.bind(this));
+	    }
+	    findDistanceByPathTo(other, opts) {
+	        //console.log('///////////////////// ' + this + " -> " + other);
+	        let target = other;
+	        if (!(other instanceof RoomPosition)) {
+	            target = other.pos;
+	        }
+	        let result = PathFinder.search(this, { pos: target, range: 1 });
+	        return result.path.length;
+	    }
+	    findFirstInRange(targets, range) {
+	        for (let index = 0; index < targets.length; index++) {
+	            let target = targets[index];
+	            if (this.inRangeTo(target.pos, range)) {
+	                return target;
+	            }
+	        }
+	        return null;
+	    }
+	    findClosestInRange(targets, range) {
+	        let closestTargetRange = 500;
+	        let closestTarget = null;
+	        for (let index = 0; index < targets.length; index++) {
+	            let target = targets[index];
+	            let range = this.getRangeTo(target.pos);
+	            if (range < closestTargetRange) {
+	                closestTargetRange = range;
+	                closestTarget = target;
+	            }
+	        }
+	        if (closestTargetRange <= range) {
+	            return closestTarget;
+	        }
+	        return null;
+	    }
+	    getWalkableSurroundingArea() {
+	        let availableSlots = 0;
+	        let room = Game.rooms[this.roomName];
+	        if (_.isNull(room)) {
+	            for (var xOffset = -1; xOffset < 2; xOffset++) {
+	                for (var yOffset = -1; yOffset < 2; yOffset++) {
+	                    if (xOffset == 0 && yOffset == 0) {
+	                        continue;
+	                    }
+	                    if (Game.map.getTerrainAt(this.x + xOffset, this.y + yOffset, this.roomName) != "wall") {
+	                        availableSlots++;
+	                    }
+	                }
+	            }
+	        }
+	        else {
+	            let lookResults = room.lookAtArea(this.y - 1, this.x - 1, this.y + 1, this.x + 1);
+	            for (var xOffset = -1; xOffset < 2; xOffset++) {
+	                for (var yOffset = -1; yOffset < 2; yOffset++) {
+	                    if (xOffset == 0 && yOffset == 0) {
+	                        continue;
+	                    }
+	                    let resultArray = lookResults[this.y + yOffset][this.x + xOffset];
+	                    let hasObstacle = false;
+	                    for (let result of resultArray) {
+	                        if (_.includes(OBSTACLE_OBJECT_TYPES, result[result.type])) {
+	                            hasObstacle = true;
+	                            break;
+	                        }
+	                    }
+	                    if (hasObstacle === false) {
+	                        availableSlots++;
+	                    }
+	                }
+	            }
+	        }
+	        return availableSlots;
+	    }
+	    getWalkableSurroundingAreaInRange(target, range) {
+	        let availableSlots = [];
+	        let room = Game.rooms[this.roomName];
+	        if (_.isNull(room)) {
+	            for (var xOffset = -1; xOffset < 2; xOffset++) {
+	                for (var yOffset = -1; yOffset < 2; yOffset++) {
+	                    if (xOffset == 0 && yOffset == 0) {
+	                        continue;
+	                    }
+	                    if (Game.map.getTerrainAt(this.x + xOffset, this.y + yOffset, this.roomName) != "wall") {
+	                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
+	                        if (target.inRangeTo(pos, range)) {
+	                            availableSlots.push(pos);
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	        else {
+	            let lookResults = room.lookAtArea(this.y - 1, this.x - 1, this.y + 1, this.x + 1);
+	            for (var xOffset = -1; xOffset < 2; xOffset++) {
+	                for (var yOffset = -1; yOffset < 2; yOffset++) {
+	                    if (xOffset == 0 && yOffset == 0) {
+	                        continue;
+	                    }
+	                    let resultArray = lookResults[this.y + yOffset][this.x + xOffset];
+	                    let hasObstacle = false;
+	                    for (let result of resultArray) {
+	                        if (_.includes(OBSTACLE_OBJECT_TYPES, result[result.type])) {
+	                            hasObstacle = true;
+	                            break;
+	                        }
+	                    }
+	                    if (hasObstacle === false) {
+	                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
+	                        if (target.inRangeTo(pos, range)) {
+	                            availableSlots.push(pos);
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	        return availableSlots;
+	    }
+	}
+	exports.SporeRoomPosition = SporeRoomPosition;
+
+
+/***/ },
+/* 13 */
+/***/ function(module, exports) {
+
+	"use strict";
+	class Remember {
+	    static forTick(dataPath, getter, reset) {
+	        return Remember.getData(Remember.tickData, dataPath, getter, reset);
+	    }
+	    static forever(dataPath, getter, reset) {
+	        return Remember.getData(Memory, dataPath, getter, reset);
+	    }
+	    static tick() {
+	        this.tickData = {};
+	    }
+	    static getData(obj, dataPath, getter, reset) {
+	        let pathArr = dataPath.split('.');
+	        let pathNum = pathArr.length;
+	        for (let idx = 0; idx < pathNum - 1; idx++) {
+	            let member = pathArr[idx];
+	            obj = obj[member] || (obj[member] = {});
+	        }
+	        obj = reset ? (obj[pathArr[pathNum - 1]] = getter()) : (obj[pathArr[pathNum - 1]] || (obj[pathArr[pathNum - 1]] = getter()));
+	        return obj;
+	    }
+	}
+	Remember.tickData = {};
+	exports.Remember = Remember;
+
+
+/***/ },
+/* 14 */
+/***/ function(module, exports, __webpack_require__) {
+
 	"use strict";
 	const task_1 = __webpack_require__(5);
 	const sporeCreep_1 = __webpack_require__(7);
@@ -1953,7 +3069,7 @@ module.exports =
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
-	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
+	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
 	                return 0;
 	            }
 	            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
@@ -2129,13 +3245,12 @@ module.exports =
 	    }
 	}
 	exports.UpgradeRoomController = UpgradeRoomController;
-	//# sourceMappingURL=taskUpgradeRoomController.js.map
+
 
 /***/ },
-/* 11 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const task_1 = __webpack_require__(5);
 	const sporeCreep_1 = __webpack_require__(7);
@@ -2153,7 +3268,7 @@ module.exports =
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
-	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
+	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
 	                return 0;
 	            }
 	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
@@ -2191,10 +3306,10 @@ module.exports =
 	    }
 	}
 	exports.RepairStructure = RepairStructure;
-	//# sourceMappingURL=taskRepairStructure.js.map
+
 
 /***/ },
-/* 12 */
+/* 16 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -2343,18 +3458,17 @@ module.exports =
 	    }
 	}
 	exports.ScreepsPtr = ScreepsPtr;
-	//# sourceMappingURL=screepsPtr.js.map
+
 
 /***/ },
-/* 13 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const task_1 = __webpack_require__(5);
 	const sporeCreep_1 = __webpack_require__(7);
-	const screepsPtr_1 = __webpack_require__(12);
-	const sporeSource_1 = __webpack_require__(14);
+	const screepsPtr_1 = __webpack_require__(16);
+	const sporeSource_1 = __webpack_require__(18);
 	class HarvestEnergy extends task_1.Task {
 	    constructor(source) {
 	        super(false);
@@ -2374,7 +3488,7 @@ module.exports =
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
-	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
+	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
 	                return 0;
 	            }
 	            if (object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
@@ -2417,11 +3531,9 @@ module.exports =
 	        }
 	        else if (!this.source.isShrouded && this.source.instance.energy === 0) {
 	            code = creep.goMoveTo(this.source);
-	            this.doBusyWork(creep, task_1.ERR_NO_WORK);
 	        }
 	        else {
 	            code = creep.goHarvest(this.source);
-	            this.doBusyWork(creep, code);
 	        }
 	        if (code < 0) {
 	            creep.action = null;
@@ -2540,14 +3652,15 @@ module.exports =
 	    }
 	}
 	exports.HarvestEnergy = HarvestEnergy;
-	//# sourceMappingURL=taskHarvestEnergy.js.map
+
 
 /***/ },
-/* 14 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
 	class SourceClaims {
 	    constructor(source) {
 	        this.source = source;
@@ -2590,8 +3703,30 @@ module.exports =
 	            slots = this.pos.getWalkableSurroundingArea();
 	            this.memory.claimSlots = slots;
 	        }
-	        Object.defineProperty(this, "slots", { value: slots });
 	        return slots;
+	    }
+	    get priorityModifier() {
+	        return sporeRemember_1.Remember.forTick(`${this.id}.priorityModifier`, () => {
+	            let pathToClosestSpawn = this.memory.pathToClosestSpawn;
+	            let priorityModifier = 0;
+	            if (pathToClosestSpawn == null || Game.time - pathToClosestSpawn.tickCalculated > 300) {
+	                let colony = this.colony;
+	                let path = null;
+	                if (colony.cpuSpentPathing <= colony.pathingCpuLimit) {
+	                    path = colony.pathFinder.findPathTo(this.pos, _.map(this.room.mySpawns, (spawn) => {
+	                        return { pos: spawn.pos, range: 1 };
+	                    }));
+	                }
+	                if (path != null) {
+	                    this.memory.pathToClosestSpawn = path.serialize();
+	                    priorityModifier += Math.max(0, 250 - path.cost);
+	                }
+	            }
+	            else {
+	                priorityModifier += Math.max(0, 250 - pathToClosestSpawn.cost);
+	            }
+	            return priorityModifier;
+	        });
 	    }
 	    get memory() {
 	        let roomMemory = this.room.memory;
@@ -2603,7 +3738,6 @@ module.exports =
 	            memory = {};
 	            roomMemory.sources[this.id] = memory;
 	        }
-	        Object.defineProperty(this, "memory", { value: memory });
 	        return memory;
 	    }
 	    collect(collector, claimReceipt) {
@@ -2611,7 +3745,11 @@ module.exports =
 	            return ERR_INVALID_TARGET;
 	        }
 	        if (collector.harvest != null) {
-	            return collector.harvest(this);
+	            let code = collector.harvest(this);
+	            if (code === OK) {
+	                this.room.energyHarvestedSinceLastInvasion += collector.getActiveBodyparts(WORK) * 2;
+	            }
+	            return code;
 	        }
 	        return ERR_INVALID_ARGS;
 	    }
@@ -2657,16 +3795,16 @@ module.exports =
 	    }
 	}
 	exports.SporeSource = SporeSource;
-	//# sourceMappingURL=sporeSource.js.map
+
 
 /***/ },
-/* 15 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	const task_1 = __webpack_require__(5);
 	const sporeCreep_1 = __webpack_require__(7);
-	const screepsPtr_1 = __webpack_require__(12);
+	const screepsPtr_1 = __webpack_require__(16);
 	class BuildBarrier extends task_1.Task {
 	    constructor(barriers) {
 	        super(false);
@@ -2788,7 +3926,7 @@ module.exports =
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
-	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
+	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
 	                return 0;
 	            }
 	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
@@ -2884,10 +4022,10 @@ module.exports =
 	    }
 	}
 	exports.BuildBarrier = BuildBarrier;
-	//# sourceMappingURL=taskBuildBarrier.js.map
+
 
 /***/ },
-/* 16 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3009,10 +4147,10 @@ module.exports =
 	    }
 	}
 	exports.DefendRoom = DefendRoom;
-	//# sourceMappingURL=taskDefendRoom.js.map
+
 
 /***/ },
-/* 17 */
+/* 21 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -3022,15 +4160,15 @@ module.exports =
 	    }
 	}
 	exports.SporeRoomObject = SporeRoomObject;
-	//# sourceMappingURL=sporeRoomObject.js.map
+
 
 /***/ },
-/* 18 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	const taskBuildStructure_1 = __webpack_require__(19);
-	const screepsPtr_1 = __webpack_require__(12);
+	const taskBuildStructure_1 = __webpack_require__(23);
+	const screepsPtr_1 = __webpack_require__(16);
 	class SporeConstructionSite extends ConstructionSite {
 	    get progressRemaining() {
 	        return this.progressTotal - this.progress;
@@ -3045,7 +4183,6 @@ module.exports =
 	            memory = {};
 	            roomMemory.sites[this.id] = memory;
 	        }
-	        Object.defineProperty(this, "memory", { value: memory });
 	        return memory;
 	    }
 	    getTasks() {
@@ -3058,10 +4195,10 @@ module.exports =
 	    }
 	}
 	exports.SporeConstructionSite = SporeConstructionSite;
-	//# sourceMappingURL=sporeConstructionSite.js.map
+
 
 /***/ },
-/* 19 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3080,6 +4217,9 @@ module.exports =
 	    "rampart": function (site) { return 25 /* MediumLow */; },
 	    "road": function (site) { return 75 /* MediumHigh */; },
 	    "constructedWall": function (site) { return 25 /* MediumLow */; },
+	    "observer": function (site) { return 25 /* MediumLow */; },
+	    "powerSpawn": function (site) { return 25 /* MediumLow */; },
+	    "nuker": function (site) { return 25 /* MediumLow */; },
 	};
 	class BuildStructure extends task_1.Task {
 	    constructor(site) {
@@ -3104,7 +4244,7 @@ module.exports =
 	    }
 	    prioritize(object) {
 	        if (object instanceof Creep) {
-	            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0) {
+	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
 	                return 0;
 	            }
 	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
@@ -3155,18 +4295,18 @@ module.exports =
 	    }
 	}
 	exports.BuildStructure = BuildStructure;
-	//# sourceMappingURL=taskBuildStructure.js.map
+
 
 /***/ },
-/* 20 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
 	const sporeClaimable_1 = __webpack_require__(8);
 	const taskTransferResource_1 = __webpack_require__(4);
-	const screepsPtr_1 = __webpack_require__(12);
+	const screepsPtr_1 = __webpack_require__(16);
 	const sporeCreep_1 = __webpack_require__(7);
+	const sporeRemember_1 = __webpack_require__(13);
 	class SporeContainer extends StructureContainer {
 	    get storeCount() {
 	        return _.sum(this.store);
@@ -3296,9 +4436,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'container', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        let claims = new Claims(this);
-	        Object.defineProperty(this, "claims", { value: claims });
-	        return claims;
+	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	            return new Claims(this);
+	        });
 	    }
 	}
 	exports.SporeContainer = SporeContainer;
@@ -3308,13 +4448,12 @@ module.exports =
 	        this.count = 0;
 	    }
 	}
-	//# sourceMappingURL=sporeContainer.js.map
+
 
 /***/ },
-/* 21 */
+/* 25 */
 /***/ function(module, exports) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
 	class SporeController extends StructureController {
 	    get memory() {
@@ -3324,7 +4463,6 @@ module.exports =
 	            memory = {};
 	            roomMemory.controller = memory;
 	        }
-	        Object.defineProperty(this, "memory", { value: memory });
 	        return memory;
 	    }
 	    static getSlots(controller) {
@@ -3343,20 +4481,19 @@ module.exports =
 	            slots = this.pos.getWalkableSurroundingArea();
 	            this.memory.claimSlots = slots;
 	        }
-	        Object.defineProperty(this, "slots", { value: slots });
 	        return slots;
 	    }
 	}
 	exports.SporeController = SporeController;
-	//# sourceMappingURL=sporeController.js.map
+
 
 /***/ },
-/* 22 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
 	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
 	class SporeExtension extends StructureExtension {
 	    get energyCapacityRemaining() {
 	        return this.energyCapacity - this.energy;
@@ -3390,9 +4527,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'spawn', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        let claims = new Claims(this);
-	        Object.defineProperty(this, "claims", { value: claims });
-	        return claims;
+	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	            return new Claims(this);
+	        });
 	    }
 	}
 	exports.SporeExtension = SporeExtension;
@@ -3403,20 +4540,19 @@ module.exports =
 	        this.energy = 0;
 	    }
 	}
-	//# sourceMappingURL=sporeExtension.js.map
+
 
 /***/ },
-/* 23 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
-	const flagBuildStructure_1 = __webpack_require__(24);
-	const flagDismantleStructure_1 = __webpack_require__(26);
-	const taskClaimRoom_1 = __webpack_require__(27);
-	const screepsPtr_1 = __webpack_require__(12);
-	const taskReserveRoom_1 = __webpack_require__(28);
-	const taskWire_1 = __webpack_require__(29);
+	const flagBuildStructure_1 = __webpack_require__(28);
+	const flagDismantleStructure_1 = __webpack_require__(30);
+	const taskClaimRoom_1 = __webpack_require__(31);
+	const screepsPtr_1 = __webpack_require__(16);
+	const taskReserveRoom_1 = __webpack_require__(32);
+	const taskWire_1 = __webpack_require__(33);
 	class SporeFlag extends Flag {
 	    getTasks() {
 	        let tasks = [];
@@ -3488,18 +4624,17 @@ module.exports =
 	    }
 	}
 	exports.SporeFlag = SporeFlag;
-	//# sourceMappingURL=sporeFlag.js.map
+
 
 /***/ },
-/* 24 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskBuildStructure_1 = __webpack_require__(19);
-	const taskDismantleStructure_1 = __webpack_require__(25);
-	const screepsPtr_1 = __webpack_require__(12);
+	const taskBuildStructure_1 = __webpack_require__(23);
+	const taskDismantleStructure_1 = __webpack_require__(29);
+	const screepsPtr_1 = __webpack_require__(16);
 	var REQUESTED_CONSTRUCTION_SITES_THIS_TICK = {};
 	class FlagBuildStructure extends task_1.Task {
 	    constructor(parentId, flag) {
@@ -3579,9 +4714,12 @@ module.exports =
 	            }
 	        }
 	        if (constructionSite == null) {
-	            let sameStructures = this.flag.room.find(FIND_STRUCTURES, {
-	                filter: { structureType: this.structureType }
-	            });
+	            let sameStructures = this.flag.room[this.structureType + 's'];
+	            if (sameStructures == null) {
+	                sameStructures = this.flag.room.find(FIND_STRUCTURES, {
+	                    filter: { structureType: this.structureType }
+	                });
+	            }
 	            let sameSites = this.flag.room.find(FIND_CONSTRUCTION_SITES, {
 	                filter: { structureType: this.structureType }
 	            });
@@ -3608,10 +4746,10 @@ module.exports =
 	    }
 	}
 	exports.FlagBuildStructure = FlagBuildStructure;
-	//# sourceMappingURL=flagBuildStructure.js.map
+
 
 /***/ },
-/* 25 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3660,17 +4798,16 @@ module.exports =
 	    }
 	}
 	exports.DismantleStructure = DismantleStructure;
-	//# sourceMappingURL=taskDismantleStructure.js.map
+
 
 /***/ },
-/* 26 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskDismantleStructure_1 = __webpack_require__(25);
-	const screepsPtr_1 = __webpack_require__(12);
+	const taskDismantleStructure_1 = __webpack_require__(29);
+	const screepsPtr_1 = __webpack_require__(16);
 	class FlagDismantleStructure extends task_1.Task {
 	    constructor(parentId, flag) {
 	        super(true);
@@ -3726,10 +4863,10 @@ module.exports =
 	    }
 	}
 	exports.FlagDismantleStructure = FlagDismantleStructure;
-	//# sourceMappingURL=flagDismantleStructure.js.map
+
 
 /***/ },
-/* 27 */
+/* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3793,10 +4930,10 @@ module.exports =
 	    }
 	}
 	exports.ClaimRoom = ClaimRoom;
-	//# sourceMappingURL=taskClaimRoom.js.map
+
 
 /***/ },
-/* 28 */
+/* 32 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3875,6 +5012,9 @@ module.exports =
 	            creep.goMoveTo(creep.spawnRequest.replacingCreep);
 	            return OK;
 	        }
+	        if (creep.spawnRequest == null && creep.task != this && creep.task instanceof ReserveRoom) {
+	            return task_1.ERR_SKIP_WORKER;
+	        }
 	        code = creep.goReserve(this.controller);
 	        if (code === OK) {
 	            this.scheduledWorkers++;
@@ -3892,10 +5032,10 @@ module.exports =
 	    }
 	}
 	exports.ReserveRoom = ReserveRoom;
-	//# sourceMappingURL=taskReserveRoom.js.map
+
 
 /***/ },
-/* 29 */
+/* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -3989,222 +5129,15 @@ module.exports =
 	    }
 	}
 	exports.Wire = Wire;
-	//# sourceMappingURL=taskWire.js.map
+
 
 /***/ },
-/* 30 */
-/***/ function(module, exports) {
-
-	"use strict";
-	class RouteMemory {
-	}
-	exports.RouteMemory = RouteMemory;
-	class SporeRoomPosition extends RoomPosition {
-	    sortByRangeTo(targets) {
-	        let cachedRange = {};
-	        targets.sort(function (a, b) {
-	            let rangeA = cachedRange[a.id];
-	            if (rangeA == null) {
-	                rangeA = this.getRangeTo(a);
-	                if (rangeA == null) {
-	                    rangeA = Game.map.getRoomLinearDistance(this.roomName, a.roomName) * 50;
-	                }
-	                cachedRange[a.id] = rangeA;
-	            }
-	            let rangeB = cachedRange[b.id];
-	            if (rangeB == null) {
-	                rangeB = this.getRangeTo(b);
-	                if (rangeB == null) {
-	                    rangeB = Game.map.getRoomLinearDistance(this.roomName, b.roomName) * 50;
-	                }
-	                cachedRange[b.id] = rangeB;
-	            }
-	            if (rangeA < rangeB) {
-	                return -1;
-	            }
-	            if (rangeA > rangeB) {
-	                return 1;
-	            }
-	            return 0;
-	        }.bind(this));
-	    }
-	    getRouteTo(toRoom) {
-	        if (Memory.routes == null) {
-	            Memory.routes = [];
-	        }
-	        let routeMemory = Memory.routes[this.roomName];
-	        if (routeMemory == null) {
-	            routeMemory = {};
-	            Memory.routes[this.roomName] = routeMemory;
-	        }
-	        if (routeMemory[toRoom] === undefined) {
-	            routeMemory[toRoom] = Game.map.findRoute(this.roomName, toRoom);
-	            if (routeMemory[toRoom] === ERR_NO_PATH) {
-	                routeMemory[toRoom] = null;
-	            }
-	        }
-	        return routeMemory[toRoom];
-	    }
-	    findDistanceByPathTo(other, opts) {
-	        //console.log('///////////////////// ' + this + " -> " + other);
-	        let rangeToSite = 0;
-	        let toRoomName = '';
-	        if (other instanceof RoomPosition) {
-	            toRoomName = other.roomName;
-	        }
-	        else {
-	            toRoomName = other.pos.roomName;
-	        }
-	        if (this.roomName != toRoomName) {
-	            return 50;
-	            if (Game.rooms[this.roomName] == null) {
-	                return 0;
-	            }
-	            let route = this.getRouteTo(toRoomName);
-	            if (route.length === 0) {
-	                // creep can't navigate to this room
-	                return 0;
-	            }
-	            let closestExit = this.findClosestByRange(route[0].exit);
-	            rangeToSite = this.findPathTo(closestExit, opts).length;
-	            if (route.length >= 2) {
-	                rangeToSite += (route.length - 1) * 50;
-	            }
-	            let lastExit = route[route.length - 1];
-	            if (lastExit < 4) {
-	                lastExit += 4;
-	            }
-	            else {
-	                lastExit -= 4;
-	            }
-	            console.log(lastExit);
-	            let closestLastExit = this.findClosestByRange(lastExit);
-	            console.log(closestLastExit);
-	            rangeToSite += this.findPathTo(closestLastExit, opts).length;
-	        }
-	        else {
-	            let path = this.findPathTo(other, opts);
-	            rangeToSite = path.length;
-	        }
-	        return rangeToSite;
-	    }
-	    findFirstInRange(targets, range) {
-	        for (let index = 0; index < targets.length; index++) {
-	            let target = targets[index];
-	            if (this.inRangeTo(target.pos, range)) {
-	                return target;
-	            }
-	        }
-	        return null;
-	    }
-	    findClosestInRange(targets, range) {
-	        let closestTargetRange = 500;
-	        let closestTarget = null;
-	        for (let index = 0; index < targets.length; index++) {
-	            let target = targets[index];
-	            let range = this.getRangeTo(target.pos);
-	            if (range < closestTargetRange) {
-	                closestTargetRange = range;
-	                closestTarget = target;
-	            }
-	        }
-	        if (closestTargetRange <= range) {
-	            return closestTarget;
-	        }
-	        return null;
-	    }
-	    getWalkableSurroundingArea() {
-	        let availableSlots = 0;
-	        let room = Game.rooms[this.roomName];
-	        if (_.isNull(room)) {
-	            for (var xOffset = -1; xOffset < 2; xOffset++) {
-	                for (var yOffset = -1; yOffset < 2; yOffset++) {
-	                    if (xOffset == 0 && yOffset == 0) {
-	                        continue;
-	                    }
-	                    if (Game.map.getTerrainAt(this.x + xOffset, this.y + yOffset, this.roomName) != "wall") {
-	                        availableSlots++;
-	                    }
-	                }
-	            }
-	        }
-	        else {
-	            let lookResults = room.lookAtArea(this.y - 1, this.x - 1, this.y + 1, this.x + 1);
-	            for (var xOffset = -1; xOffset < 2; xOffset++) {
-	                for (var yOffset = -1; yOffset < 2; yOffset++) {
-	                    if (xOffset == 0 && yOffset == 0) {
-	                        continue;
-	                    }
-	                    let resultArray = lookResults[this.y + yOffset][this.x + xOffset];
-	                    let hasObstacle = false;
-	                    for (let result of resultArray) {
-	                        if (_.includes(OBSTACLE_OBJECT_TYPES, result[result.type])) {
-	                            hasObstacle = true;
-	                            break;
-	                        }
-	                    }
-	                    if (hasObstacle === false) {
-	                        availableSlots++;
-	                    }
-	                }
-	            }
-	        }
-	        return availableSlots;
-	    }
-	    getWalkableSurroundingAreaInRange(target, range) {
-	        let availableSlots = [];
-	        let room = Game.rooms[this.roomName];
-	        if (_.isNull(room)) {
-	            for (var xOffset = -1; xOffset < 2; xOffset++) {
-	                for (var yOffset = -1; yOffset < 2; yOffset++) {
-	                    if (xOffset == 0 && yOffset == 0) {
-	                        continue;
-	                    }
-	                    if (Game.map.getTerrainAt(this.x + xOffset, this.y + yOffset, this.roomName) != "wall") {
-	                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
-	                        if (target.inRangeTo(pos, range)) {
-	                            availableSlots.push(pos);
-	                        }
-	                    }
-	                }
-	            }
-	        }
-	        else {
-	            let lookResults = room.lookAtArea(this.y - 1, this.x - 1, this.y + 1, this.x + 1);
-	            for (var xOffset = -1; xOffset < 2; xOffset++) {
-	                for (var yOffset = -1; yOffset < 2; yOffset++) {
-	                    if (xOffset == 0 && yOffset == 0) {
-	                        continue;
-	                    }
-	                    let resultArray = lookResults[this.y + yOffset][this.x + xOffset];
-	                    let hasObstacle = false;
-	                    for (let result of resultArray) {
-	                        if (_.includes(OBSTACLE_OBJECT_TYPES, result[result.type])) {
-	                            hasObstacle = true;
-	                            break;
-	                        }
-	                    }
-	                    if (hasObstacle === false) {
-	                        let pos = new RoomPosition(this.x + xOffset, this.y + yOffset, target.roomName);
-	                        if (target.inRangeTo(pos, range)) {
-	                            availableSlots.push(pos);
-	                        }
-	                    }
-	                }
-	            }
-	        }
-	        return availableSlots;
-	    }
-	}
-	exports.SporeRoomPosition = SporeRoomPosition;
-	//# sourceMappingURL=sporeRoomPosition.js.map
-
-/***/ },
-/* 31 */
+/* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
 	class SporeSpawn extends Spawn {
 	    get energyCapacityRemaining() {
 	        return this.energyCapacity - this.energy;
@@ -4294,9 +5227,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'spawn', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        let claims = new Claims(this);
-	        Object.defineProperty(this, "claims", { value: claims });
-	        return claims;
+	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	            return new Claims(this);
+	        });
 	    }
 	}
 	exports.SporeSpawn = SporeSpawn;
@@ -4307,15 +5240,15 @@ module.exports =
 	        this.energy = 0;
 	    }
 	}
-	//# sourceMappingURL=sporeSpawn.js.map
+
 
 /***/ },
-/* 32 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
 	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
 	class SporeStorage extends StructureStorage {
 	    get storeCount() {
 	        return _.sum(this.store);
@@ -4330,7 +5263,6 @@ module.exports =
 	            memory = {};
 	            roomMemory.storage = memory;
 	        }
-	        Object.defineProperty(this, "memory", { value: memory });
 	        return memory;
 	    }
 	    collect(collector, claimReceipt) {
@@ -4365,9 +5297,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'storage', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        let claims = new Claims(this);
-	        Object.defineProperty(this, "claims", { value: claims });
-	        return claims;
+	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	            return new Claims(this);
+	        });
 	    }
 	}
 	exports.SporeStorage = SporeStorage;
@@ -4377,13 +5309,12 @@ module.exports =
 	        this.count = 0;
 	    }
 	}
-	//# sourceMappingURL=sporeStorage.js.map
+
 
 /***/ },
-/* 33 */
+/* 36 */
 /***/ function(module, exports) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
 	class SporeStructure extends Structure {
 	    get hitsMissing() {
@@ -4495,18 +5426,18 @@ module.exports =
 	    }
 	}
 	exports.SporeStructure = SporeStructure;
-	//# sourceMappingURL=sporeStructure.js.map
+
 
 /***/ },
-/* 34 */
+/* 37 */
 /***/ function(module, exports, __webpack_require__) {
 
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 	"use strict";
 	const sporeClaimable_1 = __webpack_require__(8);
 	const taskTransferResource_1 = __webpack_require__(4);
-	const screepsPtr_1 = __webpack_require__(12);
+	const screepsPtr_1 = __webpack_require__(16);
 	const sporeCreep_1 = __webpack_require__(7);
+	const sporeRemember_1 = __webpack_require__(13);
 	class SporeTower extends StructureTower {
 	    get attackTarget() {
 	        if (this._attackTarget != null) {
@@ -4539,7 +5470,6 @@ module.exports =
 	            memory = {};
 	            roomMemory.structures[this.id] = memory;
 	        }
-	        Object.defineProperty(this, "memory", { value: memory });
 	        return memory;
 	    }
 	    getTasks() {
@@ -4581,9 +5511,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'spawn', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        let claims = new Claims(this);
-	        Object.defineProperty(this, "claims", { value: claims });
-	        return claims;
+	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	            return new Claims(this);
+	        });
 	    }
 	}
 	exports.SporeTower = SporeTower;
@@ -4594,320 +5524,21 @@ module.exports =
 	        this.energy = 0;
 	    }
 	}
-	//# sourceMappingURL=sporeTower.js.map
+
 
 /***/ },
-/* 35 */
-/***/ function(module, exports, __webpack_require__) {
-
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
-	"use strict";
-	const sporeClaimable_1 = __webpack_require__(8);
-	class SporeResource extends Resource {
-	    collect(collector, claimReceipt) {
-	        if (claimReceipt.target !== this) {
-	            return ERR_INVALID_TARGET;
-	        }
-	        if (claimReceipt.resourceType === this.resourceType &&
-	            collector.withdraw != null && collector.carryCapacityRemaining != null) {
-	            return collector.pickup(this);
-	        }
-	        return ERR_INVALID_ARGS;
-	    }
-	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
-	        if (resourceType != this.resourceType) {
-	            return null;
-	        }
-	        let claimAmount = amount;
-	        let remaining = this.amount - this.claims.amount;
-	        // ensure our remaining resource meets their claim
-	        if (claimAmount > remaining) {
-	            if (minAmount > remaining) {
-	                return null;
-	            }
-	            claimAmount = remaining;
-	        }
-	        this.claims.count++;
-	        this.claims.amount += claimAmount;
-	        return new sporeClaimable_1.ClaimReceipt(this, 'dropped', resourceType, claimAmount);
-	    }
-	    get claims() {
-	        let claims = new Claims(this);
-	        Object.defineProperty(this, "claims", { value: claims });
-	        return claims;
-	    }
-	}
-	exports.SporeResource = SporeResource;
-	class Claims {
-	    constructor(resource) {
-	        this.resource = resource;
-	        this.count = 0;
-	        this.amount = 0;
-	    }
-	}
-	//# sourceMappingURL=sporeResource.js.map
-
-/***/ },
-/* 36 */
-/***/ function(module, exports, __webpack_require__) {
-
-	///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
-	"use strict";
-	const sporeClaimable_1 = __webpack_require__(8);
-	class SporeLink extends StructureLink {
-	    get energyCapacityRemaining() {
-	        return this.energyCapacity - this.energy;
-	    }
-	    get takesTransfers() {
-	        return this.memory.takesTransfers === true;
-	    }
-	    set takesTransfers(value) {
-	        this.memory.takesTransfers = value;
-	    }
-	    get bond() {
-	        if (this._bond != null) {
-	            return this._bond;
-	        }
-	        if (this.memory.bondTargetId != null) {
-	            this._bond = new Bond();
-	            this._bond.type = this.memory.bondType;
-	            this._bond.targetId = this.memory.bondTargetId;
-	            this._bond.target = Game.getObjectById(this.memory.bondTargetId);
-	            this._bond.targetFlag = Game.flags[this.memory.bondTargetFlagName];
-	            this._bond.myFlag = Game.flags[this.memory.bondMyFlagName];
-	            if (!this._bond.exists()) {
-	                this._bond = null;
-	                delete this.memory.bondTargetId;
-	                delete this.memory.bondTargetFlagName;
-	                delete this.memory.bondMyFlagName;
-	                delete this.memory.bondType;
-	            }
-	            else if (this._bond.targetId == null && this._bond.targetFlag.room != null) {
-	                if (this._bond.targetFlag.room != null) {
-	                    let found = this._bond.targetFlag.room.lookForAt(this._bond.type, this._bond.targetFlag);
-	                    if (found.length > 0) {
-	                        this._bond.target = found[0];
-	                    }
-	                }
-	                if (this._bond.target != null) {
-	                    this._bond.targetId = this._bond.target.id;
-	                }
-	                if (this._bond.target == null) {
-	                    this._bond = null;
-	                    delete this.memory.bondTargetId;
-	                    delete this.memory.bondTargetFlagName;
-	                    delete this.memory.bondMyFlagName;
-	                    delete this.memory.bondType;
-	                }
-	            }
-	        }
-	        return this._bond;
-	    }
-	    set bond(value) {
-	        this._bond = value;
-	        if (value == null) {
-	            delete this.memory.bondType;
-	            delete this.memory.bondTargetId;
-	            delete this.memory.bondTargetFlagName;
-	            delete this.memory.bondMyFlagName;
-	        }
-	        else {
-	            this.memory.bondType = value.type;
-	            if (value.target != null) {
-	                this.memory.bondTargetId = value.target.id;
-	            }
-	            if (value.targetFlag != null) {
-	                this.memory.bondTargetFlagName = value.targetFlag.name;
-	            }
-	            if (value.myFlag != null) {
-	                this.memory.bondMyFlagName = value.myFlag.name;
-	            }
-	        }
-	    }
-	    get nearBySource() {
-	        if (this.memory.nearBySourceId != null) {
-	            let nearBySource = Game.getObjectById(this.memory.nearBySourceId);
-	            Object.defineProperty(this, "nearBySource", { value: nearBySource });
-	            return nearBySource;
-	        }
-	        let nearBySource = this.pos.findClosestInRange(this.room.sources, 2);
-	        if (nearBySource == null) {
-	            this.memory.nearBySourceId = '';
-	        }
-	        else {
-	            this.memory.nearBySourceId = nearBySource.id;
-	        }
-	        Object.defineProperty(this, "nearBySource", { value: nearBySource });
-	        return nearBySource;
-	    }
-	    get memory() {
-	        let roomMemory = this.room.memory;
-	        if (roomMemory.structures == null) {
-	            roomMemory.structures = {};
-	        }
-	        let memory = roomMemory.structures[this.id];
-	        if (memory == null) {
-	            memory = {};
-	            roomMemory.structures[this.id] = memory;
-	        }
-	        Object.defineProperty(this, "memory", { value: memory });
-	        return memory;
-	    }
-	    getTasks() {
-	        this.memory.takesTransfers = false;
-	        let transferTarget = null;
-	        let tasks = [];
-	        //
-	        // if (this.bond == null)
-	        // {
-	        //     this.bond = Bond.discover(this, LOOK_SOURCES);
-	        // }
-	        //
-	        // if (this.bond != null)
-	        // {
-	        //     let target: any = this.bond.target;
-	        //
-	        //     if (target == null)
-	        //     {
-	        //         target = this.bond.targetFlag.pos;
-	        //     }
-	        //
-	        //     let transferEnergyTask = new TransferResource([ScreepsPtr.from<EnergyContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(target), null);
-	        //     transferEnergyTask.priority = TaskPriority.Mandatory;
-	        //     transferEnergyTask.name = "Transfer energy to " + this + " from " + target;
-	        //     transferEnergyTask.possibleWorkers = 1;
-	        //     tasks.push(transferEnergyTask);
-	        // }
-	        // else
-	        // {
-	        if (this.nearBySource == null) {
-	            this.takesTransfers = true;
-	        }
-	        // }
-	        //
-	        if (this.energy > 0 && !this.takesTransfers) {
-	            transferTarget = this.findLinkTakingTransfers();
-	            if (transferTarget != null) {
-	                this.transferEnergy(transferTarget);
-	            }
-	        }
-	        return tasks;
-	    }
-	    findLinkTakingTransfers() {
-	        for (let link of this.room.links) {
-	            if (link.takesTransfers === true && link.energyCapacityRemaining > 0) {
-	                return link;
-	            }
-	        }
-	        return null;
-	    }
-	    collect(collector, claimReceipt) {
-	        if (claimReceipt.target !== this) {
-	            return ERR_INVALID_TARGET;
-	        }
-	        if (collector.withdraw != null && collector.carryCapacityRemaining != null) {
-	            return collector.withdraw(this, claimReceipt.resourceType, Math.min(this.energy, collector.carryCapacityRemaining));
-	        }
-	        return ERR_INVALID_ARGS;
-	    }
-	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
-	        if (this.takesTransfers !== true ||
-	            resourceType != RESOURCE_ENERGY) {
-	            return null;
-	        }
-	        let claimAmount = amount;
-	        let remaining = this.energy - this.claims.energy;
-	        // ensure our remaining resource meets their claim
-	        if (claimAmount > remaining) {
-	            if (minAmount > remaining) {
-	                return null;
-	            }
-	            claimAmount = remaining;
-	        }
-	        this.claims.count++;
-	        this.claims.energy += claimAmount;
-	        return new sporeClaimable_1.ClaimReceipt(this, 'link', resourceType, claimAmount);
-	    }
-	    get claims() {
-	        let claims = new Claims(this);
-	        Object.defineProperty(this, "claims", { value: claims });
-	        return claims;
-	    }
-	}
-	exports.SporeLink = SporeLink;
-	class Claims {
-	    constructor(link) {
-	        this.link = link;
-	        this.count = 0;
-	        this.energy = 0;
-	    }
-	}
-	class Bond {
-	    exists() {
-	        return (this.type != null &&
-	            this.targetFlag != null &&
-	            this.myFlag != null &&
-	            this.myFlag.color === COLOR_YELLOW && this.targetFlag.color === COLOR_YELLOW &&
-	            this.myFlag.secondaryColor === this.targetFlag.secondaryColor);
-	    }
-	    static discover(obj, lookType) {
-	        let flagA = null;
-	        let flagB = null;
-	        let flags = obj.room.lookForAt(LOOK_FLAGS, obj.pos);
-	        for (let index = 0; index < flags.length; index++) {
-	            let flag = flags[index];
-	            if (flag.color === COLOR_YELLOW) {
-	                flagA = flag;
-	                break;
-	            }
-	        }
-	        if (flagA == null) {
-	            return null;
-	        }
-	        for (let flagName in Game.flags) {
-	            let flag = Game.flags[flagName];
-	            if (flag != flagA &&
-	                flag.color === COLOR_YELLOW &&
-	                flag.secondaryColor === flagA.secondaryColor &&
-	                flag.name.startsWith(flagA.name)) {
-	                flagB = flag;
-	                break;
-	            }
-	        }
-	        if (flagB == null) {
-	            return null;
-	        }
-	        let bond = new Bond();
-	        bond.type = lookType;
-	        bond.target = null;
-	        bond.targetId = null;
-	        if (flagB.room != null) {
-	            let found = flagB.room.lookForAt(lookType, flagB);
-	            if (found.length > 0) {
-	                bond.target = found[0];
-	            }
-	        }
-	        if (bond.target != null) {
-	            bond.targetId = bond.target.id;
-	        }
-	        bond.targetFlag = flagB;
-	        bond.myFlag = flagA;
-	        return bond;
-	    }
-	}
-	//# sourceMappingURL=sporeLink.js.map
-
-/***/ },
-/* 37 */
+/* 38 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskRecycleCreep_1 = __webpack_require__(38);
-	const screepsPtr_1 = __webpack_require__(12);
+	const taskRecycleCreep_1 = __webpack_require__(39);
+	const screepsPtr_1 = __webpack_require__(16);
 	const spawnRequest_1 = __webpack_require__(6);
 	const sporeCreep_1 = __webpack_require__(7);
 	const sporeRoom_1 = __webpack_require__(3);
+	const sporePathFinder_1 = __webpack_require__(10);
+	const sporeRemember_1 = __webpack_require__(13);
 	class LaborPoolType {
 	    constructor(parts, count) {
 	        this.parts = parts;
@@ -5061,37 +5692,41 @@ module.exports =
 	};
 	class SporeColony {
 	    constructor() {
+	        this.pathFinder = new sporePathFinder_1.SporePathFinder();
 	        this.tasks = [];
 	        this.tasksById = {};
 	        this.laborPool = new LaborPool();
 	        this.spawnRequests = [];
 	        this.requestsCurrentlySpawning = [];
+	        this.cpuSpentPathing = 0;
+	        this.pathingCpuLimit = 30;
 	    }
 	    get myRooms() {
-	        let myRooms = [];
-	        for (let roomId in Game.rooms) {
-	            let room = Game.rooms[roomId];
-	            if (room.my) {
-	                myRooms.push(room);
+	        return sporeRemember_1.Remember.forTick('colony.myRooms', () => {
+	            let myRooms = [];
+	            for (let roomId in Game.rooms) {
+	                let room = Game.rooms[roomId];
+	                if (room.my) {
+	                    myRooms.push(room);
+	                }
 	            }
-	        }
-	        myRooms.sort(function (a, b) {
-	            if (a.priority < b.priority) {
-	                return 1;
-	            }
-	            if (a.priority > b.priority) {
-	                return -1;
-	            }
-	            if (a.name < b.name) {
-	                return 1;
-	            }
-	            if (a.name > b.name) {
-	                return -1;
-	            }
-	            return 0;
+	            myRooms.sort(function (a, b) {
+	                if (a.priority < b.priority) {
+	                    return 1;
+	                }
+	                if (a.priority > b.priority) {
+	                    return -1;
+	                }
+	                if (a.name < b.name) {
+	                    return 1;
+	                }
+	                if (a.name > b.name) {
+	                    return -1;
+	                }
+	                return 0;
+	            });
+	            return myRooms;
 	        });
-	        Object.defineProperty(this, "myRooms", { value: myRooms });
-	        return myRooms;
 	    }
 	    run() {
 	        this.tasks = [];
@@ -5222,6 +5857,9 @@ module.exports =
 	        //         }
 	        //     }
 	        // }
+	        this.calculateLaborPool(task, prioritizedCreeps, skippedCreeps);
+	    }
+	    calculateLaborPool(task, prioritizedCreeps, skippedCreeps) {
 	        let laborPool = new LaborPool();
 	        for (let index = 0; index < prioritizedCreeps.length; index++) {
 	            let tierCreeps = prioritizedCreeps[index];
@@ -5325,12 +5963,6 @@ module.exports =
 	            }
 	            if (a.roomName != null && b.roomName == null) {
 	                return -1;
-	            }
-	            if (a.roomName == 'SporeRoom') {
-	                console.log('//////////////// ' + a.name);
-	            }
-	            if (b.roomName == 'SporeRoom') {
-	                console.log('//////////////// ' + b.name);
 	            }
 	            if (a.roomName != null && b.roomName != null) {
 	                if (sporeRoom_1.SporeRoom.getPriority(a.roomName) < sporeRoom_1.SporeRoom.getPriority(b.roomName)) {
@@ -5739,10 +6371,10 @@ module.exports =
 	    }
 	}
 	exports.SporeColony = SporeColony;
-	//# sourceMappingURL=sporeColony.js.map
+
 
 /***/ },
-/* 38 */
+/* 39 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -5777,7 +6409,664 @@ module.exports =
 	    }
 	}
 	exports.RecycleCreep = RecycleCreep;
-	//# sourceMappingURL=taskRecycleCreep.js.map
+
+
+/***/ },
+/* 40 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
+	class SporeResource extends Resource {
+	    collect(collector, claimReceipt) {
+	        if (claimReceipt.target !== this) {
+	            return ERR_INVALID_TARGET;
+	        }
+	        if (claimReceipt.resourceType === this.resourceType &&
+	            collector.withdraw != null && collector.carryCapacityRemaining != null) {
+	            return collector.pickup(this);
+	        }
+	        return ERR_INVALID_ARGS;
+	    }
+	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
+	        if (resourceType != this.resourceType) {
+	            return null;
+	        }
+	        let claimAmount = amount;
+	        let remaining = this.amount - this.claims.amount;
+	        // ensure our remaining resource meets their claim
+	        if (claimAmount > remaining) {
+	            if (minAmount > remaining) {
+	                return null;
+	            }
+	            claimAmount = remaining;
+	        }
+	        this.claims.count++;
+	        this.claims.amount += claimAmount;
+	        return new sporeClaimable_1.ClaimReceipt(this, 'dropped', resourceType, claimAmount);
+	    }
+	    get claims() {
+	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	            return new Claims(this);
+	        });
+	    }
+	}
+	exports.SporeResource = SporeResource;
+	class Claims {
+	    constructor(resource) {
+	        this.resource = resource;
+	        this.count = 0;
+	        this.amount = 0;
+	    }
+	}
+
+
+/***/ },
+/* 41 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
+	class SporeLink extends StructureLink {
+	    get energyCapacityRemaining() {
+	        return this.energyCapacity - this.energy;
+	    }
+	    get takesTransfers() {
+	        return this.memory.takesTransfers === true;
+	    }
+	    set takesTransfers(value) {
+	        this.memory.takesTransfers = value;
+	    }
+	    get bond() {
+	        if (this._bond != null) {
+	            return this._bond;
+	        }
+	        if (this.memory.bondTargetId != null) {
+	            this._bond = new Bond();
+	            this._bond.type = this.memory.bondType;
+	            this._bond.targetId = this.memory.bondTargetId;
+	            this._bond.target = Game.getObjectById(this.memory.bondTargetId);
+	            this._bond.targetFlag = Game.flags[this.memory.bondTargetFlagName];
+	            this._bond.myFlag = Game.flags[this.memory.bondMyFlagName];
+	            if (!this._bond.exists()) {
+	                this._bond = null;
+	                delete this.memory.bondTargetId;
+	                delete this.memory.bondTargetFlagName;
+	                delete this.memory.bondMyFlagName;
+	                delete this.memory.bondType;
+	            }
+	            else if (this._bond.targetId == null && this._bond.targetFlag.room != null) {
+	                if (this._bond.targetFlag.room != null) {
+	                    let found = this._bond.targetFlag.room.lookForAt(this._bond.type, this._bond.targetFlag);
+	                    if (found.length > 0) {
+	                        this._bond.target = found[0];
+	                    }
+	                }
+	                if (this._bond.target != null) {
+	                    this._bond.targetId = this._bond.target.id;
+	                }
+	                if (this._bond.target == null) {
+	                    this._bond = null;
+	                    delete this.memory.bondTargetId;
+	                    delete this.memory.bondTargetFlagName;
+	                    delete this.memory.bondMyFlagName;
+	                    delete this.memory.bondType;
+	                }
+	            }
+	        }
+	        return this._bond;
+	    }
+	    set bond(value) {
+	        this._bond = value;
+	        if (value == null) {
+	            delete this.memory.bondType;
+	            delete this.memory.bondTargetId;
+	            delete this.memory.bondTargetFlagName;
+	            delete this.memory.bondMyFlagName;
+	        }
+	        else {
+	            this.memory.bondType = value.type;
+	            if (value.target != null) {
+	                this.memory.bondTargetId = value.target.id;
+	            }
+	            if (value.targetFlag != null) {
+	                this.memory.bondTargetFlagName = value.targetFlag.name;
+	            }
+	            if (value.myFlag != null) {
+	                this.memory.bondMyFlagName = value.myFlag.name;
+	            }
+	        }
+	    }
+	    get nearBySource() {
+	        return sporeRemember_1.Remember.forTick(`${this.id}.nearBySource`, () => {
+	            if (this.memory.nearBySourceId != null) {
+	                return Game.getObjectById(this.memory.nearBySourceId);
+	            }
+	            let nearBySource = this.pos.findClosestInRange(this.room.sources, 2);
+	            if (nearBySource == null) {
+	                this.memory.nearBySourceId = '';
+	            }
+	            else {
+	                this.memory.nearBySourceId = nearBySource.id;
+	            }
+	            return nearBySource;
+	        });
+	    }
+	    get memory() {
+	        let roomMemory = this.room.memory;
+	        if (roomMemory.structures == null) {
+	            roomMemory.structures = {};
+	        }
+	        let memory = roomMemory.structures[this.id];
+	        if (memory == null) {
+	            memory = {};
+	            roomMemory.structures[this.id] = memory;
+	        }
+	        return memory;
+	    }
+	    getTasks() {
+	        this.memory.takesTransfers = false;
+	        let transferTarget = null;
+	        let tasks = [];
+	        //
+	        // if (this.bond == null)
+	        // {
+	        //     this.bond = Bond.discover(this, LOOK_SOURCES);
+	        // }
+	        //
+	        // if (this.bond != null)
+	        // {
+	        //     let target: any = this.bond.target;
+	        //
+	        //     if (target == null)
+	        //     {
+	        //         target = this.bond.targetFlag.pos;
+	        //     }
+	        //
+	        //     let transferEnergyTask = new TransferResource([ScreepsPtr.from<EnergyContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(target), null);
+	        //     transferEnergyTask.priority = TaskPriority.Mandatory;
+	        //     transferEnergyTask.name = "Transfer energy to " + this + " from " + target;
+	        //     transferEnergyTask.possibleWorkers = 1;
+	        //     tasks.push(transferEnergyTask);
+	        // }
+	        // else
+	        // {
+	        if (this.nearBySource == null) {
+	            this.takesTransfers = true;
+	        }
+	        // }
+	        //
+	        if (this.energy > 0 && !this.takesTransfers) {
+	            transferTarget = this.findLinkTakingTransfers();
+	            if (transferTarget != null) {
+	                this.transferEnergy(transferTarget);
+	            }
+	        }
+	        return tasks;
+	    }
+	    findLinkTakingTransfers() {
+	        for (let link of this.room.links) {
+	            if (link.takesTransfers === true && link.energyCapacityRemaining > 0) {
+	                return link;
+	            }
+	        }
+	        return null;
+	    }
+	    collect(collector, claimReceipt) {
+	        if (claimReceipt.target !== this) {
+	            return ERR_INVALID_TARGET;
+	        }
+	        if (collector.withdraw != null && collector.carryCapacityRemaining != null) {
+	            return collector.withdraw(this, claimReceipt.resourceType, Math.min(this.energy, collector.carryCapacityRemaining));
+	        }
+	        return ERR_INVALID_ARGS;
+	    }
+	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
+	        if (this.takesTransfers !== true ||
+	            resourceType != RESOURCE_ENERGY) {
+	            return null;
+	        }
+	        let claimAmount = amount;
+	        let remaining = this.energy - this.claims.energy;
+	        // ensure our remaining resource meets their claim
+	        if (claimAmount > remaining) {
+	            if (minAmount > remaining) {
+	                return null;
+	            }
+	            claimAmount = remaining;
+	        }
+	        this.claims.count++;
+	        this.claims.energy += claimAmount;
+	        return new sporeClaimable_1.ClaimReceipt(this, 'link', resourceType, claimAmount);
+	    }
+	    get claims() {
+	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	            return new Claims(this);
+	        });
+	    }
+	}
+	exports.SporeLink = SporeLink;
+	class Claims {
+	    constructor(link) {
+	        this.link = link;
+	        this.count = 0;
+	        this.energy = 0;
+	    }
+	}
+	class Bond {
+	    exists() {
+	        return (this.type != null &&
+	            this.targetFlag != null &&
+	            this.myFlag != null &&
+	            this.myFlag.color === COLOR_YELLOW && this.targetFlag.color === COLOR_YELLOW &&
+	            this.myFlag.secondaryColor === this.targetFlag.secondaryColor);
+	    }
+	    static discover(obj, lookType) {
+	        let flagA = null;
+	        let flagB = null;
+	        let flags = obj.room.lookForAt(LOOK_FLAGS, obj.pos);
+	        for (let index = 0; index < flags.length; index++) {
+	            let flag = flags[index];
+	            if (flag.color === COLOR_YELLOW) {
+	                flagA = flag;
+	                break;
+	            }
+	        }
+	        if (flagA == null) {
+	            return null;
+	        }
+	        let startsWith = function (baseString, searchString, position) {
+	            position = position || 0;
+	            return baseString.substr(position, searchString.length) === searchString;
+	        };
+	        for (let flagName in Game.flags) {
+	            let flag = Game.flags[flagName];
+	            if (flag != flagA &&
+	                flag.color === COLOR_YELLOW &&
+	                flag.secondaryColor === flagA.secondaryColor &&
+	                startsWith(flag.name, flagA.name)) {
+	                flagB = flag;
+	                break;
+	            }
+	        }
+	        if (flagB == null) {
+	            return null;
+	        }
+	        let bond = new Bond();
+	        bond.type = lookType;
+	        bond.target = null;
+	        bond.targetId = null;
+	        if (flagB.room != null) {
+	            let found = flagB.room.lookForAt(lookType, flagB);
+	            if (found.length > 0) {
+	                bond.target = found[0];
+	            }
+	        }
+	        if (bond.target != null) {
+	            bond.targetId = bond.target.id;
+	        }
+	        bond.targetFlag = flagB;
+	        bond.myFlag = flagA;
+	        return bond;
+	    }
+	}
+
+
+/***/ },
+/* 42 */
+/***/ function(module, exports) {
+
+	"use strict";
+	let usedOnStart = 0;
+	let enabled = false;
+	let depth = 0;
+	var profilingSymbol = Symbol('profiling');
+	function setupProfiler() {
+	    depth = 0; // reset depth, this needs to be done each tick.
+	    Game.profiler = {
+	        stream(duration, filter) {
+	            setupMemory('stream', duration || 10, filter);
+	        },
+	        email(duration, filter) {
+	            setupMemory('email', duration || 100, filter);
+	        },
+	        profile(duration, filter) {
+	            setupMemory('profile', duration || 100, filter);
+	        },
+	        reset: resetMemory,
+	    };
+	    overloadCPUCalc();
+	}
+	function setupMemory(profileType, duration, filter) {
+	    resetMemory();
+	    if (!Memory.profiler) {
+	        Memory.profiler = {
+	            map: {},
+	            totalTime: 0,
+	            enabledTick: Game.time + 1,
+	            disableTick: Game.time + duration,
+	            type: profileType,
+	            filter,
+	        };
+	    }
+	}
+	function resetMemory() {
+	    Memory.profiler = null;
+	}
+	function overloadCPUCalc() {
+	    /*if (false) {
+	     usedOnStart = 0; // This needs to be reset, but only in the sim.
+	     Game.cpu.getUsed = function getUsed() {
+	     return performance.now() - usedOnStart;
+	     };
+	     }*/
+	}
+	function getFilter() {
+	    return Memory.profiler.filter;
+	}
+	function wrapFunction(name, originalFunction) {
+	    return function wrappedFunction() {
+	        if (Profiler.isProfiling()) {
+	            const nameMatchesFilter = name === getFilter();
+	            const start = Game.cpu.getUsed();
+	            if (nameMatchesFilter) {
+	                depth++;
+	            }
+	            const result = originalFunction.apply(this, arguments);
+	            if (depth > 0 || !getFilter()) {
+	                const end = Game.cpu.getUsed();
+	                Profiler.record(name, end - start);
+	            }
+	            if (nameMatchesFilter) {
+	                depth--;
+	            }
+	            return result;
+	        }
+	        return originalFunction.apply(this, arguments);
+	    };
+	}
+	function hookUpPrototypes() {
+	    Profiler.prototypes.forEach(proto => {
+	        profileObjectInheritance(proto.val, proto.name);
+	    });
+	}
+	function profileObjectInheritance(object, label) {
+	    console.log('[' + label + ']');
+	    while (object != null && object != Object) {
+	        if (_.includes(Object.getOwnPropertySymbols(object), profilingSymbol)) {
+	            console.log('############################################');
+	            break;
+	        }
+	        profileObject(object, label);
+	        object[profilingSymbol] = 'profiling';
+	        object = Object.getPrototypeOf(object);
+	    }
+	}
+	function profileObject(object, label) {
+	    let skipMembers = [
+	        "valueOf",
+	        "propertyIsEnumerable",
+	        "hasOwnProperty",
+	        "caller",
+	        "arguments",
+	        "apply",
+	        "call",
+	        "bind",
+	        "toLocaleString",
+	        "toString",
+	        "isPrototypeOf",
+	        "prototype",
+	        "__defineGetter__",
+	        "__defineSetter__",
+	        "__lookupGetter__",
+	        "__lookupSetter__",
+	        "__proto__",
+	        "constructor",
+	        "getUsed",
+	        "length"
+	    ];
+	    // Object.keys(objectToWrap).forEach(functionName =>
+	    // {
+	    //     let extendedLabel = `    ${label}.${functionName}: `;
+	    //
+	    //     if (_.includes(skipMembers, functionName))
+	    //     {
+	    //         console.log(extendedLabel + 'SKIPPED');
+	    //         return;
+	    //     }
+	    //
+	    //     try
+	    //     {
+	    //         let memberType = typeof objectToWrap[functionName];
+	    //         extendedLabel += `${memberType} `;
+	    //
+	    //         if (memberType === 'function')
+	    //         {
+	    //             const originalFunction = objectToWrap[functionName];
+	    //             objectToWrap[functionName] = profileFunction(originalFunction, extendedLabel);
+	    //             console.log(extendedLabel + 'DONE');
+	    //
+	    //         }
+	    //         else
+	    //         {
+	    //             console.log(extendedLabel + 'SKIPPED');
+	    //         }
+	    //     }
+	    //     catch (e)
+	    //     {
+	    //         console.log(extendedLabel + 'ERROR');
+	    //         console.log('profile binding exception occurred: ' + e);
+	    //     }
+	    // });
+	    let propertyNames = Object.getOwnPropertyNames(object);
+	    for (let index = 0; index < propertyNames.length; index++) {
+	        let key = propertyNames[index];
+	        if (_.includes(skipMembers, key)) {
+	            continue;
+	        }
+	        let descriptor = Object.getOwnPropertyDescriptor(object, key);
+	        let extendedLabel = `${label}.${key}`;
+	        let progressLog = `    ${label}.${key}: `;
+	        let newDescriptor = {
+	            enumerable: descriptor.enumerable,
+	            configurable: false
+	        };
+	        if (typeof descriptor.value === 'function') {
+	            newDescriptor.value = wrapFunction(extendedLabel, descriptor.value);
+	        }
+	        if (descriptor.get != null) {
+	            progressLog += 'GET ';
+	            newDescriptor.get = () => {
+	                //console.log('Calling GET ' + label + '.' + key);
+	                if (Profiler.isProfiling()) {
+	                    const nameMatchesFilter = extendedLabel === getFilter();
+	                    const start = Game.cpu.getUsed();
+	                    if (nameMatchesFilter) {
+	                        depth++;
+	                    }
+	                    const result = descriptor.get();
+	                    if (depth > 0 || !getFilter()) {
+	                        const end = Game.cpu.getUsed();
+	                        Profiler.record(extendedLabel, end - start);
+	                    }
+	                    if (nameMatchesFilter) {
+	                        depth--;
+	                    }
+	                    return result;
+	                }
+	                return descriptor.get();
+	            };
+	        }
+	        if (descriptor.set != null) {
+	            progressLog += 'SET ';
+	            newDescriptor.set = (value) => {
+	                //console.log('Calling SET ' + label + '.' + key);
+	                if (Profiler.isProfiling()) {
+	                    const nameMatchesFilter = extendedLabel === getFilter();
+	                    const start = Game.cpu.getUsed();
+	                    if (nameMatchesFilter) {
+	                        depth++;
+	                    }
+	                    descriptor.set(value);
+	                    if (depth > 0 || !getFilter()) {
+	                        const end = Game.cpu.getUsed();
+	                        Profiler.record(extendedLabel, end - start);
+	                    }
+	                    if (nameMatchesFilter) {
+	                        depth--;
+	                    }
+	                    return;
+	                }
+	                descriptor.set(value);
+	            };
+	        }
+	        if (newDescriptor.get == null && newDescriptor.set == null && newDescriptor.value == null) {
+	            console.log(progressLog + 'SKIPPED');
+	        }
+	        else {
+	            Object.defineProperty(object, key, newDescriptor);
+	            console.log(progressLog + 'DONE');
+	        }
+	    }
+	}
+	function profileFunction(fn, functionName) {
+	    const fnName = functionName || fn.name;
+	    if (!fnName) {
+	        console.log('Couldn\'t find a function name for - ', fn);
+	        console.log('Will not profile this function.');
+	        return fn;
+	    }
+	    return wrapFunction(fnName, fn);
+	}
+	const Profiler = {
+	    printProfile() {
+	        console.log(Profiler.output());
+	    },
+	    emailProfile() {
+	        Game.notify(Profiler.output());
+	    },
+	    output() {
+	        const elapsedTicks = Game.time - Memory.profiler.enabledTick + 1;
+	        const header = 'calls\t\ttime\t\tavg\t\ttickAvg\t\tfunction';
+	        const footer = [
+	            `Avg: ${(Memory.profiler.totalTime / elapsedTicks).toFixed(2)}`,
+	            `Total: ${Memory.profiler.totalTime.toFixed(2)}`,
+	            `Ticks: ${elapsedTicks}`,
+	        ].join('\t');
+	        return [].concat(header, Profiler.lines(elapsedTicks).slice(0, 30), footer).join('\n');
+	    },
+	    lines(elapsedTicks) {
+	        const stats = Object.keys(Memory.profiler.map).map(functionName => {
+	            const functionCalls = Memory.profiler.map[functionName];
+	            return {
+	                name: functionName,
+	                calls: functionCalls.calls,
+	                totalTime: functionCalls.time,
+	                averageTime: functionCalls.time / functionCalls.calls,
+	                averageTick: (functionCalls.time / functionCalls.calls) * (functionCalls.calls / elapsedTicks),
+	            };
+	        }).sort((val1, val2) => {
+	            return val2.averageTick - val1.averageTick;
+	        });
+	        const lines = stats.map(data => {
+	            return [
+	                data.calls,
+	                data.totalTime.toFixed(1),
+	                data.averageTime.toFixed(3),
+	                data.averageTick.toFixed(3),
+	                data.name,
+	            ].join('\t\t');
+	        });
+	        return lines;
+	    },
+	    prototypes: [
+	        { name: 'Game', val: Game },
+	        { name: 'Room', val: Room },
+	        { name: 'Structure', val: Structure },
+	        { name: 'Spawn', val: Spawn },
+	        { name: 'Creep', val: Creep },
+	        { name: 'RoomPosition', val: RoomPosition },
+	        { name: 'Source', val: Source },
+	        { name: 'Flag', val: Flag },
+	    ],
+	    record(functionName, time) {
+	        if (!Memory.profiler.map[functionName]) {
+	            Memory.profiler.map[functionName] = {
+	                time: 0,
+	                calls: 0,
+	            };
+	        }
+	        Memory.profiler.map[functionName].calls++;
+	        Memory.profiler.map[functionName].time += time;
+	    },
+	    endTick() {
+	        if (Game.time >= Memory.profiler.enabledTick) {
+	            const cpuUsed = Game.cpu.getUsed();
+	            Memory.profiler.totalTime += cpuUsed;
+	            Profiler.report();
+	        }
+	    },
+	    report() {
+	        if (Profiler.shouldPrint()) {
+	            Profiler.printProfile();
+	        }
+	        else if (Profiler.shouldEmail()) {
+	            Profiler.emailProfile();
+	        }
+	    },
+	    isProfiling() {
+	        return enabled && !!Memory.profiler && Game.time <= Memory.profiler.disableTick;
+	    },
+	    type() {
+	        return Memory.profiler.type;
+	    },
+	    shouldPrint() {
+	        const streaming = Profiler.type() === 'stream';
+	        const profiling = Profiler.type() === 'profile';
+	        const onEndingTick = Memory.profiler.disableTick === Game.time;
+	        return streaming || (profiling && onEndingTick);
+	    },
+	    shouldEmail() {
+	        return Profiler.type() === 'email' && Memory.profiler.disableTick === Game.time;
+	    },
+	};
+	exports.profiler = {
+	    wrap(callback) {
+	        if (enabled) {
+	            setupProfiler();
+	        }
+	        if (Profiler.isProfiling()) {
+	            usedOnStart = Game.cpu.getUsed();
+	            // Commented lines are part of an on going experiment to keep the profiler
+	            // performant, and measure certain types of overhead.
+	            // var callbackStart = Game.cpu.getUsed();
+	            const returnVal = callback();
+	            // var callbackEnd = Game.cpu.getUsed();
+	            Profiler.endTick();
+	            // var end = Game.cpu.getUsed();
+	            // var profilerTime = (end - start) - (callbackEnd - callbackStart);
+	            // var callbackTime = callbackEnd - callbackStart;
+	            // var unaccounted = end - profilerTime - callbackTime;
+	            // console.log('total-', end, 'profiler-', profilerTime, 'callbacktime-',
+	            // callbackTime, 'start-', start, 'unaccounted', unaccounted);
+	            return returnVal;
+	        }
+	        return callback();
+	    },
+	    enable() {
+	        enabled = true;
+	        hookUpPrototypes();
+	    },
+	    registerObject(object, label) {
+	        return profileObjectInheritance(object, label);
+	    },
+	    registerFN(fn, functionName) {
+	        return profileFunction(fn, functionName);
+	    },
+	};
+
 
 /***/ }
 /******/ ]);

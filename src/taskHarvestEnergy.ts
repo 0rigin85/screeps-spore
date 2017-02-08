@@ -38,7 +38,7 @@ export class HarvestEnergy extends Task
     {
         if (object instanceof Creep)
         {
-            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity)
             {
                 return 0;
             }
@@ -105,12 +105,12 @@ export class HarvestEnergy extends Task
         else if (!this.source.isShrouded && this.source.instance.energy === 0)
         {
             code = creep.goMoveTo(this.source);
-            this.doBusyWork(creep, ERR_NO_WORK);
+            //this.doBusyWork(creep, ERR_NO_WORK);
         }
         else
         {
             code = creep.goHarvest(this.source);
-            this.doBusyWork(creep, code);
+            //this.doBusyWork(creep, code);
         }
 
         if (code < 0)

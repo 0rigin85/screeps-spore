@@ -26,7 +26,7 @@ export class RepairStructure extends Task
     {
         if (object instanceof Creep)
         {
-            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity)
             {
                 return 0;
             }

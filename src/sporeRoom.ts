@@ -1,5 +1,6 @@
 import {Task, TaskPriority} from "./task";
 import {SourceMemory} from "./sporeSource";
+import {SpawnMemory} from "./sporeSpawn";
 import {Claimable, ClaimReceipt} from "./sporeClaimable";
 import {TransferResource} from "./taskTransferResource";
 import {StorageMemory} from "./sporeStorage";
@@ -14,6 +15,7 @@ import {BuildBarrier} from "./taskBuildBarrier";
 import {CREEP_TYPE, CollectOptions} from "./sporeCreep";
 import Dictionary = _.Dictionary;
 import {DefendRoom} from "./taskDefendRoom";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -29,12 +31,15 @@ declare global
         extractor: StructureExtractor;
         links: StructureLink[];
         structures: Structure[];
+        nonwalkableStructures: Structure[];
         constructionSites: ConstructionSite[];
         containers: StructureContainer[];
         extensions: StructureExtension[];
+        roads: Structure[];
         towers: StructureTower[];
         ramparts: StructureRampart[];
         mySpawns: Spawn[];
+        creeps: Creep[];
         myCreeps: Creep[];
         hostileCreeps: Creep[];
         friendlyCreeps: Creep[];
@@ -42,6 +47,7 @@ declare global
 
         economy: Economy;
         budget: Budget;
+        energyHarvestedSinceLastInvasion: number;
 
         my: boolean;
         isReserved: boolean;
@@ -57,14 +63,13 @@ declare global
         controller: ControllerMemory;
         storage: StorageMemory;
         budget: Budget;
+        energyHarvestedSinceLastInvasion: number;
     }
 }
 
 // List of allies, name must be lower case.
 const USERNAME_WHITELIST =
     [
-        'pcake0rigin', // Jacob
-        'pcakecysote', // Jacob
         'barney',      // Mr McBarnabas
         'pcakecysote', // Jacob
         'swifty',      // Leigh
@@ -79,16 +84,6 @@ STRUCTURE_REPAIR_VALUES[STRUCTURE_ROAD] = { ideal: ROAD_HITS, regular: { thresho
 STRUCTURE_REPAIR_VALUES[STRUCTURE_RAMPART] = { ideal: 20000, regular: { threshold: 15000, priority: TaskPriority.High}, dire:{threshold: 10000, priority: TaskPriority.Medium} };
 STRUCTURE_REPAIR_VALUES[STRUCTURE_WALL] = { ideal: 20000, regular: { threshold: 20000, priority: TaskPriority.Medium}, dire:{threshold: 10000, priority: TaskPriority.MediumLow} };
 STRUCTURE_REPAIR_VALUES[STRUCTURE_LINK] = { ideal: LINK_HITS_MAX, regular: { threshold: LINK_HITS_MAX * 0.8, priority: TaskPriority.High}, dire:{threshold: LINK_HITS_MAX * 0.3, priority: TaskPriority.Mandatory} };
-
-// declare var STRUCTURE_KEEPER_LAIR: string;
-// declare var STRUCTURE_STORAGE: string;
-// declare var STRUCTURE_OBSERVER: string;
-// declare var STRUCTURE_POWER_BANK: string;
-// declare var STRUCTURE_POWER_SPAWN: string;
-// declare var STRUCTURE_EXTRACTOR: string;
-// declare var STRUCTURE_LAB: string;
-// declare var STRUCTURE_TERMINAL: string;
-
 
 export class Economy
 {
@@ -141,15 +136,12 @@ export class SporeRoom extends Room
             memory.budget = new Budget();
         }
 
-        Object.defineProperty(this, "budget", {value: memory.budget});
         return memory.budget;
     }
 
     get my(): boolean
     {
-        let my = this.controller != null && (this.controller.my || (this.controller.reservation != null && this.controller.reservation.username == 'PCake0rigin'));
-        Object.defineProperty(this, "my", {value: my});
-        return my;
+        return this.controller != null && (this.controller.my || (this.controller.reservation != null && this.controller.reservation.username == 'PCake0rigin'));
     }
 
     get isReserved(): boolean
@@ -161,17 +153,16 @@ export class SporeRoom extends Room
             isReserved = this.controller.reservation.username == 'PCake0rigin';
         }
 
-        Object.defineProperty(this, "isReserved", {value: isReserved});
         return isReserved;
     }
 
     static getPriority(roomName: string): number
     {
-        let memory = Memory.rooms[this.name];
+        let memory = Memory.rooms[roomName];
         if (memory == null)
         {
             memory = <RoomMemory>{};
-            Memory.rooms[this.name] = memory;
+            Memory.rooms[roomName] = memory;
         }
 
         if (memory.priority == null)
@@ -189,13 +180,10 @@ export class SporeRoom extends Room
 
     get priority(): number
     {
-        let priority = SporeRoom.getPriority(this.name);
-
-        Object.defineProperty(this, "priority", {value: priority});
-        return priority;
+        return SporeRoom.getPriority(this.name);
     }
 
-    get sources(): Source[]
+    get energyHarvestedSinceLastInvasion(): number
     {
         let memory = Memory.rooms[this.name];
         if (memory == null)
@@ -204,200 +192,267 @@ export class SporeRoom extends Room
             Memory.rooms[this.name] = memory;
         }
 
-        let sources: Source[];
-        let sourceIds = memory.sources;
-
-        if (sourceIds == null)
+        if (memory.energyHarvestedSinceLastInvasion == null)
         {
-            memory.sources = {};
-
-            sources = this.find<Source>(FIND_SOURCES);
-            _.forEach(sources, function(source: Source) { memory.sources[source.id] = <SourceMemory>{}; });
+            memory.energyHarvestedSinceLastInvasion = 300000;
         }
-        else
-        {
-            sources = [];
-            for (let id in sourceIds)
-            {
-                let source = Game.getObjectById<Source>(id);
 
-                if (source != null)
+        return memory.energyHarvestedSinceLastInvasion;
+    }
+
+    set energyHarvestedSinceLastInvasion(value: number)
+    {
+        let memory = Memory.rooms[this.name];
+        if (memory == null)
+        {
+            memory = <RoomMemory>{};
+            Memory.rooms[this.name] = memory;
+        }
+
+        memory.energyHarvestedSinceLastInvasion = value;
+    }
+
+    get sources(): Source[]
+    {
+        return Remember.forTick(`${this.name}.sources`, () =>
+        {
+            let memory = Memory.rooms[this.name];
+            if (memory == null)
+            {
+                memory = <RoomMemory>{};
+                Memory.rooms[this.name] = memory;
+            }
+
+            let sources: Source[];
+            let sourceIds = memory.sources;
+
+            if (sourceIds == null)
+            {
+                memory.sources = {};
+
+                sources = this.find<Source>(FIND_SOURCES);
+                _.forEach(sources, function(source: Source) { memory.sources[source.id] = <SourceMemory>{}; });
+            }
+            else
+            {
+                sources = [];
+                for (let id in sourceIds)
                 {
-                    sources.push(source);
+                    let source = Game.getObjectById<Source>(id);
+
+                    if (source != null)
+                    {
+                        sources.push(source);
+                    }
                 }
             }
-        }
 
-        Object.defineProperty(this, "sources", {value: sources});
-        return sources;
+            return sources;
+        });
     }
 
     get extractor(): StructureExtractor
     {
-        let extractors = this.find<StructureExtension>(FIND_STRUCTURES, {
-            filter: {
-                structureType: STRUCTURE_EXTRACTOR
-            }
-        });
-
-        let extractor = null;
-
-        if (extractors != null && extractors.length > 0)
+        return Remember.forTick(`${this.name}.extractor`, () =>
         {
-            extractor = extractors[0];
-        }
+            let extractors = this.find<StructureExtension>(FIND_STRUCTURES, {
+                filter: {
+                    structureType: STRUCTURE_EXTRACTOR
+                }
+            });
 
-        Object.defineProperty(this, "extractor", {value: extractor});
-        return extractor;
+            let extractor = null;
+
+            if (extractors != null && extractors.length > 0)
+            {
+                extractor = extractors[0];
+            }
+
+            return extractor;
+        });
     }
 
     get mySpawns(): Spawn[]
     {
-        let spawns = this.find<Spawn>(FIND_MY_SPAWNS);
-
-        Object.defineProperty(this, "mySpawns", {value: spawns});
-        return spawns;
+        return this.find<Spawn>(FIND_MY_SPAWNS);
     }
 
     get structures(): Structure[]
     {
-        let structures = this.find<Structure>(FIND_STRUCTURES);
+        return this.find<Structure>(FIND_STRUCTURES);
+    }
 
-        Object.defineProperty(this, "structures", {value: structures});
-        return structures;
+    get nonwalkableStructures(): Structure[]
+    {
+        return Remember.forTick(`${this.name}.nonwalkableStructures`, () =>
+        {
+            return _.filter(this.structures, (structure) =>
+            {
+                return _.includes(OBSTACLE_OBJECT_TYPES, structure.structureType);
+            });
+        });
+    }
+
+    get roads(): Structure[]
+    {
+        return Remember.forTick(`${this.name}.roads`, () =>
+        {
+            return this.find<StructureExtension>(FIND_STRUCTURES, {
+                filter: {
+                    structureType: STRUCTURE_ROAD
+                }
+            });
+        });
     }
 
     get extensions(): StructureExtension[]
     {
-        let extensions = this.find<StructureExtension>(FIND_STRUCTURES, {
-            filter: {
-                structureType: STRUCTURE_EXTENSION
-            }
+        return Remember.forTick(`${this.name}.extensions`, () =>
+        {
+            return this.find<StructureExtension>(FIND_STRUCTURES, {
+                filter: {
+                    structureType: STRUCTURE_EXTENSION
+                }
+            });
         });
-
-        //Object.defineProperty(this, "extensions", {value: extensions});
-        return extensions;
     }
 
     get containers(): StructureContainer[]
     {
-        let containers = this.find<StructureContainer>(FIND_STRUCTURES, {
-            filter: {
-                structureType: STRUCTURE_CONTAINER
-            }
+        return Remember.forTick(`${this.name}.containers`, () =>
+        {
+            return this.find<StructureContainer>(FIND_STRUCTURES, {
+                filter: {
+                    structureType: STRUCTURE_CONTAINER
+                }
+            });
         });
-
-        Object.defineProperty(this, "containers", {value: containers});
-        return containers;
     }
 
     get ramparts(): StructureRampart[]
     {
-        let ramparts = this.find<any>(FIND_STRUCTURES, {
-            filter: {
-                structureType: STRUCTURE_RAMPART
-            }
+        return Remember.forTick(`${this.name}.ramparts`, () =>
+        {
+            return this.find<StructureRampart>(FIND_STRUCTURES, {
+                filter: {
+                    structureType: STRUCTURE_RAMPART
+                }
+            });
         });
-
-        Object.defineProperty(this, "ramparts", {value: ramparts});
-        return ramparts;
     }
 
     get towers(): StructureTower[]
     {
-        let towers = this.find<any>(FIND_STRUCTURES, {
-            filter: {
-                structureType: STRUCTURE_TOWER
-            }
+        return Remember.forTick(`${this.name}.towers`, () =>
+        {
+            return this.find<StructureTower>(FIND_STRUCTURES, {
+                filter: {
+                    structureType: STRUCTURE_TOWER
+                }
+            });
         });
-
-        Object.defineProperty(this, "towers", {value: towers});
-        return towers;
     }
 
     get links(): StructureLink[]
     {
-        let links = this.find<any>(FIND_STRUCTURES, {
-            filter: {
-                structureType: STRUCTURE_LINK
-            }
+        return Remember.forTick(`${this.name}.links`, () =>
+        {
+            return this.find<StructureLink>(FIND_STRUCTURES, {
+                filter: {
+                    structureType: STRUCTURE_LINK
+                }
+            });
         });
-
-        Object.defineProperty(this, "links", {value: links});
-        return links;
     }
 
-    _resources: Resource[] = null;
-    _resourcesFindTick: number = -1;
     get resources(): Resource[]
     {
-        if (this._resources != null && this._resourcesFindTick === Game.time)
-        {
-            return this._resources;
-        }
-
-        this._resources = this.find<Resource>(FIND_DROPPED_RESOURCES);
-        this._resourcesFindTick = Game.time;
-
-        return this._resources;
+        return this.find<Resource>(FIND_DROPPED_RESOURCES);
     }
 
     get constructionSites(): ConstructionSite[]
     {
-        let constructionSites = this.find<ConstructionSite>(FIND_CONSTRUCTION_SITES);
+        return this.find<ConstructionSite>(FIND_CONSTRUCTION_SITES);
+    }
 
-        Object.defineProperty(this, "constructionSites", {value: constructionSites});
-        return constructionSites;
+    get creeps(): Creep[]
+    {
+        return this.find<Creep>(FIND_CREEPS);
     }
 
     get myCreeps(): Creep[]
     {
-        let myCreeps = this.find<Creep>(FIND_MY_CREEPS);
-
-        Object.defineProperty(this, "myCreeps", {value: myCreeps});
-        return myCreeps;
+        return this.find<Creep>(FIND_MY_CREEPS);
     }
 
     get hostileCreeps(): Creep[]
     {
-        let hostilesCreeps = this.find<Creep>(FIND_HOSTILE_CREEPS,
+        return Remember.forTick(`${this.name}.hostileCreeps`, () =>
+        {
+            return this.find<Creep>(FIND_HOSTILE_CREEPS,
             {
                 filter: (creep) =>
                 {
                     return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
                 }
             });
-
-        Object.defineProperty(this, "hostileCreeps", { value: hostilesCreeps });
-        return hostilesCreeps;
+        });
     }
 
     get friendlyCreeps() : Creep[]
     {
-        let friendlyCreeps = this.find<Creep>(FIND_HOSTILE_CREEPS,
-            {
-                filter: (creep) =>
+        return Remember.forTick(`${this.name}.friendlyCreeps`, () =>
+        {
+            return this.find<Creep>(FIND_HOSTILE_CREEPS,
                 {
-                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-                }
-            });
-
-        Object.defineProperty(this, "friendlyCreeps", { value: friendlyCreeps });
-        return friendlyCreeps;
+                    filter: (creep) =>
+                    {
+                        return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+                    }
+                });
+        });
     }
 
     get injuredFriendlyCreeps(): Creep[]
     {
-        let injuredFriendlyCreeps = this.find<Creep>(FIND_CREEPS,
-            {
-                filter: (creep) =>
+        return Remember.forTick(`${this.name}.injuredFriendlyCreeps`, () =>
+        {
+            return this.find<Creep>(FIND_CREEPS,
                 {
-                    return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-                }
-            });
+                    filter: (creep) =>
+                    {
+                        return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+                    }
+                });
+        });
+    }
 
-        Object.defineProperty(this, "injuredFriendlyCreeps", { value: injuredFriendlyCreeps });
-        return injuredFriendlyCreeps;
+    get sourceKeepers(): Creep[]
+    {
+        return Remember.forTick(`${this.name}.sourceKeepers`, () =>
+        {
+            return this.find<Creep>(FIND_CREEPS,
+                {
+                    filter: (creep) =>
+                    {
+                        return creep.owner.username === "Source Keeper";
+                    }
+                });
+        });
+    }
+
+    get invaders(): Creep[]
+    {
+        return Remember.forTick(`${this.name}.invaders`, () =>
+        {
+            return this.find<Creep>(FIND_CREEPS,
+                {
+                    filter: (creep) =>
+                    {
+                        return creep.owner.username === "Invader";
+                    }
+                });
+        });
     }
 
     lookForByRadiusAt(type: string, location: RoomObjectLike | RoomPosition, radius: number, asArray?: boolean): LookAtResultMatrix | LookAtResultWithPos[]
@@ -477,15 +532,15 @@ export class SporeRoom extends Room
         //////////////////////////////////////////////////////////////////////////////
         // Activate safe mode
         {
-            if (this.controller.safeModeAvailable > 0 && this.controller.safeMode == null)
+            if (this.controller.safeModeAvailable > 0 && this.controller.safeMode == null && this.hostileCreeps.length > 0)
             {
                 let structures = _.filter(this.structures, function(structure: Structure)
                 {
                     return !!(structure.structureType !== STRUCTURE_RAMPART &&
-                        structure.structureType !== STRUCTURE_WALL &&
-                        structure.structureType !== STRUCTURE_CONTAINER &&
-                        structure.structureType !== STRUCTURE_LINK &&
-                        structure.structureType !== STRUCTURE_ROAD);
+                    structure.structureType !== STRUCTURE_WALL &&
+                    structure.structureType !== STRUCTURE_CONTAINER &&
+                    structure.structureType !== STRUCTURE_LINK &&
+                    structure.structureType !== STRUCTURE_ROAD);
                 });
 
                 for (let creep of this.hostileCreeps)
@@ -509,17 +564,11 @@ export class SporeRoom extends Room
                 }
 
                 let task = new HarvestEnergy(ScreepsPtr.from<Source>(source));
-                task.priority = TaskPriority.Mandatory + 25;
+                task.priority = TaskPriority.Mandatory + 25 + source.priorityModifier;
 
                 if (this.isReserved)
                 {
                     task.idealCreepBody = CREEP_TYPE.REMOTE_MINER;
-                }
-
-                let spawn = source.pos.findClosestByPath<Spawn>(this.mySpawns, <any>{ ignoreCreeps:true });
-                if (spawn != null)
-                {
-                    task.priority += Math.max(0, 150 - source.pos.findPathTo(spawn.pos, { ignoreCreeps:true }).length);
                 }
 
                 if (this.isReserved)
@@ -550,7 +599,7 @@ export class SporeRoom extends Room
 
                 let task = new TransferResource(targets, RESOURCE_ENERGY, null, new CollectOptions([this.name], [['near_dropped'], ['link', 'container','storage'], ['dropped']]));
 
-                task.priority = TaskPriority.High + 200;
+                task.priority = TaskPriority.High + 300;
                 task.id = "Remote gather " + this;
                 task.name = task.id;
                 task.idealCreepBody = CREEP_TYPE.REMOTE_COURIER;
@@ -566,9 +615,41 @@ export class SporeRoom extends Room
 
                 tasks.push(task);
 
-                let defendTask = new DefendRoom(this.name);
-                defendTask.roomName = 'E1N49';
-                tasks.push(defendTask);
+                if (this.energyHarvestedSinceLastInvasion > 70000 || this.invaders.length > 0)
+                {
+                    let defendTask = new DefendRoom(this.name);
+                    defendTask.roomName = 'E1N49';
+                    tasks.push(defendTask);
+                }
+            }
+
+            if (this.invaders.length > 0)
+            {
+                if (this.energyHarvestedSinceLastInvasion > 500)
+                {
+                    let hasDefender = false;
+                    for (let creep of this.myCreeps)
+                    {
+                        if (creep.type === CREEP_TYPE.REMOTE_DEFENDER.name)
+                        {
+                            hasDefender = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasDefender)
+                    {
+                        console.log('Invasion has occurred with no REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion);
+                        Game.notify('[' + this.name + '] Invasion has occurred with no REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion, 10);
+                    }
+                    else
+                    {
+                        console.log('Invasion has occurred while protected by a REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion);
+                        Game.notify('[' + this.name + '] Invasion has occurred while protected by a REMOTE_DEFENDER ' + this.energyHarvestedSinceLastInvasion, 10);
+                    }
+                }
+
+                this.energyHarvestedSinceLastInvasion = 0;
             }
         }
 
@@ -600,7 +681,7 @@ export class SporeRoom extends Room
                     task = new TransferResource(transferTargets, RESOURCE_ENERGY, null, new CollectOptions(null, [['near_dropped'], ['link', 'container','storage'], ['dropped'], ['source']]));
                 }
 
-                task.priority = TaskPriority.Mandatory + 200;
+                task.priority = TaskPriority.Mandatory + 300;
                 task.id = "Fill Spawns and Extensions " + this;
                 task.name = task.id;
                 //task.capacityCap = this.energyCapacityAvailable;
@@ -687,17 +768,55 @@ export class SporeRoom extends Room
         //////////////////////////////////////////////////////////////////////////////
         // Manage Ramparts
         {
-            this.ramparts.forEach(x => {
-                let site = x.pos.lookFor<ConstructionSite>(LOOK_CONSTRUCTION_SITES);
-                if (site == null || site.length === 0)
+            if (this.hostileCreeps.length > 0 || this.friendlyCreeps.length > 0)
+            {
+                if (this.hostileCreeps.length > 5)
                 {
-                    x.setPublic(x.pos.findInRange(this.hostileCreeps, 2).length === 0);
+                    for (let rampart of this.ramparts)
+                    {
+                        rampart.setPublic(false);
+                    }
                 }
                 else
                 {
-                    x.setPublic(false);
+                    for (let creep of this.hostileCreeps)
+                    {
+                        let lookArea = <LookAtResultWithPos[]>creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep, 2, true);
+
+                        for (let spot of lookArea)
+                        {
+                            if (spot.structure != null && spot.structure.structureType === STRUCTURE_RAMPART)
+                            {
+                                (<StructureRampart>spot.structure).setPublic(false);
+                            }
+                        }
+                    }
+
+                    for (let creep of this.friendlyCreeps)
+                    {
+                        let lookArea = <LookAtResultWithPos[]>creep.room.lookForByRadiusAt(LOOK_STRUCTURES, creep, 2, true);
+
+                        for (let spot of lookArea)
+                        {
+                            if (spot.structure != null && spot.structure.structureType === STRUCTURE_RAMPART)
+                            {
+                                let rampart = (<StructureRampart>spot.structure);
+                                let site = rampart.pos.lookFor<ConstructionSite>(LOOK_CONSTRUCTION_SITES);
+                                if (site == null || site.length === 0)
+                                {
+                                    rampart.setPublic(true);
+                                }
+                                else
+                                {
+                                    rampart.setPublic(false);
+                                }
+
+                                rampart.setPublic(false);
+                            }
+                        }
+                    }
                 }
-            });
+            }
         }
 
         //////////////////////////////////////////////////////////////////////////////

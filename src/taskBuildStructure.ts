@@ -22,6 +22,9 @@ let STRUCTURE_BUILD_PRIORITY =
     "rampart": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumLow },
     "road": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumHigh },
     "constructedWall": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumLow },
+    "observer": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumLow },
+    "powerSpawn": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumLow },
+    "nuker": function(site: ScreepsPtr<ConstructionSite>) { return TaskPriority.MediumLow },
 };
 
 export class BuildStructure extends Task
@@ -61,7 +64,7 @@ export class BuildStructure extends Task
     {
         if (object instanceof Creep)
         {
-            if (object.carryCount === object.carryCapacity && object.carry[RESOURCE_ENERGY] === 0)
+            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity)
             {
                 return 0;
             }

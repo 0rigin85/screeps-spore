@@ -1,6 +1,7 @@
 ///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 
 import {ScreepsPtr} from "./screepsPtr";
+import {Remember} from "./sporeRemember";
 declare global
 {
     interface StructureController
@@ -28,7 +29,6 @@ export class SporeController extends StructureController
             roomMemory.controller = memory;
         }
 
-        Object.defineProperty(this, "memory", {value: memory});
         return memory;
     }
 
@@ -59,7 +59,6 @@ export class SporeController extends StructureController
             this.memory.claimSlots = slots;
         }
 
-        Object.defineProperty(this, "slots", {value: slots});
         return slots;
     }
 }

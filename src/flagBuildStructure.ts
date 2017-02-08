@@ -125,9 +125,13 @@ export class FlagBuildStructure extends Task
 
         if (constructionSite == null)
         {
-            let sameStructures = this.flag.room.find<Structure>(FIND_STRUCTURES, {
-                filter: { structureType: this.structureType }
-            });
+            let sameStructures = this.flag.room[this.structureType + 's'];
+            if (sameStructures == null)
+            {
+                sameStructures = this.flag.room.find<Structure>(FIND_STRUCTURES, {
+                    filter: { structureType: this.structureType }
+                });
+            }
 
             let sameSites = this.flag.room.find<ConstructionSite>(FIND_CONSTRUCTION_SITES, {
                 filter: { structureType: this.structureType }

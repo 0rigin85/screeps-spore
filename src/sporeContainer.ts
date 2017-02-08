@@ -4,7 +4,8 @@ import {ClaimReceipt, Claimable} from "./sporeClaimable";
 import {Task, TaskPriority} from "./task";
 import {TransferResource} from "./taskTransferResource";
 import {StoreContainerLike, ScreepsPtr} from "./screepsPtr";
-import {SporeCreep, CollectOptions} from "./sporeCreep";
+import {CollectOptions} from "./sporeCreep";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -181,10 +182,10 @@ export class SporeContainer extends StructureContainer implements Claimable
 
     private get claims(): Claims
     {
-        let claims = new Claims(this);
-
-        Object.defineProperty(this, "claims", {value: claims});
-        return claims;
+        return Remember.forTick(`${this.id}.claims`, () =>
+        {
+            return new Claims(this);
+        });
     }
 }
 

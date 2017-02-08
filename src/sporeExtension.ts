@@ -1,6 +1,7 @@
 ///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
 
 import {ClaimReceipt, Claimable} from "./sporeClaimable";
+import {Remember} from "./sporeRemember";
 
 declare global
 {
@@ -69,10 +70,10 @@ export class SporeExtension extends StructureExtension implements Claimable
 
     private get claims(): Claims
     {
-        let claims = new Claims(this);
-
-        Object.defineProperty(this, "claims", {value: claims});
-        return claims;
+        return Remember.forTick(`${this.id}.claims`, () =>
+        {
+            return new Claims(this);
+        });
     }
 }
 

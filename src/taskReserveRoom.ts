@@ -1,4 +1,7 @@
-import {Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, LaborDemandType} from './task';
+import {
+    Task, ERR_NO_WORK, TaskPriority, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, LaborDemandType,
+    ERR_SKIP_WORKER
+} from './task';
 import Dictionary = _.Dictionary;
 import {SporeCreep, ACTION_BUILD, CREEP_TYPE} from "./sporeCreep";
 import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
@@ -117,6 +120,11 @@ export class ReserveRoom extends Task
         {
             creep.goMoveTo(creep.spawnRequest.replacingCreep);
             return OK;
+        }
+
+        if (creep.spawnRequest == null && creep.task != this && creep.task instanceof ReserveRoom)
+        {
+            return ERR_SKIP_WORKER;
         }
 
         code = creep.goReserve(this.controller);

@@ -4,14 +4,11 @@ import {Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORKE
 import {RecycleCreep} from "./taskRecycleCreep";
 import {ScreepsPtr} from "./screepsPtr";
 import {SpawnAppointment, SpawnRequest} from "./spawnRequest";
-import {SporeCreep, CREEP_TYPE, CollectOptions, ACTION_MOVE} from "./sporeCreep";
-import {Economy, SporeRoom} from "./sporeRoom";
-import {HarvestEnergy} from "./taskHarvestEnergy";
-import {TransferResource} from "./taskTransferResource";
-import {UpgradeRoomController} from "./taskUpgradeRoomController";
-import {BuildBarrier} from "./taskBuildBarrier";
-import {ClaimRoom} from "./taskClaimRoom";
+import {CREEP_TYPE, CollectOptions, ACTION_MOVE} from "./sporeCreep";
+import {SporeRoom} from "./sporeRoom";
 import {Claimable, ClaimReceipt} from "./sporeClaimable";
+import {SporePathFinder} from "./sporePathFinder";
+import {Remember} from "./sporeRemember";
 
 export class LaborPoolType
 {
@@ -230,53 +227,58 @@ export class SporeColony
     constructor()
     { }
 
+    pathFinder: SporePathFinder = new SporePathFinder();
     tasks: Task[] = [];
     tasksById: Dictionary<Task> = {};
     laborPool: LaborPool = new LaborPool();
     spawnRequests: SpawnRequest[] = [];
     requestsCurrentlySpawning: string[] = [];
 
+    cpuSpentPathing: number = 0;
+    pathingCpuLimit: number = 30;
+
     get myRooms(): Room[]
     {
-        let myRooms: Room[] = [];
+        return Remember.forTick('colony.myRooms', () => {
+            let myRooms: Room[] = [];
 
-        for (let roomId in Game.rooms)
-        {
-            let room = Game.rooms[roomId];
-
-            if (room.my)
+            for (let roomId in Game.rooms)
             {
-                myRooms.push(room);
-            }
-        }
+                let room = Game.rooms[roomId];
 
-        myRooms.sort(function (a, b)
-        {
-            if (a.priority < b.priority)
-            {
-                return 1;
+                if (room.my)
+                {
+                    myRooms.push(room);
+                }
             }
 
-            if (a.priority > b.priority)
+            myRooms.sort(function (a, b)
             {
-                return -1;
-            }
+                if (a.priority < b.priority)
+                {
+                    return 1;
+                }
 
-            if (a.name < b.name)
-            {
-                return 1;
-            }
+                if (a.priority > b.priority)
+                {
+                    return -1;
+                }
 
-            if (a.name > b.name)
-            {
-                return -1;
-            }
+                if (a.name < b.name)
+                {
+                    return 1;
+                }
 
-            return 0;
+                if (a.name > b.name)
+                {
+                    return -1;
+                }
+
+                return 0;
+            });
+
+            return myRooms;
         });
-
-        Object.defineProperty(this, "myRooms", {value: myRooms});
-        return myRooms;
     }
 
     run(): void
@@ -349,6 +351,7 @@ export class SporeColony
 
         let totalSurplusCreeps = _.size(creeps);
         console.log("Surplus Creeps: " + totalSurplusCreeps);
+
         //this.recycleCreeps(creeps);
     }
 
@@ -468,6 +471,11 @@ export class SporeColony
         //     }
         // }
 
+        this.calculateLaborPool(task, prioritizedCreeps, skippedCreeps);
+    }
+
+    calculateLaborPool(task, prioritizedCreeps, skippedCreeps): void
+    {
         let laborPool: LaborPool = new LaborPool();
 
         for (let index = 0; index < prioritizedCreeps.length; index++)
@@ -626,16 +634,6 @@ export class SporeColony
             if (a.roomName != null && b.roomName == null)
             {
                 return -1;
-            }
-
-            if (a.roomName == 'SporeRoom')
-            {
-                console.log('//////////////// ' + a.name);
-            }
-
-            if (b.roomName == 'SporeRoom')
-            {
-                console.log('//////////////// ' + b.name);
             }
 
             if (a.roomName != null && b.roomName != null)

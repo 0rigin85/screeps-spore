@@ -6,6 +6,8 @@
     "removeComments": false,
     "noImplicitAny": false,
     "outDir": "./js",
+    "baseUrl": "./src",
+    "experimentalDecorators": true,
     "moduleResolution": "node"
   },
 

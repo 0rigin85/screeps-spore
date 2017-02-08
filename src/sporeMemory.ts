@@ -1,10 +1,12 @@
 
+import {SporePathMemory} from "./sporePathFinder";
+
 declare global
 {
     interface Memory
     {
-        routes: {
-            [fromRoom: string]: any;
+        paths: {
+            [id: string]: SporePathMemory;
         };
 
         config: Configuration;

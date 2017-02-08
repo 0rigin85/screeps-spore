@@ -1,5 +1,6 @@
-import {Claimable} from "./sporeClaimable";
-import {ScreepsPtr, RoomObjectLike} from "./screepsPtr";
+/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
+
+import {RoomObjectLike} from "./screepsPtr";
 import {BodyDefinition} from "./bodyDefinition";
 import {SpawnRequest, SpawnAppointment} from "./spawnRequest";
 import Dictionary = _.Dictionary;
@@ -82,7 +83,7 @@ export class Task
             }
             else
             {
-                spawnDistanceFromNear = (<any>Map).getRoomLinearDistance(spawn.pos.roomName, near.pos.roomName) * 50;
+                spawnDistanceFromNear = Game.map.getRoomLinearDistance(spawn.pos.roomName, near.pos.roomName) * 50;
             }
         }
 

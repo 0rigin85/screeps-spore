@@ -5,6 +5,10 @@
 /dist
 node_modules
 *.log
+/src/*.js
+/src/*.js.map
+/src/.baseDir.ts
+/.tscache
 
 # Windows image file caches
 Thumbs.db
@@ -53,3 +57,4 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+*.log

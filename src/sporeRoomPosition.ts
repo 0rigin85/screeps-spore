@@ -1,10 +1,13 @@
+/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
 
 import {RoomObjectLike} from "./screepsPtr";
+import Dictionary = _.Dictionary;
 
 declare global
 {
     interface RoomPosition
     {
+        serialize(): string;
         sortByRangeTo(targets: RoomObjectLike[]): void;
         getWalkableSurroundingArea(): number;
         getWalkableSurroundingAreaInRange(target: RoomPosition, range: number): RoomPosition[];
@@ -14,13 +17,24 @@ declare global
     }
 }
 
-export class RouteMemory
-{
-    [toRoom: string]: any[];
-}
-
 export class SporeRoomPosition extends RoomPosition
 {
+    static serialize(pos: RoomPosition): string
+    {
+        return pos.x + ',' + pos.y + ',' +  pos.roomName;
+    }
+
+    serialize(): string
+    {
+        return this.x + ',' + this.y + ',' +  this.roomName;
+    }
+
+    static deserialize(value: string): RoomPosition
+    {
+        let parameters = value.split(',');
+        return new RoomPosition(+parameters[0], +parameters[1], parameters[2]);
+    }
+
     sortByRangeTo(targets: RoomObjectLike[]): void
     {
         let cachedRange = {};
@@ -69,97 +83,19 @@ export class SporeRoomPosition extends RoomPosition
         }.bind(this));
     }
 
-    getRouteTo(toRoom: string): any[]
-    {
-        if (Memory.routes == null)
-        {
-            Memory.routes = [];
-        }
-
-        let routeMemory = Memory.routes[this.roomName];
-        if (routeMemory == null)
-        {
-            routeMemory = <RouteMemory>{};
-            Memory.routes[this.roomName] = routeMemory;
-        }
-
-        if (routeMemory[toRoom] === undefined)
-        {
-            routeMemory[toRoom] = Game.map.findRoute(this.roomName, toRoom);
-
-            if (routeMemory[toRoom] === ERR_NO_PATH)
-            {
-                routeMemory[toRoom] = null;
-            }
-        }
-
-        return routeMemory[toRoom];
-    }
-
     findDistanceByPathTo(other: RoomPosition | RoomObjectLike, opts?: FindPathOpts): number
     {
         //console.log('///////////////////// ' + this + " -> " + other);
 
-        let rangeToSite = 0;
-        let toRoomName = '';
-
-        if (other instanceof RoomPosition)
+        let target = <RoomPosition>other;
+        if (!(other instanceof RoomPosition))
         {
-            toRoomName = other.roomName;
-        }
-        else
-        {
-            toRoomName = other.pos.roomName;
+            target = other.pos;
         }
 
-        if (this.roomName != toRoomName)
-        {
-            return 50;
+        let result = PathFinder.search(this, { pos: target, range: 1 });
 
-            if (Game.rooms[this.roomName] == null)
-            {
-                return 0;
-            }
-
-            let route = this.getRouteTo(toRoomName);
-
-            if (route.length === 0)
-            {
-                // creep can't navigate to this room
-                return 0;
-            }
-
-            let closestExit = this.findClosestByRange<RoomPosition>(route[0].exit);
-
-            rangeToSite = this.findPathTo(closestExit, opts).length;
-
-            if (route.length >= 2)
-            {
-                rangeToSite += (route.length - 1) * 50;
-            }
-
-            let lastExit = route[route.length - 1];
-            if (lastExit < 4)
-            {
-                lastExit += 4;
-            }
-            else
-            {
-                lastExit -= 4;
-            }
-            console.log(lastExit);
-
-            let closestLastExit = this.findClosestByRange<RoomPosition>(lastExit);
-            console.log(closestLastExit);
-            rangeToSite += this.findPathTo(closestLastExit, opts).length;
-        }
-        else
-        {
-            let path = this.findPathTo(other, opts);
-            rangeToSite = path.length;
-        }
-
-        return rangeToSite;
+        return result.path.length;
     }
 
     findFirstInRange(targets: RoomObjectLike[], range: number): RoomObjectLike
