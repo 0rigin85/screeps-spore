@@ -39,11 +39,6 @@ export class Spore
 
     static inject(): void
     {
-        if (Memory.config == null)
-        {
-            Memory.config = { tasks:{} };
-        }
-
         function completeAssign(target, ...sources) {
             sources.forEach(source => {
                 let descriptors = Object.getOwnPropertyNames(source).reduce((descriptors, key) => {
@@ -92,19 +87,20 @@ export class Spore
         completeAssign(StructureLink.prototype, SporeLink.prototype);
 
         profiler.enable();
-        profiler.registerObject(Task.prototype, 'Task');
-        profiler.registerObject(SporeColony.prototype, 'SporeColony');
-        profiler.registerObject(BuildBarrier.prototype, 'TaskBuildBarrier');
-        profiler.registerObject(ClaimRoom.prototype, 'ClaimRoom');
-        profiler.registerObject(DefendRoom.prototype, 'DefendRoom');
-        profiler.registerObject(DismantleStructure.prototype, 'DismantleStructure');
-        profiler.registerObject(HarvestEnergy.prototype, 'HarvestEnergy');
-        profiler.registerObject(RecycleCreep.prototype, 'RecycleCreep');
-        profiler.registerObject(RepairStructure.prototype, 'RepairStructure');
-        profiler.registerObject(ReserveRoom.prototype, 'ReserveRoom');
-        profiler.registerObject(TransferResource.prototype, 'TransferResource');
-        profiler.registerObject(UpgradeRoomController.prototype, 'UpgradeRoomController');
-        profiler.registerObject(Wire.prototype, 'Wire');
+
+        // profiler.registerObject(Task.prototype, 'Task');
+        // profiler.registerObject(SporeColony.prototype, 'SporeColony');
+        // profiler.registerObject(BuildBarrier.prototype, 'TaskBuildBarrier');
+        // profiler.registerObject(ClaimRoom.prototype, 'ClaimRoom');
+        // profiler.registerObject(DefendRoom.prototype, 'DefendRoom');
+        // profiler.registerObject(DismantleStructure.prototype, 'DismantleStructure');
+        // profiler.registerObject(HarvestEnergy.prototype, 'HarvestEnergy');
+        // profiler.registerObject(RecycleCreep.prototype, 'RecycleCreep');
+        // profiler.registerObject(RepairStructure.prototype, 'RepairStructure');
+        // profiler.registerObject(ReserveRoom.prototype, 'ReserveRoom');
+        // profiler.registerObject(TransferResource.prototype, 'TransferResource');
+        // profiler.registerObject(UpgradeRoomController.prototype, 'UpgradeRoomController');
+        // profiler.registerObject(Wire.prototype, 'Wire');
     }
 }
 

@@ -15,8 +15,7 @@
         "browserify": "~13.1.0",
         "webpack": "~1.13.2",
         "grunt-webpack": "~1.0.16",
-        "typescript": "^2.0.0",
-        "screeps-typescript-declarations": "~4.2.0",
-        "screeps-profiler": "1.2.2"
+        "typescript": "^2.1.0",
+        "screeps-typescript-declarations": "~4.2.0"
     }
 }

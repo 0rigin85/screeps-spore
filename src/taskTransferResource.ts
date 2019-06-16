@@ -170,24 +170,34 @@ export class TransferResource extends Task
         return super.createBasicAppointment(spawn, request, this.targets[0]);
     }
 
-    prioritize(object: RoomObjectLike): number
+    getPrioritizingConditions(conditions: Array<any>): void
+    {
+        conditions.push((creep:Creep) =>
+        {
+            if (creep.carry[this.resourceType] === 0 && creep.carryCount === creep.carryCapacity)
+            {
+                return -1;
+            }
+
+            if (creep.type === CREEP_TYPE.UPGRADER.name)
+            {
+                return -1;
+            }
+
+            return 0;
+        });
+
+        super.getBasicPrioritizingConditions(conditions, this.source, this.idealCreepBody);
+    }
+
+    isIdeal(object: RoomObjectLike): boolean
     {
         if (object instanceof Creep)
         {
-            if (object.carry[this.resourceType] === 0 && object.carryCount === object.carryCapacity)
-            {
-                return 0;
-            }
-
-            if (object.type === CREEP_TYPE.UPGRADER.name)
-            {
-                return 0;
-            }
-
-            return super.basicPrioritizeCreep(object, this.source, this.idealCreepBody);
+            return object.type === this.idealCreepBody.name;
         }
 
-        return 0;
+        return false;
     }
 
     beginScheduling(): void

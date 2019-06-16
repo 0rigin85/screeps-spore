@@ -22,24 +22,34 @@ export class RepairStructure extends Task
         this.roomName = 'E1N49';
     }
 
-    prioritize(object: RoomObjectLike): number
+    getPrioritizingConditions(conditions: Array<any>): void
+    {
+        conditions.push((creep:Creep) =>
+        {
+            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity)
+            {
+                return -1;
+            }
+
+            if (creep.type === CREEP_TYPE.MINER.name || creep.type === CREEP_TYPE.UPGRADER.name)
+            {
+                return -1;
+            }
+
+            return 0;
+        });
+
+        super.getBasicPrioritizingConditions(conditions, this.structure, this.idealCreepBody);
+    }
+
+    isIdeal(object: RoomObjectLike): boolean
     {
         if (object instanceof Creep)
         {
-            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity)
-            {
-                return 0;
-            }
-
-            if (object.type === CREEP_TYPE.MINER.name || object.type === CREEP_TYPE.UPGRADER.name)
-            {
-                return 0;
-            }
-
-            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
+            return object.type === this.idealCreepBody.name;
         }
 
-        return 0;
+        return false;
     }
 
     schedule(object: RoomObjectLike): number

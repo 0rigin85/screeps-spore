@@ -70,7 +70,7 @@ export class SporeExtension extends StructureExtension implements Claimable
 
     private get claims(): Claims
     {
-        return Remember.forTick(`${this.id}.claims`, () =>
+        return Remember.byName(`extension.${this.id}`, `claims`, () =>
         {
             return new Claims(this);
         });

@@ -129,70 +129,55 @@ export class Task
         return true;
     }
 
-    prioritize(object: RoomObjectLike): number
+    protected getBasicPrioritizingConditions(conditions: Array<any>, near: RoomObjectLike, idealBody: BodyDefinition) : void
     {
-        return 0;
+        conditions.push((creep:Creep) =>
+        {
+            // 1 - 40
+            let efficiency = creep.getEfficiencyAs(idealBody);
+
+            if (efficiency === 0)
+            {
+                return -1;
+            }
+
+            return (creep.type === idealBody.name) ? 0.4 + (efficiency * 0.2) : (efficiency * 0.2)
+        });
+
+        conditions.push((creep:Creep) =>
+        {
+            let objectPriority = 0;
+
+            // 41 - 60
+            if (near != null && creep.pos.roomName == near.pos.roomName)
+            {
+                objectPriority += 0.2;
+            }
+            else if (creep.task == null)
+            {
+                objectPriority = 0.1;
+            }
+
+            return objectPriority;
+        });
+
+        if (near != null)
+        {
+            conditions.push((creep:Creep) =>
+            {
+                return 300 - creep.pos.findDistanceByPathTo(near);
+            });
+        }
     }
 
-    protected basicPrioritizeCreep(creep: Creep, near: RoomObjectLike, idealBody: BodyDefinition): number
+    getPrioritizingConditions(conditions: Array<any>): void
     {
-        let objectPriority = 0;
 
-        if (creep.spawnRequest != null && creep.spawnRequest.id != null && creep.spawnRequest.id.length > 0)
-        {
-            if (creep.spawnRequest.task == this ||
-                (creep.spawnRequest.replacingCreep != null && creep.spawnRequest.replacingCreep.task == this))
-            {
-                // this creep is intended for this task
-                return 1;
-            }
-            else
-            {
-                // this creep is intended for a different task
-                return 0;
-            }
-        }
+    }
 
-        // 1 - 40
-        if (creep.type === idealBody.name)
-        {
-            objectPriority += 0.40;
-        }
-
-        // 41 - 60
-        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName))
-        {
-            objectPriority += 0.2;
-
-            // 61 - 70
-            if (creep.task == this)
-            {
-                if (creep.taskPriority >= 0)
-                {
-                    objectPriority += 0.1 + (((100 - creep.taskPriority) / 100) * 0.01);
-                }
-                else
-                {
-                    objectPriority += 0.1;
-                }
-            }
-        }
-        else if (creep.task != null && creep.task != this)
-        {
-            objectPriority = Math.max(0, objectPriority - .1);
-        }
-
-        // 71 - 90 : objectPriority
-        let taskEfficiency = creep.getEfficiencyAs(idealBody);
-        if (taskEfficiency === 0)
-        {
-            return 0;
-        }
-
-        objectPriority += (20 * taskEfficiency) / 100;
-        //console.log(object + ' objectPriority as ' + this.idealCreepBody.name + ' ' + objectPriority);
-
-        return objectPriority;
+    isIdeal(object: RoomObjectLike): boolean
+    {
+        return false;
     }
 
     beginScheduling(): void

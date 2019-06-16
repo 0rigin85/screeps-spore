@@ -137,7 +137,7 @@ export class SporeLink extends StructureLink implements Claimable
 
     get nearBySource(): Source
     {
-        return Remember.forTick(`${this.id}.nearBySource`, () =>
+        return Remember.byName(`link.${this.id}`, `nearBySource`, () =>
         {
             if (this.memory.nearBySourceId != null)
             {
@@ -288,7 +288,7 @@ export class SporeLink extends StructureLink implements Claimable
 
     private get claims(): Claims
     {
-        return Remember.forTick(`${this.id}.claims`, () =>
+        return Remember.byName(`link.${this.id}`, `claims`, () =>
         {
             return new Claims(this);
         });

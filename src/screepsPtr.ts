@@ -101,7 +101,7 @@ export class ScreepsPtr<T extends RoomObjectLike> implements RoomObjectLike
         // [source {room E53S36 20,30}]
 
         return result + ']</font>';
-    }
+    };
 
     get room(): Room
     {

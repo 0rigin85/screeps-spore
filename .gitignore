@@ -58,3 +58,5 @@ Network Trash Folder
 Temporary Items
 .apdisk
 *.log
+*.log
+npm-debug.log

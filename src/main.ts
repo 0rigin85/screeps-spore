@@ -10,11 +10,14 @@ declare var module: any;
 Spore.inject();
 
 module.exports.loop = function() {
-    let cpuSpentDeserializingMemory = Game.cpu.getUsed();
-
     profiler.wrap(function() {
         PathFinder.use(true);
-        Remember.tick();
+        Remember.beginTick();
+
+        if (Memory.config == null)
+        {
+            Memory.config = { tasks:{} };
+        }
 
         for(let name in Memory.creeps)
         {
@@ -27,7 +30,7 @@ module.exports.loop = function() {
 
         Spore.colony = new SporeColony();
         Spore.colony.run();
-    });
 
-    console.log("DeserializingMemory CPU: <progress value='" + cpuSpentDeserializingMemory + "' max='" + 30 + "'/> [" + cpuSpentDeserializingMemory.toFixed(2) + "]");
+        Remember.endTick();
+    });
 };

@@ -54,15 +54,17 @@ module.exports =
 
 	"use strict";
 	const spore_1 = __webpack_require__(2);
-	const sporeColony_1 = __webpack_require__(38);
+	const sporeColony_1 = __webpack_require__(41);
 	const sporeRemember_1 = __webpack_require__(13);
-	const screeps_profiler_1 = __webpack_require__(42);
+	const screeps_profiler_1 = __webpack_require__(40);
 	spore_1.Spore.inject();
 	module.exports.loop = function () {
-	    let cpuSpentDeserializingMemory = Game.cpu.getUsed();
 	    screeps_profiler_1.profiler.wrap(function () {
 	        PathFinder.use(true);
-	        sporeRemember_1.Remember.tick();
+	        sporeRemember_1.Remember.beginTick();
+	        if (Memory.config == null) {
+	            Memory.config = { tasks: {} };
+	        }
 	        for (let name in Memory.creeps) {
 	            if (!Game.creeps[name]) {
 	                delete Memory.creeps[name];
@@ -71,8 +73,8 @@ module.exports =
 	        }
 	        spore_1.Spore.colony = new sporeColony_1.SporeColony();
 	        spore_1.Spore.colony.run();
+	        sporeRemember_1.Remember.endTick();
 	    });
-	    console.log("DeserializingMemory CPU: <progress value='" + cpuSpentDeserializingMemory + "' max='" + 30 + "'/> [" + cpuSpentDeserializingMemory.toFixed(2) + "]");
 	};
 
 
@@ -95,28 +97,12 @@ module.exports =
 	const sporeStorage_1 = __webpack_require__(35);
 	const sporeStructure_1 = __webpack_require__(36);
 	const sporeTower_1 = __webpack_require__(37);
-	const sporeColony_1 = __webpack_require__(38);
-	const sporeResource_1 = __webpack_require__(40);
-	const sporeLink_1 = __webpack_require__(41);
-	const screeps_profiler_1 = __webpack_require__(42);
-	const task_1 = __webpack_require__(5);
-	const taskBuildBarrier_1 = __webpack_require__(19);
-	const taskClaimRoom_1 = __webpack_require__(31);
-	const taskDefendRoom_1 = __webpack_require__(20);
-	const taskDismantleStructure_1 = __webpack_require__(29);
-	const taskHarvestEnergy_1 = __webpack_require__(17);
-	const taskRecycleCreep_1 = __webpack_require__(39);
-	const taskRepairStructure_1 = __webpack_require__(15);
-	const taskReserveRoom_1 = __webpack_require__(32);
-	const taskTransferResource_1 = __webpack_require__(4);
-	const taskUpgradeRoomController_1 = __webpack_require__(14);
-	const taskWire_1 = __webpack_require__(33);
+	const sporeResource_1 = __webpack_require__(38);
+	const sporeLink_1 = __webpack_require__(39);
+	const screeps_profiler_1 = __webpack_require__(40);
 	class Spore {
 	    constructor() { }
 	    static inject() {
-	        if (Memory.config == null) {
-	            Memory.config = { tasks: {} };
-	        }
 	        function completeAssign(target, ...sources) {
 	            sources.forEach(source => {
 	                let descriptors = Object.getOwnPropertyNames(source).reduce((descriptors, key) => {
@@ -157,19 +143,19 @@ module.exports =
 	        completeAssign(Resource.prototype, sporeResource_1.SporeResource.prototype);
 	        completeAssign(StructureLink.prototype, sporeLink_1.SporeLink.prototype);
 	        screeps_profiler_1.profiler.enable();
-	        screeps_profiler_1.profiler.registerObject(task_1.Task.prototype, 'Task');
-	        screeps_profiler_1.profiler.registerObject(sporeColony_1.SporeColony.prototype, 'SporeColony');
-	        screeps_profiler_1.profiler.registerObject(taskBuildBarrier_1.BuildBarrier.prototype, 'TaskBuildBarrier');
-	        screeps_profiler_1.profiler.registerObject(taskClaimRoom_1.ClaimRoom.prototype, 'ClaimRoom');
-	        screeps_profiler_1.profiler.registerObject(taskDefendRoom_1.DefendRoom.prototype, 'DefendRoom');
-	        screeps_profiler_1.profiler.registerObject(taskDismantleStructure_1.DismantleStructure.prototype, 'DismantleStructure');
-	        screeps_profiler_1.profiler.registerObject(taskHarvestEnergy_1.HarvestEnergy.prototype, 'HarvestEnergy');
-	        screeps_profiler_1.profiler.registerObject(taskRecycleCreep_1.RecycleCreep.prototype, 'RecycleCreep');
-	        screeps_profiler_1.profiler.registerObject(taskRepairStructure_1.RepairStructure.prototype, 'RepairStructure');
-	        screeps_profiler_1.profiler.registerObject(taskReserveRoom_1.ReserveRoom.prototype, 'ReserveRoom');
-	        screeps_profiler_1.profiler.registerObject(taskTransferResource_1.TransferResource.prototype, 'TransferResource');
-	        screeps_profiler_1.profiler.registerObject(taskUpgradeRoomController_1.UpgradeRoomController.prototype, 'UpgradeRoomController');
-	        screeps_profiler_1.profiler.registerObject(taskWire_1.Wire.prototype, 'Wire');
+	        // profiler.registerObject(Task.prototype, 'Task');
+	        // profiler.registerObject(SporeColony.prototype, 'SporeColony');
+	        // profiler.registerObject(BuildBarrier.prototype, 'TaskBuildBarrier');
+	        // profiler.registerObject(ClaimRoom.prototype, 'ClaimRoom');
+	        // profiler.registerObject(DefendRoom.prototype, 'DefendRoom');
+	        // profiler.registerObject(DismantleStructure.prototype, 'DismantleStructure');
+	        // profiler.registerObject(HarvestEnergy.prototype, 'HarvestEnergy');
+	        // profiler.registerObject(RecycleCreep.prototype, 'RecycleCreep');
+	        // profiler.registerObject(RepairStructure.prototype, 'RepairStructure');
+	        // profiler.registerObject(ReserveRoom.prototype, 'ReserveRoom');
+	        // profiler.registerObject(TransferResource.prototype, 'TransferResource');
+	        // profiler.registerObject(UpgradeRoomController.prototype, 'UpgradeRoomController');
+	        // profiler.registerObject(Wire.prototype, 'Wire');
 	    }
 	}
 	Spore.colony = null;
@@ -190,8 +176,17 @@ module.exports =
 	const sporeCreep_1 = __webpack_require__(7);
 	const taskDefendRoom_1 = __webpack_require__(20);
 	const sporeRemember_1 = __webpack_require__(13);
-	// List of allies, name must be lower case.
-	const USERNAME_WHITELIST = [
+	// List of usernames, name must be lower case.
+	const FRIENDLY_WHITELIST = [
+	    'pcake0rigin',
+	    'barney',
+	    'pcakecysote',
+	    'swifty',
+	    'yeurch',
+	    '0xdeadfeed' // Wes
+	];
+	// List of usernames, name must be lower case.
+	const ALLY_WHITELIST = [
 	    'barney',
 	    'pcakecysote',
 	    'swifty',
@@ -289,7 +284,7 @@ module.exports =
 	        memory.energyHarvestedSinceLastInvasion = value;
 	    }
 	    get sources() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.sources`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `sources`, function () {
 	            let memory = Memory.rooms[this.name];
 	            if (memory == null) {
 	                memory = {};
@@ -312,10 +307,10 @@ module.exports =
 	                }
 	            }
 	            return sources;
-	        });
+	        }.bind(this));
 	    }
 	    get extractor() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.extractor`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `extractor`, function () {
 	            let extractors = this.find(FIND_STRUCTURES, {
 	                filter: {
 	                    structureType: STRUCTURE_EXTRACTOR
@@ -326,7 +321,7 @@ module.exports =
 	                extractor = extractors[0];
 	            }
 	            return extractor;
-	        });
+	        }.bind(this));
 	    }
 	    get mySpawns() {
 	        return this.find(FIND_MY_SPAWNS);
@@ -335,71 +330,82 @@ module.exports =
 	        return this.find(FIND_STRUCTURES);
 	    }
 	    get nonwalkableStructures() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.nonwalkableStructures`, () => {
-	            return _.filter(this.structures, (structure) => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `nonwalkableStructures`, function () {
+	            return _.filter(this.structures, function (structure) {
 	                return _.includes(OBSTACLE_OBJECT_TYPES, structure.structureType);
-	            });
-	        });
+	            }.bind(this));
+	        }.bind(this));
 	    }
 	    get roads() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.roads`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `roads`, function () {
 	            return this.find(FIND_STRUCTURES, {
 	                filter: {
 	                    structureType: STRUCTURE_ROAD
 	                }
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get extensions() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.extensions`, () => {
+	        debugger;
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `extensions`, function () {
+	            debugger;
 	            return this.find(FIND_STRUCTURES, {
 	                filter: {
 	                    structureType: STRUCTURE_EXTENSION
 	                }
 	            });
-	        });
+	        }).bind(this);
 	    }
 	    get containers() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.containers`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `containers`, function () {
 	            return this.find(FIND_STRUCTURES, {
 	                filter: {
 	                    structureType: STRUCTURE_CONTAINER
 	                }
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get ramparts() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.ramparts`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `ramparts`, function () {
 	            return this.find(FIND_STRUCTURES, {
 	                filter: {
 	                    structureType: STRUCTURE_RAMPART
 	                }
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get towers() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.towers`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `towers`, function () {
 	            return this.find(FIND_STRUCTURES, {
 	                filter: {
 	                    structureType: STRUCTURE_TOWER
 	                }
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get links() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.links`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `links`, function () {
 	            return this.find(FIND_STRUCTURES, {
 	                filter: {
 	                    structureType: STRUCTURE_LINK
 	                }
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get resources() {
 	        return this.find(FIND_DROPPED_RESOURCES);
 	    }
 	    get constructionSites() {
 	        return this.find(FIND_CONSTRUCTION_SITES);
+	    }
+	    get allySites() {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `allySites`, function () {
+	            return this.find(FIND_CONSTRUCTION_SITES, {
+	                filter: function (site) {
+	                    return ALLY_WHITELIST.indexOf(site.owner.username.toLowerCase()) > -1;
+	                }.bind(this)
+	            });
+	        }.bind(this));
 	    }
 	    get creeps() {
 	        return this.find(FIND_CREEPS);
@@ -408,49 +414,49 @@ module.exports =
 	        return this.find(FIND_MY_CREEPS);
 	    }
 	    get hostileCreeps() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.hostileCreeps`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `hostileCreeps`, function () {
 	            return this.find(FIND_HOSTILE_CREEPS, {
-	                filter: (creep) => {
-	                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
-	                }
+	                filter: function (creep) {
+	                    return FRIENDLY_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
+	                }.bind(this)
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get friendlyCreeps() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.friendlyCreeps`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `friendlyCreeps`, function () {
 	            return this.find(FIND_HOSTILE_CREEPS, {
-	                filter: (creep) => {
-	                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-	                }
+	                filter: function (creep) {
+	                    return FRIENDLY_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+	                }.bind(this)
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get injuredFriendlyCreeps() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.injuredFriendlyCreeps`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `injuredFriendlyCreeps`, function () {
 	            return this.find(FIND_CREEPS, {
-	                filter: (creep) => {
-	                    return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-	                }
+	                filter: function (creep) {
+	                    return creep.hits < creep.hitsMax && FRIENDLY_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+	                }.bind(this)
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get sourceKeepers() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.sourceKeepers`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `sourceKeepers`, function () {
 	            return this.find(FIND_CREEPS, {
-	                filter: (creep) => {
+	                filter: function (creep) {
 	                    return creep.owner.username === "Source Keeper";
-	                }
+	                }.bind(this)
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    get invaders() {
-	        return sporeRemember_1.Remember.forTick(`${this.name}.invaders`, () => {
+	        return sporeRemember_1.Remember.byName(`room.${this.name}`, `invaders`, function () {
 	            return this.find(FIND_CREEPS, {
-	                filter: (creep) => {
+	                filter: function (creep) {
 	                    return creep.owner.username === "Invader";
-	                }
+	                }.bind(this)
 	            });
-	        });
+	        }.bind(this));
 	    }
 	    lookForByRadiusAt(type, location, radius, asArray) {
 	        let pos = location;
@@ -936,17 +942,23 @@ module.exports =
 	        }
 	        return super.createBasicAppointment(spawn, request, this.targets[0]);
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        conditions.push((creep) => {
+	            if (creep.carry[this.resourceType] === 0 && creep.carryCount === creep.carryCapacity) {
+	                return -1;
+	            }
+	            if (creep.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return -1;
+	            }
+	            return 0;
+	        });
+	        super.getBasicPrioritizingConditions(conditions, this.source, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            if (object.carry[this.resourceType] === 0 && object.carryCount === object.carryCapacity) {
-	                return 0;
-	            }
-	            if (object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
-	                return 0;
-	            }
-	            return super.basicPrioritizeCreep(object, this.source, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.calculateRequirements();
@@ -1178,50 +1190,36 @@ module.exports =
 	    shouldPlanToReplace(object) {
 	        return true;
 	    }
-	    prioritize(object) {
-	        return 0;
+	    getBasicPrioritizingConditions(conditions, near, idealBody) {
+	        conditions.push((creep) => {
+	            // 1 - 40
+	            let efficiency = creep.getEfficiencyAs(idealBody);
+	            if (efficiency === 0) {
+	                return -1;
+	            }
+	            return (creep.type === idealBody.name) ? 0.4 + (efficiency * 0.2) : (efficiency * 0.2);
+	        });
+	        conditions.push((creep) => {
+	            let objectPriority = 0;
+	            // 41 - 60
+	            if (near != null && creep.pos.roomName == near.pos.roomName) {
+	                objectPriority += 0.2;
+	            }
+	            else if (creep.task == null) {
+	                objectPriority = 0.1;
+	            }
+	            return objectPriority;
+	        });
+	        if (near != null) {
+	            conditions.push((creep) => {
+	                return 300 - creep.pos.findDistanceByPathTo(near);
+	            });
+	        }
 	    }
-	    basicPrioritizeCreep(creep, near, idealBody) {
-	        let objectPriority = 0;
-	        if (creep.spawnRequest != null && creep.spawnRequest.id != null && creep.spawnRequest.id.length > 0) {
-	            if (creep.spawnRequest.task == this ||
-	                (creep.spawnRequest.replacingCreep != null && creep.spawnRequest.replacingCreep.task == this)) {
-	                // this creep is intended for this task
-	                return 1;
-	            }
-	            else {
-	                // this creep is intended for a different task
-	                return 0;
-	            }
-	        }
-	        // 1 - 40
-	        if (creep.type === idealBody.name) {
-	            objectPriority += 0.40;
-	        }
-	        // 41 - 60
-	        if (creep.task == this || (near != null && creep.pos.roomName == near.pos.roomName)) {
-	            objectPriority += 0.2;
-	            // 61 - 70
-	            if (creep.task == this) {
-	                if (creep.taskPriority >= 0) {
-	                    objectPriority += 0.1 + (((100 - creep.taskPriority) / 100) * 0.01);
-	                }
-	                else {
-	                    objectPriority += 0.1;
-	                }
-	            }
-	        }
-	        else if (creep.task != null && creep.task != this) {
-	            objectPriority = Math.max(0, objectPriority - .1);
-	        }
-	        // 71 - 90 : objectPriority
-	        let taskEfficiency = creep.getEfficiencyAs(idealBody);
-	        if (taskEfficiency === 0) {
-	            return 0;
-	        }
-	        objectPriority += (20 * taskEfficiency) / 100;
-	        //console.log(object + ' objectPriority as ' + this.idealCreepBody.name + ' ' + objectPriority);
-	        return objectPriority;
+	    getPrioritizingConditions(conditions) {
+	    }
+	    isIdeal(object) {
+	        return false;
 	    }
 	    beginScheduling() {
 	    }
@@ -1504,6 +1502,14 @@ module.exports =
 	        this.memory.cost = value;
 	    }
 	    getEfficiencyAs(bodyDefinition) {
+	        let memory = this.memory;
+	        if (memory.bodyEfficiency == null) {
+	            memory.bodyEfficiency = {};
+	        }
+	        let existingValue = memory.bodyEfficiency[bodyDefinition.name];
+	        if (existingValue != null) {
+	            return existingValue;
+	        }
 	        let totalRequiredParts = 0;
 	        let totalMaxRequiredParts = 0;
 	        let bodyPartsByType = _.groupBy(this.body, function (part) { return part.type; });
@@ -1511,6 +1517,7 @@ module.exports =
 	            let bodyParts = bodyPartsByType[requirement.type];
 	            if (bodyParts == null ||
 	                bodyParts.length < requirement.min) {
+	                memory.bodyEfficiency[bodyDefinition.name] = 0;
 	                return 0;
 	            }
 	            let totalActiveParts = 0;
@@ -1523,12 +1530,15 @@ module.exports =
 	                }
 	            }
 	            if (totalActiveParts < requirement.min) {
+	                memory.bodyEfficiency[bodyDefinition.name] = 0;
 	                return 0;
 	            }
 	            totalMaxRequiredParts += requirement.max;
 	            totalRequiredParts += Math.min(bodyParts.length, requirement.max);
 	        }
-	        return totalRequiredParts / totalMaxRequiredParts;
+	        let newValue = totalRequiredParts / totalMaxRequiredParts;
+	        memory.bodyEfficiency[bodyDefinition.name] = newValue;
+	        return newValue;
 	    }
 	    get type() {
 	        return this.memory.type;
@@ -1600,6 +1610,10 @@ module.exports =
 	        }
 	        else {
 	            memory.taskId = value.id;
+	            let taskCreeps = sporeRemember_1.Remember.forTick(`${value.id}.creeps`, () => { return []; });
+	            if (!_.includes(taskCreeps, this.id)) {
+	                taskCreeps.push(this.id);
+	            }
 	        }
 	    }
 	    get taskPriority() {
@@ -1694,7 +1708,7 @@ module.exports =
 	        }
 	    }
 	    get movement() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.movement`, () => {
+	        return sporeRemember_1.Remember.byName(`creep.${this.id}`, `movement`, () => {
 	            let memory = this.memory;
 	            if (memory.movement == null) {
 	                memory.movement = {};
@@ -1799,7 +1813,7 @@ module.exports =
 	                }
 	                options.costs.push({ id: 'creeps', cost: creepCost });
 	                options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
-	                options.costs.push({ id: 'friendlySites', cost: 255 });
+	                options.costs.push({ id: 'allySites', cost: 255 });
 	                this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: position, range: 0 }, options);
 	                if (this.movement.improv != null) {
 	                    // crop the improv path to where it first merges with the ideal path
@@ -1835,7 +1849,7 @@ module.exports =
 	                }
 	                options.costs.push({ id: 'creeps', cost: creepCost });
 	                options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
-	                options.costs.push({ id: 'friendlySites', cost: 255 });
+	                options.costs.push({ id: 'allySites', cost: 255 });
 	                this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: destination, range: navigation.range }, options);
 	                this.movement.pathIndex = 0;
 	            }
@@ -1912,7 +1926,12 @@ module.exports =
 	                this.movement.mergeIndex = -1;
 	            }
 	            else {
+	                if (this.movement.path != null) {
+	                    this.movement.path.needsUpdated = true;
+	                }
+	                this.movement.improv = null;
 	                console.log("ERROR: Attempted to move to '" + target + "' but encountered an unexpected end to that path. ");
+	                return task_1.ERR_CANNOT_PERFORM_TASK;
 	            }
 	        }
 	        let code = this.move(nextDirection);
@@ -2983,14 +3002,30 @@ module.exports =
 
 	"use strict";
 	class Remember {
+	    static byName(groupName, dataPath, getter, reset) {
+	        if (this.groupData[groupName] == null) {
+	            this.groupData[groupName] = {};
+	        }
+	        return Remember.getData(this.groupData[groupName], dataPath, getter, reset);
+	    }
 	    static forTick(dataPath, getter, reset) {
 	        return Remember.getData(Remember.tickData, dataPath, getter, reset);
+	    }
+	    static lastTick(dataPath) {
+	        if (Memory.previousTick == null) {
+	            return null;
+	        }
+	        return Remember.getData(Memory.previousTick, dataPath, null, null);
 	    }
 	    static forever(dataPath, getter, reset) {
 	        return Remember.getData(Memory, dataPath, getter, reset);
 	    }
-	    static tick() {
+	    static beginTick() {
 	        this.tickData = {};
+	        this.groupData = {};
+	    }
+	    static endTick() {
+	        Memory.previousTick = this.tickData;
 	    }
 	    static getData(obj, dataPath, getter, reset) {
 	        let pathArr = dataPath.split('.');
@@ -2999,11 +3034,17 @@ module.exports =
 	            let member = pathArr[idx];
 	            obj = obj[member] || (obj[member] = {});
 	        }
-	        obj = reset ? (obj[pathArr[pathNum - 1]] = getter()) : (obj[pathArr[pathNum - 1]] || (obj[pathArr[pathNum - 1]] = getter()));
+	        if (getter != null) {
+	            obj = reset ? (obj[pathArr[pathNum - 1]] = getter()) : (obj[pathArr[pathNum - 1]] || (obj[pathArr[pathNum - 1]] = getter()));
+	        }
+	        else if (obj != null) {
+	            obj = obj[pathArr[pathNum - 1]];
+	        }
 	        return obj;
 	    }
 	}
 	Remember.tickData = {};
+	Remember.groupData = {};
 	exports.Remember = Remember;
 
 
@@ -3067,14 +3108,20 @@ module.exports =
 	    createAppointment(spawn, request) {
 	        return super.createBasicAppointment(spawn, request, this.controller);
 	    }
-	    prioritize(object) {
-	        if (object instanceof Creep) {
-	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
-	                return 0;
+	    getPrioritizingConditions(conditions) {
+	        conditions.push((creep) => {
+	            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity) {
+	                return -1;
 	            }
-	            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+	            return 0;
+	        });
+	        super.getBasicPrioritizingConditions(conditions, this.controller, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
+	        if (object instanceof Creep) {
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    hasWork() {
 	        if (this.possibleWorkers === 0 || !this.controller.isValid) {
@@ -3266,17 +3313,23 @@ module.exports =
 	        this.near = structure;
 	        this.roomName = 'E1N49';
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        conditions.push((creep) => {
+	            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity) {
+	                return -1;
+	            }
+	            if (creep.type === sporeCreep_1.CREEP_TYPE.MINER.name || creep.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return -1;
+	            }
+	            return 0;
+	        });
+	        super.getBasicPrioritizingConditions(conditions, this.structure, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
-	                return 0;
-	            }
-	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
-	                return 0;
-	            }
-	            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    schedule(object) {
 	        if (this.possibleWorkers == 0) {
@@ -3486,17 +3539,23 @@ module.exports =
 	    createAppointment(spawn, request) {
 	        return super.createBasicAppointment(spawn, request, this.source);
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        conditions.push((creep) => {
+	            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity) {
+	                return -1;
+	            }
+	            if (creep.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return -1;
+	            }
+	            return 0;
+	        });
+	        super.getBasicPrioritizingConditions(conditions, this.source, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
-	                return 0;
-	            }
-	            if (object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
-	                return 0;
-	            }
-	            return super.basicPrioritizeCreep(object, this.source, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.scheduledWork = 0;
@@ -3706,7 +3765,7 @@ module.exports =
 	        return slots;
 	    }
 	    get priorityModifier() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.priorityModifier`, () => {
+	        return sporeRemember_1.Remember.forTick(`${this.id}.priorityModifier`, function () {
 	            let pathToClosestSpawn = this.memory.pathToClosestSpawn;
 	            let priorityModifier = 0;
 	            if (pathToClosestSpawn == null || Game.time - pathToClosestSpawn.tickCalculated > 300) {
@@ -3726,7 +3785,7 @@ module.exports =
 	                priorityModifier += Math.max(0, 250 - pathToClosestSpawn.cost);
 	            }
 	            return priorityModifier;
-	        });
+	        }.bind(this));
 	    }
 	    get memory() {
 	        let roomMemory = this.room.memory;
@@ -3924,17 +3983,23 @@ module.exports =
 	        }
 	        return super.createBasicAppointment(spawn, request, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] });
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        conditions.push((creep) => {
+	            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity) {
+	                return -1;
+	            }
+	            if (creep.type === sporeCreep_1.CREEP_TYPE.MINER.name || creep.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return -1;
+	            }
+	            return 0;
+	        });
+	        super.getBasicPrioritizingConditions(conditions, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] }, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
-	                return 0;
-	            }
-	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
-	                return 0;
-	            }
-	            return super.basicPrioritizeCreep(object, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] }, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.sortBarriers();
@@ -4060,11 +4125,14 @@ module.exports =
 	        }
 	        return super.createBasicAppointment(spawn, request, this.anchor);
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        super.getBasicPrioritizingConditions(conditions, this.anchor, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            return super.basicPrioritizeCreep(object, this.anchor, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.scheduledWorkers = 0;
@@ -4242,17 +4310,23 @@ module.exports =
 	        }
 	        return super.createBasicAppointment(spawn, request, this.site);
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        conditions.push((creep) => {
+	            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity) {
+	                return -1;
+	            }
+	            if (creep.type === sporeCreep_1.CREEP_TYPE.MINER.name || creep.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
+	                return -1;
+	            }
+	            return 0;
+	        });
+	        super.getBasicPrioritizingConditions(conditions, this.site, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity) {
-	                return 0;
-	            }
-	            if (object.type === sporeCreep_1.CREEP_TYPE.MINER.name || object.type === sporeCreep_1.CREEP_TYPE.UPGRADER.name) {
-	                return 0;
-	            }
-	            return super.basicPrioritizeCreep(object, this.site, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.scheduledWork = 0;
@@ -4436,7 +4510,7 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'container', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	        return sporeRemember_1.Remember.byName(`container.${this.id}`, `claims`, () => {
 	            return new Claims(this);
 	        });
 	    }
@@ -4527,7 +4601,7 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'spawn', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	        return sporeRemember_1.Remember.byName(`extension.${this.id}`, `claims`, () => {
 	            return new Claims(this);
 	        });
 	    }
@@ -4764,11 +4838,14 @@ module.exports =
 	        this.idealCreepBody = sporeCreep_1.CREEP_TYPE.CITIZEN;
 	        this.near = structure;
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        super.getBasicPrioritizingConditions(conditions, this.structure, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.scheduledWork = 0;
@@ -4893,11 +4970,14 @@ module.exports =
 	        }
 	        return super.createBasicAppointment(spawn, request, this.controller);
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        super.getBasicPrioritizingConditions(conditions, this.controller, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.scheduledClaim = 0;
@@ -4984,11 +5064,14 @@ module.exports =
 	        }
 	        return false;
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        super.getBasicPrioritizingConditions(conditions, this.controller, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.scheduledWorkers = 0;
@@ -5060,11 +5143,14 @@ module.exports =
 	        }
 	        return super.createBasicAppointment(spawn, request, this.anchor);
 	    }
-	    prioritize(object) {
+	    getPrioritizingConditions(conditions) {
+	        super.getBasicPrioritizingConditions(conditions, this.anchor, this.idealCreepBody);
+	    }
+	    isIdeal(object) {
 	        if (object instanceof Creep) {
-	            return super.basicPrioritizeCreep(object, this.anchor, this.idealCreepBody);
+	            return object.type === this.idealCreepBody.name;
 	        }
-	        return 0;
+	        return false;
 	    }
 	    beginScheduling() {
 	        this.scheduledWorkers = 0;
@@ -5227,9 +5313,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'spawn', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	        return sporeRemember_1.Remember.byName(`spawn.${this.id}`, `claims`, function () {
 	            return new Claims(this);
-	        });
+	        }.bind(this));
 	    }
 	}
 	exports.SporeSpawn = SporeSpawn;
@@ -5297,9 +5383,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'storage', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	        return sporeRemember_1.Remember.byName(`storage.${this.id}`, `claims`, function () {
 	            return new Claims(this);
-	        });
+	        }.bind(this));
 	    }
 	}
 	exports.SporeStorage = SporeStorage;
@@ -5511,9 +5597,9 @@ module.exports =
 	        return new sporeClaimable_1.ClaimReceipt(this, 'spawn', resourceType, claimAmount);
 	    }
 	    get claims() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
+	        return sporeRemember_1.Remember.byName(`tower.${this.id}`, `claims`, function () {
 	            return new Claims(this);
-	        });
+	        }.bind(this));
 	    }
 	}
 	exports.SporeTower = SporeTower;
@@ -5531,14 +5617,647 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
+	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
+	class SporeResource extends Resource {
+	    collect(collector, claimReceipt) {
+	        if (claimReceipt.target !== this) {
+	            return ERR_INVALID_TARGET;
+	        }
+	        if (claimReceipt.resourceType === this.resourceType &&
+	            collector.withdraw != null && collector.carryCapacityRemaining != null) {
+	            return collector.pickup(this);
+	        }
+	        return ERR_INVALID_ARGS;
+	    }
+	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
+	        if (resourceType != this.resourceType) {
+	            return null;
+	        }
+	        let claimAmount = amount;
+	        let remaining = this.amount - this.claims.amount;
+	        // ensure our remaining resource meets their claim
+	        if (claimAmount > remaining) {
+	            if (minAmount > remaining) {
+	                return null;
+	            }
+	            claimAmount = remaining;
+	        }
+	        this.claims.count++;
+	        this.claims.amount += claimAmount;
+	        return new sporeClaimable_1.ClaimReceipt(this, 'dropped', resourceType, claimAmount);
+	    }
+	    get claims() {
+	        return sporeRemember_1.Remember.byName(`resource.${this.id}`, `claims`, () => {
+	            return new Claims(this);
+	        });
+	    }
+	}
+	exports.SporeResource = SporeResource;
+	class Claims {
+	    constructor(resource) {
+	        this.resource = resource;
+	        this.count = 0;
+	        this.amount = 0;
+	    }
+	}
+
+
+/***/ },
+/* 39 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	const sporeClaimable_1 = __webpack_require__(8);
+	const sporeRemember_1 = __webpack_require__(13);
+	class SporeLink extends StructureLink {
+	    get energyCapacityRemaining() {
+	        return this.energyCapacity - this.energy;
+	    }
+	    get takesTransfers() {
+	        return this.memory.takesTransfers === true;
+	    }
+	    set takesTransfers(value) {
+	        this.memory.takesTransfers = value;
+	    }
+	    get bond() {
+	        if (this._bond != null) {
+	            return this._bond;
+	        }
+	        if (this.memory.bondTargetId != null) {
+	            this._bond = new Bond();
+	            this._bond.type = this.memory.bondType;
+	            this._bond.targetId = this.memory.bondTargetId;
+	            this._bond.target = Game.getObjectById(this.memory.bondTargetId);
+	            this._bond.targetFlag = Game.flags[this.memory.bondTargetFlagName];
+	            this._bond.myFlag = Game.flags[this.memory.bondMyFlagName];
+	            if (!this._bond.exists()) {
+	                this._bond = null;
+	                delete this.memory.bondTargetId;
+	                delete this.memory.bondTargetFlagName;
+	                delete this.memory.bondMyFlagName;
+	                delete this.memory.bondType;
+	            }
+	            else if (this._bond.targetId == null && this._bond.targetFlag.room != null) {
+	                if (this._bond.targetFlag.room != null) {
+	                    let found = this._bond.targetFlag.room.lookForAt(this._bond.type, this._bond.targetFlag);
+	                    if (found.length > 0) {
+	                        this._bond.target = found[0];
+	                    }
+	                }
+	                if (this._bond.target != null) {
+	                    this._bond.targetId = this._bond.target.id;
+	                }
+	                if (this._bond.target == null) {
+	                    this._bond = null;
+	                    delete this.memory.bondTargetId;
+	                    delete this.memory.bondTargetFlagName;
+	                    delete this.memory.bondMyFlagName;
+	                    delete this.memory.bondType;
+	                }
+	            }
+	        }
+	        return this._bond;
+	    }
+	    set bond(value) {
+	        this._bond = value;
+	        if (value == null) {
+	            delete this.memory.bondType;
+	            delete this.memory.bondTargetId;
+	            delete this.memory.bondTargetFlagName;
+	            delete this.memory.bondMyFlagName;
+	        }
+	        else {
+	            this.memory.bondType = value.type;
+	            if (value.target != null) {
+	                this.memory.bondTargetId = value.target.id;
+	            }
+	            if (value.targetFlag != null) {
+	                this.memory.bondTargetFlagName = value.targetFlag.name;
+	            }
+	            if (value.myFlag != null) {
+	                this.memory.bondMyFlagName = value.myFlag.name;
+	            }
+	        }
+	    }
+	    get nearBySource() {
+	        return sporeRemember_1.Remember.byName(`link.${this.id}`, `nearBySource`, () => {
+	            if (this.memory.nearBySourceId != null) {
+	                return Game.getObjectById(this.memory.nearBySourceId);
+	            }
+	            let nearBySource = this.pos.findClosestInRange(this.room.sources, 2);
+	            if (nearBySource == null) {
+	                this.memory.nearBySourceId = '';
+	            }
+	            else {
+	                this.memory.nearBySourceId = nearBySource.id;
+	            }
+	            return nearBySource;
+	        });
+	    }
+	    get memory() {
+	        let roomMemory = this.room.memory;
+	        if (roomMemory.structures == null) {
+	            roomMemory.structures = {};
+	        }
+	        let memory = roomMemory.structures[this.id];
+	        if (memory == null) {
+	            memory = {};
+	            roomMemory.structures[this.id] = memory;
+	        }
+	        return memory;
+	    }
+	    getTasks() {
+	        this.memory.takesTransfers = false;
+	        let transferTarget = null;
+	        let tasks = [];
+	        //
+	        // if (this.bond == null)
+	        // {
+	        //     this.bond = Bond.discover(this, LOOK_SOURCES);
+	        // }
+	        //
+	        // if (this.bond != null)
+	        // {
+	        //     let target: any = this.bond.target;
+	        //
+	        //     if (target == null)
+	        //     {
+	        //         target = this.bond.targetFlag.pos;
+	        //     }
+	        //
+	        //     let transferEnergyTask = new TransferResource([ScreepsPtr.from<EnergyContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(target), null);
+	        //     transferEnergyTask.priority = TaskPriority.Mandatory;
+	        //     transferEnergyTask.name = "Transfer energy to " + this + " from " + target;
+	        //     transferEnergyTask.possibleWorkers = 1;
+	        //     tasks.push(transferEnergyTask);
+	        // }
+	        // else
+	        // {
+	        if (this.nearBySource == null) {
+	            this.takesTransfers = true;
+	        }
+	        // }
+	        //
+	        if (this.energy > 0 && !this.takesTransfers) {
+	            transferTarget = this.findLinkTakingTransfers();
+	            if (transferTarget != null) {
+	                this.transferEnergy(transferTarget);
+	            }
+	        }
+	        return tasks;
+	    }
+	    findLinkTakingTransfers() {
+	        for (let link of this.room.links) {
+	            if (link.takesTransfers === true && link.energyCapacityRemaining > 0) {
+	                return link;
+	            }
+	        }
+	        return null;
+	    }
+	    collect(collector, claimReceipt) {
+	        if (claimReceipt.target !== this) {
+	            return ERR_INVALID_TARGET;
+	        }
+	        if (collector.withdraw != null && collector.carryCapacityRemaining != null) {
+	            return collector.withdraw(this, claimReceipt.resourceType, Math.min(this.energy, collector.carryCapacityRemaining));
+	        }
+	        return ERR_INVALID_ARGS;
+	    }
+	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
+	        if (this.takesTransfers !== true ||
+	            resourceType != RESOURCE_ENERGY) {
+	            return null;
+	        }
+	        let claimAmount = amount;
+	        let remaining = this.energy - this.claims.energy;
+	        // ensure our remaining resource meets their claim
+	        if (claimAmount > remaining) {
+	            if (minAmount > remaining) {
+	                return null;
+	            }
+	            claimAmount = remaining;
+	        }
+	        this.claims.count++;
+	        this.claims.energy += claimAmount;
+	        return new sporeClaimable_1.ClaimReceipt(this, 'link', resourceType, claimAmount);
+	    }
+	    get claims() {
+	        return sporeRemember_1.Remember.byName(`link.${this.id}`, `claims`, () => {
+	            return new Claims(this);
+	        });
+	    }
+	}
+	exports.SporeLink = SporeLink;
+	class Claims {
+	    constructor(link) {
+	        this.link = link;
+	        this.count = 0;
+	        this.energy = 0;
+	    }
+	}
+	class Bond {
+	    exists() {
+	        return (this.type != null &&
+	            this.targetFlag != null &&
+	            this.myFlag != null &&
+	            this.myFlag.color === COLOR_YELLOW && this.targetFlag.color === COLOR_YELLOW &&
+	            this.myFlag.secondaryColor === this.targetFlag.secondaryColor);
+	    }
+	    static discover(obj, lookType) {
+	        let flagA = null;
+	        let flagB = null;
+	        let flags = obj.room.lookForAt(LOOK_FLAGS, obj.pos);
+	        for (let index = 0; index < flags.length; index++) {
+	            let flag = flags[index];
+	            if (flag.color === COLOR_YELLOW) {
+	                flagA = flag;
+	                break;
+	            }
+	        }
+	        if (flagA == null) {
+	            return null;
+	        }
+	        let startsWith = function (baseString, searchString, position) {
+	            position = position || 0;
+	            return baseString.substr(position, searchString.length) === searchString;
+	        };
+	        for (let flagName in Game.flags) {
+	            let flag = Game.flags[flagName];
+	            if (flag != flagA &&
+	                flag.color === COLOR_YELLOW &&
+	                flag.secondaryColor === flagA.secondaryColor &&
+	                startsWith(flag.name, flagA.name)) {
+	                flagB = flag;
+	                break;
+	            }
+	        }
+	        if (flagB == null) {
+	            return null;
+	        }
+	        let bond = new Bond();
+	        bond.type = lookType;
+	        bond.target = null;
+	        bond.targetId = null;
+	        if (flagB.room != null) {
+	            let found = flagB.room.lookForAt(lookType, flagB);
+	            if (found.length > 0) {
+	                bond.target = found[0];
+	            }
+	        }
+	        if (bond.target != null) {
+	            bond.targetId = bond.target.id;
+	        }
+	        bond.targetFlag = flagB;
+	        bond.myFlag = flagA;
+	        return bond;
+	    }
+	}
+
+
+/***/ },
+/* 40 */
+/***/ function(module, exports) {
+
+	"use strict";
+	let usedOnStart = 0;
+	let enabled = false;
+	let depth = 0;
+	var profilingSymbol = Symbol('profiling');
+	function setupProfiler() {
+	    depth = 0; // reset depth, this needs to be done each tick.
+	    Game.profiler = {
+	        stream(duration, filter) {
+	            setupMemory('stream', duration || 10, filter);
+	        },
+	        email(duration, filter) {
+	            setupMemory('email', duration || 100, filter);
+	        },
+	        profile(duration, filter) {
+	            setupMemory('profile', duration || 100, filter);
+	        },
+	        reset: resetMemory,
+	    };
+	    overloadCPUCalc();
+	}
+	function setupMemory(profileType, duration, filter) {
+	    resetMemory();
+	    if (!Memory.profiler) {
+	        Memory.profiler = {
+	            map: {},
+	            totalTime: 0,
+	            enabledTick: Game.time + 1,
+	            disableTick: Game.time + duration,
+	            type: profileType,
+	            filter,
+	        };
+	    }
+	}
+	function resetMemory() {
+	    Memory.profiler = null;
+	}
+	function overloadCPUCalc() {
+	    /*if (false) {
+	     usedOnStart = 0; // This needs to be reset, but only in the sim.
+	     Game.cpu.getUsed = function getUsed() {
+	     return performance.now() - usedOnStart;
+	     };
+	     }*/
+	}
+	function getFilter() {
+	    return Memory.profiler.filter;
+	}
+	function wrapFunction(name, originalFunction) {
+	    return function wrappedFunction() {
+	        debugger;
+	        if (Profiler.isProfiling()) {
+	            const nameMatchesFilter = name === getFilter();
+	            const start = Game.cpu.getUsed();
+	            if (nameMatchesFilter) {
+	                depth++;
+	            }
+	            const result = originalFunction.apply(this, arguments);
+	            if (depth > 0 || !getFilter()) {
+	                const end = Game.cpu.getUsed();
+	                Profiler.record(name, end - start);
+	            }
+	            if (nameMatchesFilter) {
+	                depth--;
+	            }
+	            return result;
+	        }
+	        return originalFunction.apply(this, arguments);
+	    };
+	}
+	function hookUpPrototypes() {
+	    Profiler.prototypes.forEach(proto => {
+	        profileObjectInheritance(proto.val, proto.name);
+	    });
+	}
+	function profileObjectInheritance(object, label) {
+	    console.log('[' + label + ']');
+	    let count = 0;
+	    while (object != null && object != Object) {
+	        if (_.includes(Object.getOwnPropertySymbols(object), profilingSymbol)) {
+	            console.log('    ##########################################');
+	            break;
+	        }
+	        if (count > 0) {
+	            console.log('    ------------------------------------------');
+	        }
+	        profileObject(object, label);
+	        object[profilingSymbol] = 'profiling';
+	        object = Object.getPrototypeOf(object);
+	        count++;
+	    }
+	}
+	function profileObject(object, label) {
+	    let skipMembers = [
+	        "valueOf",
+	        "propertyIsEnumerable",
+	        "hasOwnProperty",
+	        "caller",
+	        "arguments",
+	        "apply",
+	        "call",
+	        "bind",
+	        "toLocaleString",
+	        "toString",
+	        "isPrototypeOf",
+	        "prototype",
+	        "__defineGetter__",
+	        "__defineSetter__",
+	        "__lookupGetter__",
+	        "__lookupSetter__",
+	        "__proto__",
+	        "constructor",
+	        "getUsed",
+	        "length",
+	        "toJSON",
+	    ];
+	    let propertyNames = Object.getOwnPropertyNames(object);
+	    for (let index = 0; index < propertyNames.length; index++) {
+	        let key = propertyNames[index];
+	        if (_.includes(skipMembers, key)) {
+	            continue;
+	        }
+	        let descriptor = Object.getOwnPropertyDescriptor(object, key);
+	        let extendedLabel = `${label}.${key}`;
+	        let progressLog = `    ${label}.${key}: `;
+	        if (!descriptor.configurable) {
+	            console.log(progressLog + ' NON-CONFIGURABLE');
+	            continue;
+	        }
+	        let newDescriptor = {
+	            enumerable: descriptor.enumerable,
+	            configurable: false
+	        };
+	        if (typeof descriptor.value === 'function') {
+	            const originalFunction = object[key];
+	            object[key] = wrapFunction(key, originalFunction);
+	            console.log(progressLog + 'FUNC VALUE DONE');
+	            continue;
+	        }
+	        if (descriptor.get != null) {
+	            progressLog += 'GET ';
+	            newDescriptor.get = function () {
+	                //console.log('Calling GET ' + label + '.' + key);
+	                if (Profiler.isProfiling()) {
+	                    const nameMatchesFilter = extendedLabel === getFilter();
+	                    const start = Game.cpu.getUsed();
+	                    if (nameMatchesFilter) {
+	                        depth++;
+	                    }
+	                    const result = descriptor.get.apply(this);
+	                    if (depth > 0 || !getFilter()) {
+	                        const end = Game.cpu.getUsed();
+	                        Profiler.record(extendedLabel, end - start);
+	                    }
+	                    if (nameMatchesFilter) {
+	                        depth--;
+	                    }
+	                    return result;
+	                }
+	                return descriptor.get.apply(this);
+	            };
+	        }
+	        if (descriptor.set != null) {
+	            progressLog += 'SET ';
+	            newDescriptor.set = function (value) {
+	                //console.log('Calling SET ' + label + '.' + key);
+	                if (Profiler.isProfiling()) {
+	                    const nameMatchesFilter = extendedLabel === getFilter();
+	                    const start = Game.cpu.getUsed();
+	                    if (nameMatchesFilter) {
+	                        depth++;
+	                    }
+	                    descriptor.set.apply(this, value);
+	                    if (depth > 0 || !getFilter()) {
+	                        const end = Game.cpu.getUsed();
+	                        Profiler.record(extendedLabel, end - start);
+	                    }
+	                    if (nameMatchesFilter) {
+	                        depth--;
+	                    }
+	                    return;
+	                }
+	                descriptor.set.apply(this, value);
+	            };
+	        }
+	        if (newDescriptor.get == null && newDescriptor.set == null && newDescriptor.value == null) {
+	            console.log(progressLog + 'SKIPPED');
+	        }
+	        else {
+	            Object.defineProperty(object, key, newDescriptor);
+	            console.log(progressLog + 'DONE');
+	        }
+	    }
+	}
+	function profileFunction(fn, functionName) {
+	    const fnName = functionName || fn.name;
+	    if (!fnName) {
+	        console.log('Couldn\'t find a function name for - ', fn);
+	        console.log('Will not profile this function.');
+	        return fn;
+	    }
+	    return wrapFunction(fnName, fn);
+	}
+	const Profiler = {
+	    printProfile() {
+	        console.log(Profiler.output());
+	    },
+	    emailProfile() {
+	        Game.notify(Profiler.output());
+	    },
+	    output() {
+	        const elapsedTicks = Game.time - Memory.profiler.enabledTick + 1;
+	        const header = 'calls\t\ttime\t\tavg\t\ttickAvg\t\tfunction';
+	        const footer = [
+	            `Avg: ${(Memory.profiler.totalTime / elapsedTicks).toFixed(2)}`,
+	            `Total: ${Memory.profiler.totalTime.toFixed(2)}`,
+	            `Ticks: ${elapsedTicks}`,
+	        ].join('\t');
+	        return [].concat(header, Profiler.lines(elapsedTicks).slice(0, 30), footer).join('\n');
+	    },
+	    lines(elapsedTicks) {
+	        const stats = Object.keys(Memory.profiler.map).map(functionName => {
+	            const functionCalls = Memory.profiler.map[functionName];
+	            return {
+	                name: functionName,
+	                calls: functionCalls.calls,
+	                totalTime: functionCalls.time,
+	                averageTime: functionCalls.time / functionCalls.calls,
+	                averageTick: (functionCalls.time / functionCalls.calls) * (functionCalls.calls / elapsedTicks),
+	            };
+	        }).sort((val1, val2) => {
+	            return val2.averageTick - val1.averageTick;
+	        });
+	        const lines = stats.map(data => {
+	            return [
+	                data.calls,
+	                data.totalTime.toFixed(1),
+	                data.averageTime.toFixed(3),
+	                data.averageTick.toFixed(3),
+	                data.name,
+	            ].join('\t\t');
+	        });
+	        return lines;
+	    },
+	    prototypes: [
+	        { name: 'Game', val: Game },
+	        { name: 'Room', val: Room.prototype },
+	    ],
+	    record(functionName, time) {
+	        if (!Memory.profiler.map[functionName]) {
+	            Memory.profiler.map[functionName] = {
+	                time: 0,
+	                calls: 0,
+	            };
+	        }
+	        Memory.profiler.map[functionName].calls++;
+	        Memory.profiler.map[functionName].time += time;
+	    },
+	    endTick() {
+	        if (Game.time >= Memory.profiler.enabledTick) {
+	            const cpuUsed = Game.cpu.getUsed();
+	            Memory.profiler.totalTime += cpuUsed;
+	            Profiler.report();
+	        }
+	    },
+	    report() {
+	        if (Profiler.shouldPrint()) {
+	            Profiler.printProfile();
+	        }
+	        else if (Profiler.shouldEmail()) {
+	            Profiler.emailProfile();
+	        }
+	    },
+	    isProfiling() {
+	        return enabled && !!Memory.profiler && Game.time <= Memory.profiler.disableTick;
+	    },
+	    type() {
+	        return Memory.profiler.type;
+	    },
+	    shouldPrint() {
+	        const streaming = Profiler.type() === 'stream';
+	        const profiling = Profiler.type() === 'profile';
+	        const onEndingTick = Memory.profiler.disableTick === Game.time;
+	        return streaming || (profiling && onEndingTick);
+	    },
+	    shouldEmail() {
+	        return Profiler.type() === 'email' && Memory.profiler.disableTick === Game.time;
+	    },
+	};
+	exports.profiler = {
+	    wrap(callback) {
+	        if (enabled) {
+	            setupProfiler();
+	        }
+	        if (Profiler.isProfiling()) {
+	            usedOnStart = Game.cpu.getUsed();
+	            // Commented lines are part of an on going experiment to keep the profiler
+	            // performant, and measure certain types of overhead.
+	            // var callbackStart = Game.cpu.getUsed();
+	            const returnVal = callback();
+	            // var callbackEnd = Game.cpu.getUsed();
+	            Profiler.endTick();
+	            // var end = Game.cpu.getUsed();
+	            // var profilerTime = (end - start) - (callbackEnd - callbackStart);
+	            // var callbackTime = callbackEnd - callbackStart;
+	            // var unaccounted = end - profilerTime - callbackTime;
+	            // console.log('total-', end, 'profiler-', profilerTime, 'callbacktime-',
+	            // callbackTime, 'start-', start, 'unaccounted', unaccounted);
+	            return returnVal;
+	        }
+	        return callback();
+	    },
+	    enable() {
+	        enabled = true;
+	        hookUpPrototypes();
+	    },
+	    registerObject(object, label) {
+	        return profileObjectInheritance(object, label);
+	    },
+	    registerFN(fn, functionName) {
+	        return profileFunction(fn, functionName);
+	    },
+	};
+
+
+/***/ },
+/* 41 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
 	const task_1 = __webpack_require__(5);
-	const taskRecycleCreep_1 = __webpack_require__(39);
+	const taskRecycleCreep_1 = __webpack_require__(42);
 	const screepsPtr_1 = __webpack_require__(16);
 	const spawnRequest_1 = __webpack_require__(6);
 	const sporeCreep_1 = __webpack_require__(7);
 	const sporeRoom_1 = __webpack_require__(3);
 	const sporePathFinder_1 = __webpack_require__(10);
 	const sporeRemember_1 = __webpack_require__(13);
+	const priority_queue_1 = __webpack_require__(43);
 	class LaborPoolType {
 	    constructor(parts, count) {
 	        this.parts = parts;
@@ -5690,19 +6409,91 @@ module.exports =
 	        }
 	    }
 	};
+	function* getCreepsToSchedule(task, creeps) {
+	    console.log('[spawn requests]');
+	    let spawnedCreeps = sporeRemember_1.Remember.forTick(`${task.id}.spawnedCreeps`, () => { return []; });
+	    if (spawnedCreeps != null) {
+	        for (let index = 0; index < spawnedCreeps.length; index++) {
+	            let creep = Game.getObjectById(spawnedCreeps[index]);
+	            if (creep != null) {
+	                //console.log(`    ${creep.name}`);
+	                yield creep;
+	            }
+	        }
+	    }
+	    // start returning the previously used creeps in order
+	    console.log('[previous workers]');
+	    let taskCreeps = sporeRemember_1.Remember.lastTick(`${task.id}.creeps`);
+	    if (taskCreeps != null) {
+	        for (let taskIndex = 0; taskIndex < taskCreeps.length; taskIndex++) {
+	            let creep = Game.getObjectById(taskCreeps[taskIndex]);
+	            if (creep != null) {
+	                //console.log(`    ${creep.name}`);
+	                yield creep;
+	            }
+	        }
+	    }
+	    // once exhausted
+	    console.log('[prioritized]');
+	    let conditions = [];
+	    task.getPrioritizingConditions(conditions);
+	    let collection = new priority_queue_1.PriorityQueue([{ value: 0, conditionIndex: 0, elements: _.values(creeps) }], (a, b) => {
+	        return b.value - a.value;
+	    });
+	    while (collection.length > 0) {
+	        let group = collection.pop();
+	        if (group.elements.length === 1) {
+	            //console.log(`    ${group.elements[0].name}`);
+	            yield group.elements[0];
+	            continue;
+	        }
+	        if (conditions.length <= group.conditionIndex) {
+	            for (let index = 0; index < group.elements.length; index++) {
+	                //console.log(`    ${group.elements[index].name}`);
+	                yield group.elements[index];
+	            }
+	            continue;
+	        }
+	        //console.log(group.conditionIndex);
+	        for (let index = 0; index < group.elements.length; index++) {
+	            let conditionValue = conditions[group.conditionIndex](group.elements[index]);
+	            if (conditionValue < 0) {
+	                // No longer consider this creep for scheduling
+	                continue;
+	            }
+	            let newValue = conditionValue + group.value;
+	            let newConditionIndex = group.conditionIndex + 1;
+	            let addNewGroup = true;
+	            for (let cIndex = 0; cIndex < collection.length; cIndex++) {
+	                let existingGroup = collection.get(cIndex);
+	                if (existingGroup.conditionIndex !== newConditionIndex) {
+	                    break;
+	                }
+	                if (existingGroup.value === newValue) {
+	                    addNewGroup = false;
+	                    existingGroup.elements.push(group.elements[index]);
+	                    break;
+	                }
+	            }
+	            if (addNewGroup) {
+	                collection.push({ value: newValue, conditionIndex: newConditionIndex, elements: [group.elements[index]] });
+	            }
+	        }
+	    }
+	    console.log('[done]');
+	}
 	class SporeColony {
 	    constructor() {
 	        this.pathFinder = new sporePathFinder_1.SporePathFinder();
 	        this.tasks = [];
 	        this.tasksById = {};
-	        this.laborPool = new LaborPool();
 	        this.spawnRequests = [];
 	        this.requestsCurrentlySpawning = [];
 	        this.cpuSpentPathing = 0;
 	        this.pathingCpuLimit = 30;
 	    }
 	    get myRooms() {
-	        return sporeRemember_1.Remember.forTick('colony.myRooms', () => {
+	        return sporeRemember_1.Remember.byName(`colony`, `myRooms`, (function () {
 	            let myRooms = [];
 	            for (let roomId in Game.rooms) {
 	                let room = Game.rooms[roomId];
@@ -5726,42 +6517,49 @@ module.exports =
 	                return 0;
 	            });
 	            return myRooms;
-	        });
+	        }).bind(this));
 	    }
 	    run() {
 	        this.tasks = [];
 	        this.tasksById = {};
-	        this.laborPool = new LaborPool();
 	        this.spawnRequests.length = 0;
 	        this.requestsCurrentlySpawning.length = 0;
-	        for (let room of this.myRooms) {
+	        let rooms = this.myRooms;
+	        for (let room of rooms) {
 	            room.trackEconomy();
 	        }
-	        this.collectTasks();
+	        this.collectTasks(rooms);
 	        let creeps = {};
-	        let taskLaborPools = {};
-	        let totalBodyCount = 0;
 	        for (let name in Game.creeps) {
 	            let creep = Game.creeps[name];
 	            if (creep.spawning) {
 	                continue;
 	            }
-	            totalBodyCount += creep.body.length;
 	            let spawnRequest = creep.spawnRequest;
 	            if (spawnRequest != null) {
 	                if (spawnRequest.id == null || spawnRequest.id.length === 0 || spawnRequest.replacingCreep == null) {
 	                    creep.spawnRequest = null;
 	                }
 	                else {
+	                    if (spawnRequest.task != null) {
+	                        let spawnedCreeps = sporeRemember_1.Remember.forTick(`${spawnRequest.task.id}.spawnedCreeps`, () => { return []; });
+	                        spawnedCreeps.push(creep.id);
+	                    }
+	                    else if (spawnRequest.replacingCreep != null && spawnRequest.replacingCreep.task != null) {
+	                        let spawnedCreeps = sporeRemember_1.Remember.forTick(`${spawnRequest.replacingCreep.task.id}.spawnedCreeps`, () => { return []; });
+	                        spawnedCreeps.push(creep.id);
+	                    }
 	                    this.requestsCurrentlySpawning.push(creep.spawnRequest.id);
 	                }
 	            }
-	            creeps[creep.name] = creep;
-	            this.laborPool.addCreep(creep);
+	            if (creep.spawnRequest == null) {
+	                creeps[creep.name] = creep;
+	            }
 	        }
-	        console.log('total creep body count: ' + totalBodyCount);
-	        for (let task of this.tasks) {
-	            this.scheduleTask(task, creeps, taskLaborPools);
+	        for (let index = 0; !_.isEmpty(creeps) && index < this.tasks.length; index++) {
+	            let task = this.tasks[index];
+	            console.log(`[[${task.name}]]`);
+	            this.scheduleTask(task, creeps);
 	        }
 	        for (let name in creeps) {
 	            let creep = creeps[name];
@@ -5775,74 +6573,70 @@ module.exports =
 	        console.log("Surplus Creeps: " + totalSurplusCreeps);
 	        //this.recycleCreeps(creeps);
 	    }
-	    scheduleTask(task, creeps, taskLaborPools) {
-	        let skippedCreeps = {};
-	        let priorityCache = {};
-	        taskLaborPools[task.id] = new LaborPool();
+	    scheduleTask(task, creeps) {
+	        let scheduledCreeps = [];
 	        task.beginScheduling();
-	        let prioritizedCreeps = this.getCreepsByTier(task, creeps, priorityCache);
 	        let code = OK;
 	        let creepTaskPriority = 0;
-	        for (let index = 0; index < prioritizedCreeps.length; index++) {
-	            let tierCreeps = prioritizedCreeps[index];
-	            if (tierCreeps.length > 1) {
-	                console.log('//////  Sorting Tier ' + index + ' for ' + task.name);
-	                this.sortCreepsBySecondPriority(task, tierCreeps);
+	        for (let creep of getCreepsToSchedule(task, creeps)) {
+	            if (code === task_1.ERR_NO_WORK) {
+	                break;
 	            }
-	            for (let creep of tierCreeps) {
-	                if (creep.type != null && task.labor.types[creep.type] != null) {
-	                    taskLaborPools[task.id].addCreep(creep);
+	            code = task.schedule(creep);
+	            // if (task instanceof TransferResource)
+	            // {
+	            //     console.log('    ' + code);
+	            // }
+	            if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task)) {
+	                scheduledCreeps.push(creep);
+	                if (task.isIdeal(creep)) {
+	                    creep.task = task;
+	                    creep.taskPriority = creepTaskPriority;
+	                    creepTaskPriority++;
+	                }
+	                else {
+	                    creep.task = null;
+	                }
+	                // remove creep now that it's been scheduled
+	                creeps[creep.name] = null;
+	                delete creeps[creep.name];
+	                if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
+	                    console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type + ' REPLACEMENT');
+	                }
+	                else {
+	                    console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
+	                }
+	                if (creep.ticksToLive < 300 &&
+	                    sporeCreep_1.CREEP_TYPE[creep.type] != null &&
+	                    creep.task != null &&
+	                    task.labor.types[creep.type] != null &&
+	                    task.shouldPlanToReplace(creep)) {
+	                    this.spawnRequests.push(new spawnRequest_1.SpawnRequest('replace_' + creep.name, null, creep, sporeCreep_1.CREEP_TYPE[creep.type]));
+	                }
+	                this.schedulePassives(creep);
+	                if (code === task_1.NO_MORE_WORK) {
+	                    break;
+	                }
+	            }
+	            else {
+	                if (creep.task == task) {
+	                    creep.task = null;
+	                }
+	                if (creep.spawnRequest != null && creep.spawnRequest.task == task) {
+	                    creep.spawnRequest = null;
 	                }
 	                if (code === task_1.ERR_NO_WORK) {
 	                    break;
 	                }
-	                code = task.schedule(creep);
-	                // if (task instanceof TransferResource)
-	                // {
-	                //     console.log('    ' + code);
-	                // }
-	                if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task)) {
-	                    creep.task = task;
-	                    creep.taskPriority = creepTaskPriority;
-	                    creepTaskPriority++;
-	                    // remove creep now that it's been scheduled
-	                    creeps[creep.name] = null;
-	                    delete creeps[creep.name];
-	                    if (creep.spawnRequest != null && creep.spawnRequest.replacingCreep != null) {
-	                        console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type + ' REPLACEMENT');
-	                    }
-	                    else {
-	                        console.log("Scheduled " + creep.name + " for " + ((task.name != null) ? task.name : task.id) + ' ' + creep.type);
-	                    }
-	                    if (creep.ticksToLive < 300 &&
-	                        sporeCreep_1.CREEP_TYPE[creep.type] != null &&
-	                        creep.task != null &&
-	                        task.labor.types[creep.type] != null &&
-	                        task.shouldPlanToReplace(creep)) {
-	                        this.spawnRequests.push(new spawnRequest_1.SpawnRequest('replace_' + creep.name, null, creep, sporeCreep_1.CREEP_TYPE[creep.type]));
-	                    }
-	                    this.schedulePassives(creep);
-	                    if (code === task_1.NO_MORE_WORK) {
-	                        break;
-	                    }
-	                }
-	                else if (code === task_1.ERR_NO_WORK) {
-	                }
 	                else if (code === task_1.ERR_CANNOT_PERFORM_TASK) {
 	                    //skip this creep
-	                    skippedCreeps[creep.name] = creep;
 	                    console.log('   ' + creep + ' ERR_CANNOT_PERFORM_TASK ' + task.id);
 	                }
 	                else if (code === task_1.ERR_SKIP_WORKER) {
-	                    //skip this creep
-	                    skippedCreeps[creep.name] = creep;
 	                }
 	                else {
 	                    console.log("UNKNOWN ERROR FROM SCHEDULING: " + task.id + " creep: " + creep + " code: " + code);
 	                }
-	            }
-	            if (code === task_1.NO_MORE_WORK || code === task_1.ERR_NO_WORK) {
-	                break;
 	            }
 	        }
 	        task.endScheduling();
@@ -5857,16 +6651,17 @@ module.exports =
 	        //         }
 	        //     }
 	        // }
-	        this.calculateLaborPool(task, prioritizedCreeps, skippedCreeps);
+	        if (code !== task_1.NO_MORE_WORK && code !== task_1.ERR_NO_WORK) {
+	            this.calculateLaborPool(task, scheduledCreeps);
+	        }
 	    }
-	    calculateLaborPool(task, prioritizedCreeps, skippedCreeps) {
+	    calculateLaborPool(task, scheduledCreeps) {
+	        debugger;
 	        let laborPool = new LaborPool();
-	        for (let index = 0; index < prioritizedCreeps.length; index++) {
-	            let tierCreeps = prioritizedCreeps[index];
-	            for (let creep of tierCreeps) {
-	                if (skippedCreeps[creep.name] == null && creep.type != null && task.labor.types[creep.type] != null) {
-	                    laborPool.addCreep(creep);
-	                }
+	        for (let index = 0; index < scheduledCreeps.length; index++) {
+	            let creep = scheduledCreeps[index];
+	            if (creep.type != null && task.labor.types[creep.type] != null) {
+	                laborPool.addCreep(creep);
 	            }
 	        }
 	        let log = false;
@@ -5931,7 +6726,7 @@ module.exports =
 	            }
 	        }
 	    }
-	    collectTasks() {
+	    collectTasks(rooms) {
 	        let globalTasks = [];
 	        //////////////////////////////////////////////////////////////////////////////
 	        // turn flags into tasks
@@ -5939,7 +6734,7 @@ module.exports =
 	            let flag = Game.flags[name];
 	            globalTasks.push.apply(globalTasks, flag.getTasks());
 	        }
-	        for (let room of this.myRooms) {
+	        for (let room of rooms) {
 	            globalTasks.push.apply(globalTasks, room.getTasks());
 	        }
 	        this.breakdownTasks(globalTasks, this.tasks);
@@ -6006,81 +6801,6 @@ module.exports =
 	                }
 	            }
 	        }
-	    }
-	    getCreepsByTier(task, creeps, priorityCache) {
-	        if (priorityCache == null) {
-	            priorityCache = {};
-	        }
-	        let creepsByPriority = [];
-	        for (let name in creeps) {
-	            let creep = creeps[name];
-	            let priority = task.prioritize(creep);
-	            if (priority > 0) {
-	                priorityCache[creep.id] = priority;
-	                creepsByPriority.push(creep);
-	            }
-	        }
-	        creepsByPriority.sort(function (a, b) {
-	            let priorityA = priorityCache[a.id];
-	            let priorityB = priorityCache[b.id];
-	            if (priorityA < priorityB) {
-	                return 1;
-	            }
-	            if (priorityA > priorityB) {
-	                return -1;
-	            }
-	            return 0;
-	        });
-	        let tier = -1;
-	        let creepsByTier = [];
-	        let lastPriority = -1;
-	        for (let creep of creepsByPriority) {
-	            if (priorityCache[creep.id] != lastPriority) {
-	                lastPriority = priorityCache[creep.id];
-	                tier++;
-	                creepsByTier.push([]);
-	            }
-	            creepsByTier[tier].push(creep);
-	        }
-	        // if (_.size(creepsByPriority) > 0)
-	        // {
-	        //     console.log(task.name + ' creep priority: ' + _.size(creepsByPriority));
-	        //     for (let creep of creepsByPriority)
-	        //     {
-	        //         console.log('   ' + creep.name + ' ' + priorityCache[creep.id]);
-	        //     }
-	        // }
-	        return creepsByTier;
-	    }
-	    sortCreepsBySecondPriority(task, creeps) {
-	        let distanceCache = {};
-	        creeps.sort(function (a, b) {
-	            if (task.near != null) {
-	                let aDistance = distanceCache[a.pos.toString()];
-	                if (aDistance == null) {
-	                    aDistance = a.pos.findDistanceByPathTo(task.near);
-	                    distanceCache[a.pos.toString()] = aDistance;
-	                }
-	                let bDistance = distanceCache[b.pos.toString()];
-	                if (bDistance == null) {
-	                    bDistance = b.pos.findDistanceByPathTo(task.near);
-	                    distanceCache[b.pos.toString()] = bDistance;
-	                }
-	                if (aDistance < bDistance) {
-	                    return 1;
-	                }
-	                if (aDistance > bDistance) {
-	                    return -1;
-	                }
-	            }
-	            if (a.name < b.name) {
-	                return 1;
-	            }
-	            if (a.name > b.name) {
-	                return -1;
-	            }
-	            return 0;
-	        });
 	    }
 	    sortAppointments(appointments) {
 	        appointments.sort(function (a, b) {
@@ -6295,14 +7015,14 @@ module.exports =
 	            spawn.createCreep(body, undefined, { type: creepBody.name, spawnRequest: { id: appointment.id, taskId: taskId, replacingCreepName: replacingCreepName } });
 	        }
 	    }
-	    recycleCreeps(creeps) {
+	    recycleCreeps(creeps, rooms) {
 	        let totalSurplusCreeps = _.size(creeps);
 	        console.log("Surplus Creeps: " + totalSurplusCreeps);
 	        // Recycle surplus creeps
 	        let allowedSurplusCreepsPerRoom = 6;
 	        if (totalSurplusCreeps > allowedSurplusCreepsPerRoom) {
 	            let creepByRoom = _.groupBy(creeps, function (c) { return c.room.name; });
-	            for (let room of this.myRooms) {
+	            for (let room of rooms) {
 	                let roomCreeps = creepByRoom[room.name];
 	                if (roomCreeps == null) {
 	                    continue;
@@ -6374,7 +7094,7 @@ module.exports =
 
 
 /***/ },
-/* 39 */
+/* 42 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -6389,12 +7109,13 @@ module.exports =
 	        this.possibleWorkers = -1;
 	        this.near = spawn;
 	    }
-	    prioritize(object) {
-	        if (object instanceof Creep) {
-	            let creep = object;
+	    getPrioritizingConditions(conditions) {
+	        conditions.push((creep) => {
 	            return (50 - creep.body.length) / 50;
-	        }
-	        return 0;
+	        });
+	    }
+	    isIdeal(object) {
+	        return false;
 	    }
 	    schedule(object) {
 	        if (this.possibleWorkers === 0 || !this.spawn.isValid || !(object instanceof Creep)) {
@@ -6412,660 +7133,78 @@ module.exports =
 
 
 /***/ },
-/* 40 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	const sporeClaimable_1 = __webpack_require__(8);
-	const sporeRemember_1 = __webpack_require__(13);
-	class SporeResource extends Resource {
-	    collect(collector, claimReceipt) {
-	        if (claimReceipt.target !== this) {
-	            return ERR_INVALID_TARGET;
-	        }
-	        if (claimReceipt.resourceType === this.resourceType &&
-	            collector.withdraw != null && collector.carryCapacityRemaining != null) {
-	            return collector.pickup(this);
-	        }
-	        return ERR_INVALID_ARGS;
-	    }
-	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
-	        if (resourceType != this.resourceType) {
-	            return null;
-	        }
-	        let claimAmount = amount;
-	        let remaining = this.amount - this.claims.amount;
-	        // ensure our remaining resource meets their claim
-	        if (claimAmount > remaining) {
-	            if (minAmount > remaining) {
-	                return null;
-	            }
-	            claimAmount = remaining;
-	        }
-	        this.claims.count++;
-	        this.claims.amount += claimAmount;
-	        return new sporeClaimable_1.ClaimReceipt(this, 'dropped', resourceType, claimAmount);
-	    }
-	    get claims() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
-	            return new Claims(this);
-	        });
-	    }
-	}
-	exports.SporeResource = SporeResource;
-	class Claims {
-	    constructor(resource) {
-	        this.resource = resource;
-	        this.count = 0;
-	        this.amount = 0;
-	    }
-	}
-
-
-/***/ },
-/* 41 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	const sporeClaimable_1 = __webpack_require__(8);
-	const sporeRemember_1 = __webpack_require__(13);
-	class SporeLink extends StructureLink {
-	    get energyCapacityRemaining() {
-	        return this.energyCapacity - this.energy;
-	    }
-	    get takesTransfers() {
-	        return this.memory.takesTransfers === true;
-	    }
-	    set takesTransfers(value) {
-	        this.memory.takesTransfers = value;
-	    }
-	    get bond() {
-	        if (this._bond != null) {
-	            return this._bond;
-	        }
-	        if (this.memory.bondTargetId != null) {
-	            this._bond = new Bond();
-	            this._bond.type = this.memory.bondType;
-	            this._bond.targetId = this.memory.bondTargetId;
-	            this._bond.target = Game.getObjectById(this.memory.bondTargetId);
-	            this._bond.targetFlag = Game.flags[this.memory.bondTargetFlagName];
-	            this._bond.myFlag = Game.flags[this.memory.bondMyFlagName];
-	            if (!this._bond.exists()) {
-	                this._bond = null;
-	                delete this.memory.bondTargetId;
-	                delete this.memory.bondTargetFlagName;
-	                delete this.memory.bondMyFlagName;
-	                delete this.memory.bondType;
-	            }
-	            else if (this._bond.targetId == null && this._bond.targetFlag.room != null) {
-	                if (this._bond.targetFlag.room != null) {
-	                    let found = this._bond.targetFlag.room.lookForAt(this._bond.type, this._bond.targetFlag);
-	                    if (found.length > 0) {
-	                        this._bond.target = found[0];
-	                    }
-	                }
-	                if (this._bond.target != null) {
-	                    this._bond.targetId = this._bond.target.id;
-	                }
-	                if (this._bond.target == null) {
-	                    this._bond = null;
-	                    delete this.memory.bondTargetId;
-	                    delete this.memory.bondTargetFlagName;
-	                    delete this.memory.bondMyFlagName;
-	                    delete this.memory.bondType;
-	                }
-	            }
-	        }
-	        return this._bond;
-	    }
-	    set bond(value) {
-	        this._bond = value;
-	        if (value == null) {
-	            delete this.memory.bondType;
-	            delete this.memory.bondTargetId;
-	            delete this.memory.bondTargetFlagName;
-	            delete this.memory.bondMyFlagName;
-	        }
-	        else {
-	            this.memory.bondType = value.type;
-	            if (value.target != null) {
-	                this.memory.bondTargetId = value.target.id;
-	            }
-	            if (value.targetFlag != null) {
-	                this.memory.bondTargetFlagName = value.targetFlag.name;
-	            }
-	            if (value.myFlag != null) {
-	                this.memory.bondMyFlagName = value.myFlag.name;
-	            }
-	        }
-	    }
-	    get nearBySource() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.nearBySource`, () => {
-	            if (this.memory.nearBySourceId != null) {
-	                return Game.getObjectById(this.memory.nearBySourceId);
-	            }
-	            let nearBySource = this.pos.findClosestInRange(this.room.sources, 2);
-	            if (nearBySource == null) {
-	                this.memory.nearBySourceId = '';
-	            }
-	            else {
-	                this.memory.nearBySourceId = nearBySource.id;
-	            }
-	            return nearBySource;
-	        });
-	    }
-	    get memory() {
-	        let roomMemory = this.room.memory;
-	        if (roomMemory.structures == null) {
-	            roomMemory.structures = {};
-	        }
-	        let memory = roomMemory.structures[this.id];
-	        if (memory == null) {
-	            memory = {};
-	            roomMemory.structures[this.id] = memory;
-	        }
-	        return memory;
-	    }
-	    getTasks() {
-	        this.memory.takesTransfers = false;
-	        let transferTarget = null;
-	        let tasks = [];
-	        //
-	        // if (this.bond == null)
-	        // {
-	        //     this.bond = Bond.discover(this, LOOK_SOURCES);
-	        // }
-	        //
-	        // if (this.bond != null)
-	        // {
-	        //     let target: any = this.bond.target;
-	        //
-	        //     if (target == null)
-	        //     {
-	        //         target = this.bond.targetFlag.pos;
-	        //     }
-	        //
-	        //     let transferEnergyTask = new TransferResource([ScreepsPtr.from<EnergyContainerLike>(this)], RESOURCE_ENERGY, ScreepsPtr.from<Source>(target), null);
-	        //     transferEnergyTask.priority = TaskPriority.Mandatory;
-	        //     transferEnergyTask.name = "Transfer energy to " + this + " from " + target;
-	        //     transferEnergyTask.possibleWorkers = 1;
-	        //     tasks.push(transferEnergyTask);
-	        // }
-	        // else
-	        // {
-	        if (this.nearBySource == null) {
-	            this.takesTransfers = true;
-	        }
-	        // }
-	        //
-	        if (this.energy > 0 && !this.takesTransfers) {
-	            transferTarget = this.findLinkTakingTransfers();
-	            if (transferTarget != null) {
-	                this.transferEnergy(transferTarget);
-	            }
-	        }
-	        return tasks;
-	    }
-	    findLinkTakingTransfers() {
-	        for (let link of this.room.links) {
-	            if (link.takesTransfers === true && link.energyCapacityRemaining > 0) {
-	                return link;
-	            }
-	        }
-	        return null;
-	    }
-	    collect(collector, claimReceipt) {
-	        if (claimReceipt.target !== this) {
-	            return ERR_INVALID_TARGET;
-	        }
-	        if (collector.withdraw != null && collector.carryCapacityRemaining != null) {
-	            return collector.withdraw(this, claimReceipt.resourceType, Math.min(this.energy, collector.carryCapacityRemaining));
-	        }
-	        return ERR_INVALID_ARGS;
-	    }
-	    makeClaim(claimer, resourceType, amount, minAmount, isExtended) {
-	        if (this.takesTransfers !== true ||
-	            resourceType != RESOURCE_ENERGY) {
-	            return null;
-	        }
-	        let claimAmount = amount;
-	        let remaining = this.energy - this.claims.energy;
-	        // ensure our remaining resource meets their claim
-	        if (claimAmount > remaining) {
-	            if (minAmount > remaining) {
-	                return null;
-	            }
-	            claimAmount = remaining;
-	        }
-	        this.claims.count++;
-	        this.claims.energy += claimAmount;
-	        return new sporeClaimable_1.ClaimReceipt(this, 'link', resourceType, claimAmount);
-	    }
-	    get claims() {
-	        return sporeRemember_1.Remember.forTick(`${this.id}.claims`, () => {
-	            return new Claims(this);
-	        });
-	    }
-	}
-	exports.SporeLink = SporeLink;
-	class Claims {
-	    constructor(link) {
-	        this.link = link;
-	        this.count = 0;
-	        this.energy = 0;
-	    }
-	}
-	class Bond {
-	    exists() {
-	        return (this.type != null &&
-	            this.targetFlag != null &&
-	            this.myFlag != null &&
-	            this.myFlag.color === COLOR_YELLOW && this.targetFlag.color === COLOR_YELLOW &&
-	            this.myFlag.secondaryColor === this.targetFlag.secondaryColor);
-	    }
-	    static discover(obj, lookType) {
-	        let flagA = null;
-	        let flagB = null;
-	        let flags = obj.room.lookForAt(LOOK_FLAGS, obj.pos);
-	        for (let index = 0; index < flags.length; index++) {
-	            let flag = flags[index];
-	            if (flag.color === COLOR_YELLOW) {
-	                flagA = flag;
-	                break;
-	            }
-	        }
-	        if (flagA == null) {
-	            return null;
-	        }
-	        let startsWith = function (baseString, searchString, position) {
-	            position = position || 0;
-	            return baseString.substr(position, searchString.length) === searchString;
-	        };
-	        for (let flagName in Game.flags) {
-	            let flag = Game.flags[flagName];
-	            if (flag != flagA &&
-	                flag.color === COLOR_YELLOW &&
-	                flag.secondaryColor === flagA.secondaryColor &&
-	                startsWith(flag.name, flagA.name)) {
-	                flagB = flag;
-	                break;
-	            }
-	        }
-	        if (flagB == null) {
-	            return null;
-	        }
-	        let bond = new Bond();
-	        bond.type = lookType;
-	        bond.target = null;
-	        bond.targetId = null;
-	        if (flagB.room != null) {
-	            let found = flagB.room.lookForAt(lookType, flagB);
-	            if (found.length > 0) {
-	                bond.target = found[0];
-	            }
-	        }
-	        if (bond.target != null) {
-	            bond.targetId = bond.target.id;
-	        }
-	        bond.targetFlag = flagB;
-	        bond.myFlag = flagA;
-	        return bond;
-	    }
-	}
-
-
-/***/ },
-/* 42 */
+/* 43 */
 /***/ function(module, exports) {
 
-	"use strict";
-	let usedOnStart = 0;
-	let enabled = false;
-	let depth = 0;
-	var profilingSymbol = Symbol('profiling');
-	function setupProfiler() {
-	    depth = 0; // reset depth, this needs to be done each tick.
-	    Game.profiler = {
-	        stream(duration, filter) {
-	            setupMemory('stream', duration || 10, filter);
-	        },
-	        email(duration, filter) {
-	            setupMemory('email', duration || 100, filter);
-	        },
-	        profile(duration, filter) {
-	            setupMemory('profile', duration || 100, filter);
-	        },
-	        reset: resetMemory,
-	    };
-	    overloadCPUCalc();
-	}
-	function setupMemory(profileType, duration, filter) {
-	    resetMemory();
-	    if (!Memory.profiler) {
-	        Memory.profiler = {
-	            map: {},
-	            totalTime: 0,
-	            enabledTick: Game.time + 1,
-	            disableTick: Game.time + duration,
-	            type: profileType,
-	            filter,
-	        };
-	    }
-	}
-	function resetMemory() {
-	    Memory.profiler = null;
-	}
-	function overloadCPUCalc() {
-	    /*if (false) {
-	     usedOnStart = 0; // This needs to be reset, but only in the sim.
-	     Game.cpu.getUsed = function getUsed() {
-	     return performance.now() - usedOnStart;
-	     };
-	     }*/
-	}
-	function getFilter() {
-	    return Memory.profiler.filter;
-	}
-	function wrapFunction(name, originalFunction) {
-	    return function wrappedFunction() {
-	        if (Profiler.isProfiling()) {
-	            const nameMatchesFilter = name === getFilter();
-	            const start = Game.cpu.getUsed();
-	            if (nameMatchesFilter) {
-	                depth++;
+	'use strict';
+	class PriorityQueue {
+	    constructor(data, compare) {
+	        this.data = data;
+	        this.data = data || [];
+	        this.length = this.data.length;
+	        this.compare = compare || PriorityQueue.defaultCompare;
+	        if (data != null) {
+	            for (let i = Math.floor(this.length / 2); i >= 0; i--) {
+	                this._down(i);
 	            }
-	            const result = originalFunction.apply(this, arguments);
-	            if (depth > 0 || !getFilter()) {
-	                const end = Game.cpu.getUsed();
-	                Profiler.record(name, end - start);
+	        }
+	    }
+	    push(item) {
+	        this.data.push(item);
+	        this.length++;
+	        this._up(this.length - 1);
+	    }
+	    pop() {
+	        let top = this.data[0];
+	        this.data[0] = this.data[this.length - 1];
+	        this.length--;
+	        this.data.pop();
+	        this._down(0);
+	        return top;
+	    }
+	    peek() {
+	        return this.data[0];
+	    }
+	    get(index) {
+	        return this.data[index];
+	    }
+	    _up(pos) {
+	        let data = this.data;
+	        let compare = this.compare;
+	        while (pos > 0) {
+	            let parent = Math.floor((pos - 1) / 2);
+	            if (compare(data[pos], data[parent]) < 0) {
+	                PriorityQueue.swap(data, parent, pos);
+	                pos = parent;
 	            }
-	            if (nameMatchesFilter) {
-	                depth--;
-	            }
-	            return result;
-	        }
-	        return originalFunction.apply(this, arguments);
-	    };
-	}
-	function hookUpPrototypes() {
-	    Profiler.prototypes.forEach(proto => {
-	        profileObjectInheritance(proto.val, proto.name);
-	    });
-	}
-	function profileObjectInheritance(object, label) {
-	    console.log('[' + label + ']');
-	    while (object != null && object != Object) {
-	        if (_.includes(Object.getOwnPropertySymbols(object), profilingSymbol)) {
-	            console.log('############################################');
-	            break;
-	        }
-	        profileObject(object, label);
-	        object[profilingSymbol] = 'profiling';
-	        object = Object.getPrototypeOf(object);
-	    }
-	}
-	function profileObject(object, label) {
-	    let skipMembers = [
-	        "valueOf",
-	        "propertyIsEnumerable",
-	        "hasOwnProperty",
-	        "caller",
-	        "arguments",
-	        "apply",
-	        "call",
-	        "bind",
-	        "toLocaleString",
-	        "toString",
-	        "isPrototypeOf",
-	        "prototype",
-	        "__defineGetter__",
-	        "__defineSetter__",
-	        "__lookupGetter__",
-	        "__lookupSetter__",
-	        "__proto__",
-	        "constructor",
-	        "getUsed",
-	        "length"
-	    ];
-	    // Object.keys(objectToWrap).forEach(functionName =>
-	    // {
-	    //     let extendedLabel = `    ${label}.${functionName}: `;
-	    //
-	    //     if (_.includes(skipMembers, functionName))
-	    //     {
-	    //         console.log(extendedLabel + 'SKIPPED');
-	    //         return;
-	    //     }
-	    //
-	    //     try
-	    //     {
-	    //         let memberType = typeof objectToWrap[functionName];
-	    //         extendedLabel += `${memberType} `;
-	    //
-	    //         if (memberType === 'function')
-	    //         {
-	    //             const originalFunction = objectToWrap[functionName];
-	    //             objectToWrap[functionName] = profileFunction(originalFunction, extendedLabel);
-	    //             console.log(extendedLabel + 'DONE');
-	    //
-	    //         }
-	    //         else
-	    //         {
-	    //             console.log(extendedLabel + 'SKIPPED');
-	    //         }
-	    //     }
-	    //     catch (e)
-	    //     {
-	    //         console.log(extendedLabel + 'ERROR');
-	    //         console.log('profile binding exception occurred: ' + e);
-	    //     }
-	    // });
-	    let propertyNames = Object.getOwnPropertyNames(object);
-	    for (let index = 0; index < propertyNames.length; index++) {
-	        let key = propertyNames[index];
-	        if (_.includes(skipMembers, key)) {
-	            continue;
-	        }
-	        let descriptor = Object.getOwnPropertyDescriptor(object, key);
-	        let extendedLabel = `${label}.${key}`;
-	        let progressLog = `    ${label}.${key}: `;
-	        let newDescriptor = {
-	            enumerable: descriptor.enumerable,
-	            configurable: false
-	        };
-	        if (typeof descriptor.value === 'function') {
-	            newDescriptor.value = wrapFunction(extendedLabel, descriptor.value);
-	        }
-	        if (descriptor.get != null) {
-	            progressLog += 'GET ';
-	            newDescriptor.get = () => {
-	                //console.log('Calling GET ' + label + '.' + key);
-	                if (Profiler.isProfiling()) {
-	                    const nameMatchesFilter = extendedLabel === getFilter();
-	                    const start = Game.cpu.getUsed();
-	                    if (nameMatchesFilter) {
-	                        depth++;
-	                    }
-	                    const result = descriptor.get();
-	                    if (depth > 0 || !getFilter()) {
-	                        const end = Game.cpu.getUsed();
-	                        Profiler.record(extendedLabel, end - start);
-	                    }
-	                    if (nameMatchesFilter) {
-	                        depth--;
-	                    }
-	                    return result;
-	                }
-	                return descriptor.get();
-	            };
-	        }
-	        if (descriptor.set != null) {
-	            progressLog += 'SET ';
-	            newDescriptor.set = (value) => {
-	                //console.log('Calling SET ' + label + '.' + key);
-	                if (Profiler.isProfiling()) {
-	                    const nameMatchesFilter = extendedLabel === getFilter();
-	                    const start = Game.cpu.getUsed();
-	                    if (nameMatchesFilter) {
-	                        depth++;
-	                    }
-	                    descriptor.set(value);
-	                    if (depth > 0 || !getFilter()) {
-	                        const end = Game.cpu.getUsed();
-	                        Profiler.record(extendedLabel, end - start);
-	                    }
-	                    if (nameMatchesFilter) {
-	                        depth--;
-	                    }
-	                    return;
-	                }
-	                descriptor.set(value);
-	            };
-	        }
-	        if (newDescriptor.get == null && newDescriptor.set == null && newDescriptor.value == null) {
-	            console.log(progressLog + 'SKIPPED');
-	        }
-	        else {
-	            Object.defineProperty(object, key, newDescriptor);
-	            console.log(progressLog + 'DONE');
+	            else
+	                break;
 	        }
 	    }
-	}
-	function profileFunction(fn, functionName) {
-	    const fnName = functionName || fn.name;
-	    if (!fnName) {
-	        console.log('Couldn\'t find a function name for - ', fn);
-	        console.log('Will not profile this function.');
-	        return fn;
+	    _down(pos) {
+	        let data = this.data, compare = this.compare, len = this.length;
+	        while (true) {
+	            let left = 2 * pos + 1, right = left + 1, min = pos;
+	            if (left < len && compare(data[left], data[min]) < 0)
+	                min = left;
+	            if (right < len && compare(data[right], data[min]) < 0)
+	                min = right;
+	            if (min === pos)
+	                return;
+	            PriorityQueue.swap(data, min, pos);
+	            pos = min;
+	        }
 	    }
-	    return wrapFunction(fnName, fn);
+	    static defaultCompare(a, b) {
+	        return a < b ? -1 : a > b ? 1 : 0;
+	    }
+	    static swap(data, i, j) {
+	        let tmp = data[i];
+	        data[i] = data[j];
+	        data[j] = tmp;
+	    }
 	}
-	const Profiler = {
-	    printProfile() {
-	        console.log(Profiler.output());
-	    },
-	    emailProfile() {
-	        Game.notify(Profiler.output());
-	    },
-	    output() {
-	        const elapsedTicks = Game.time - Memory.profiler.enabledTick + 1;
-	        const header = 'calls\t\ttime\t\tavg\t\ttickAvg\t\tfunction';
-	        const footer = [
-	            `Avg: ${(Memory.profiler.totalTime / elapsedTicks).toFixed(2)}`,
-	            `Total: ${Memory.profiler.totalTime.toFixed(2)}`,
-	            `Ticks: ${elapsedTicks}`,
-	        ].join('\t');
-	        return [].concat(header, Profiler.lines(elapsedTicks).slice(0, 30), footer).join('\n');
-	    },
-	    lines(elapsedTicks) {
-	        const stats = Object.keys(Memory.profiler.map).map(functionName => {
-	            const functionCalls = Memory.profiler.map[functionName];
-	            return {
-	                name: functionName,
-	                calls: functionCalls.calls,
-	                totalTime: functionCalls.time,
-	                averageTime: functionCalls.time / functionCalls.calls,
-	                averageTick: (functionCalls.time / functionCalls.calls) * (functionCalls.calls / elapsedTicks),
-	            };
-	        }).sort((val1, val2) => {
-	            return val2.averageTick - val1.averageTick;
-	        });
-	        const lines = stats.map(data => {
-	            return [
-	                data.calls,
-	                data.totalTime.toFixed(1),
-	                data.averageTime.toFixed(3),
-	                data.averageTick.toFixed(3),
-	                data.name,
-	            ].join('\t\t');
-	        });
-	        return lines;
-	    },
-	    prototypes: [
-	        { name: 'Game', val: Game },
-	        { name: 'Room', val: Room },
-	        { name: 'Structure', val: Structure },
-	        { name: 'Spawn', val: Spawn },
-	        { name: 'Creep', val: Creep },
-	        { name: 'RoomPosition', val: RoomPosition },
-	        { name: 'Source', val: Source },
-	        { name: 'Flag', val: Flag },
-	    ],
-	    record(functionName, time) {
-	        if (!Memory.profiler.map[functionName]) {
-	            Memory.profiler.map[functionName] = {
-	                time: 0,
-	                calls: 0,
-	            };
-	        }
-	        Memory.profiler.map[functionName].calls++;
-	        Memory.profiler.map[functionName].time += time;
-	    },
-	    endTick() {
-	        if (Game.time >= Memory.profiler.enabledTick) {
-	            const cpuUsed = Game.cpu.getUsed();
-	            Memory.profiler.totalTime += cpuUsed;
-	            Profiler.report();
-	        }
-	    },
-	    report() {
-	        if (Profiler.shouldPrint()) {
-	            Profiler.printProfile();
-	        }
-	        else if (Profiler.shouldEmail()) {
-	            Profiler.emailProfile();
-	        }
-	    },
-	    isProfiling() {
-	        return enabled && !!Memory.profiler && Game.time <= Memory.profiler.disableTick;
-	    },
-	    type() {
-	        return Memory.profiler.type;
-	    },
-	    shouldPrint() {
-	        const streaming = Profiler.type() === 'stream';
-	        const profiling = Profiler.type() === 'profile';
-	        const onEndingTick = Memory.profiler.disableTick === Game.time;
-	        return streaming || (profiling && onEndingTick);
-	    },
-	    shouldEmail() {
-	        return Profiler.type() === 'email' && Memory.profiler.disableTick === Game.time;
-	    },
-	};
-	exports.profiler = {
-	    wrap(callback) {
-	        if (enabled) {
-	            setupProfiler();
-	        }
-	        if (Profiler.isProfiling()) {
-	            usedOnStart = Game.cpu.getUsed();
-	            // Commented lines are part of an on going experiment to keep the profiler
-	            // performant, and measure certain types of overhead.
-	            // var callbackStart = Game.cpu.getUsed();
-	            const returnVal = callback();
-	            // var callbackEnd = Game.cpu.getUsed();
-	            Profiler.endTick();
-	            // var end = Game.cpu.getUsed();
-	            // var profilerTime = (end - start) - (callbackEnd - callbackStart);
-	            // var callbackTime = callbackEnd - callbackStart;
-	            // var unaccounted = end - profilerTime - callbackTime;
-	            // console.log('total-', end, 'profiler-', profilerTime, 'callbacktime-',
-	            // callbackTime, 'start-', start, 'unaccounted', unaccounted);
-	            return returnVal;
-	        }
-	        return callback();
-	    },
-	    enable() {
-	        enabled = true;
-	        hookUpPrototypes();
-	    },
-	    registerObject(object, label) {
-	        return profileObjectInheritance(object, label);
-	    },
-	    registerFN(fn, functionName) {
-	        return profileFunction(fn, functionName);
-	    },
-	};
+	exports.PriorityQueue = PriorityQueue;
 
 
 /***/ }

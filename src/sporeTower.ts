@@ -150,7 +150,7 @@ export class SporeTower extends StructureTower implements Claimable
 
     private get claims(): Claims
     {
-        return Remember.forTick(`${this.id}.claims`, () =>
+        return Remember.byName(`tower.${this.id}`, `claims`, () =>
         {
             return new Claims(this);
         });

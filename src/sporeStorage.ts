@@ -101,10 +101,10 @@ export class SporeStorage extends StructureStorage implements Claimable
 
     private get claims(): Claims
     {
-        return Remember.forTick(`${this.id}.claims`, () =>
+        return Remember.byName(`storage.${this.id}`, `claims`, function()
         {
             return new Claims(this);
-        });
+        }.bind(this));
     }
 }
 

@@ -39,14 +39,19 @@ export class ClaimRoom extends Task
         return super.createBasicAppointment(spawn, request, this.controller);
     }
 
-    prioritize(object: RoomObjectLike): number
+    getPrioritizingConditions(conditions: Array<any>): void
+    {
+        super.getBasicPrioritizingConditions(conditions, this.controller, this.idealCreepBody);
+    }
+
+    isIdeal(object: RoomObjectLike): boolean
     {
         if (object instanceof Creep)
         {
-            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+            return object.type === this.idealCreepBody.name;
         }
 
-        return 0;
+        return false;
     }
 
     beginScheduling(): void

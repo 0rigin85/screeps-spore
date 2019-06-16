@@ -85,19 +85,29 @@ export class UpgradeRoomController extends Task
         return super.createBasicAppointment(spawn, request, this.controller);
     }
 
-    prioritize(object: RoomObjectLike): number
+    getPrioritizingConditions(conditions: Array<any>): void
+    {
+        conditions.push((creep:Creep) =>
+        {
+            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity)
+            {
+                return -1;
+            }
+
+            return 0;
+        });
+
+        super.getBasicPrioritizingConditions(conditions, this.controller, this.idealCreepBody);
+    }
+
+    isIdeal(object: RoomObjectLike): boolean
     {
         if (object instanceof Creep)
         {
-            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity)
-            {
-                return 0;
-            }
-
-            return super.basicPrioritizeCreep(object, this.controller, this.idealCreepBody);
+            return object.type === this.idealCreepBody.name;
         }
 
-        return 0;
+        return false;
     }
 
     hasWork(): boolean

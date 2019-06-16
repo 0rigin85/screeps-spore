@@ -19,14 +19,19 @@ export class DismantleStructure extends Task
         this.near = structure;
     }
 
-    prioritize(object: RoomObjectLike): number
+    getPrioritizingConditions(conditions: Array<any>): void
+    {
+        super.getBasicPrioritizingConditions(conditions, this.structure, this.idealCreepBody);
+    }
+
+    isIdeal(object: RoomObjectLike): boolean
     {
         if (object instanceof Creep)
         {
-            return super.basicPrioritizeCreep(object, this.structure, this.idealCreepBody);
+            return object.type === this.idealCreepBody.name;
         }
 
-        return 0;
+        return false;
     }
 
     beginScheduling(): void

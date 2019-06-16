@@ -9,6 +9,9 @@ declare global
             [id: string]: SporePathMemory;
         };
 
+        previousTasks: { [key: string]: any },
+        tasks: { [key: string]: any },
+
         config: Configuration;
     }
 }

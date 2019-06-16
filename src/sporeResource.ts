@@ -61,7 +61,7 @@ export class SporeResource extends Resource implements Claimable
 
     private get claims(): Claims
     {
-        return Remember.forTick(`${this.id}.claims`, () =>
+        return Remember.byName(`resource.${this.id}`, `claims`, () =>
         {
             return new Claims(this);
         });

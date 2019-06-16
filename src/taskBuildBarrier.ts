@@ -192,24 +192,34 @@ export class BuildBarrier extends Task
         return super.createBasicAppointment(spawn, request, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] });
     }
 
-    prioritize(object: RoomObjectLike): number
+    getPrioritizingConditions(conditions: Array<any>): void
+    {
+        conditions.push((creep:Creep) =>
+        {
+            if (creep.carry[RESOURCE_ENERGY] === 0 && creep.carryCount === creep.carryCapacity)
+            {
+                return -1;
+            }
+
+            if (creep.type === CREEP_TYPE.MINER.name || creep.type === CREEP_TYPE.UPGRADER.name)
+            {
+                return -1;
+            }
+
+            return 0;
+        });
+
+        super.getBasicPrioritizingConditions(conditions, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] }, this.idealCreepBody);
+    }
+
+    isIdeal(object: RoomObjectLike): boolean
     {
         if (object instanceof Creep)
         {
-            if (object.carry[RESOURCE_ENERGY] === 0 && object.carryCount === object.carryCapacity)
-            {
-                return 0;
-            }
-
-            if (object.type === CREEP_TYPE.MINER.name || object.type === CREEP_TYPE.UPGRADER.name)
-            {
-                return 0;
-            }
-
-            return super.basicPrioritizeCreep(object, { pos: new RoomPosition(25, 25, this.roomName), room: Game.rooms[this.roomName] }, this.idealCreepBody);
+            return object.type === this.idealCreepBody.name;
         }
 
-        return 0;
+        return false;
     }
 
     beginScheduling(): void

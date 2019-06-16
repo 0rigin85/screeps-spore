@@ -163,10 +163,10 @@ export class SporeSpawn extends Spawn implements Claimable
 
     private get claims(): Claims
     {
-        return Remember.forTick(`${this.id}.claims`, () =>
+        return Remember.byName(`spawn.${this.id}`, `claims`, function ()
         {
             return new Claims(this);
-        });
+        }.bind(this));
     }
 }
 

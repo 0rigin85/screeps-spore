@@ -14,15 +14,17 @@ export class RecycleCreep extends Task
         this.near = spawn;
     }
 
-    prioritize(object: RoomObjectLike): number
+    getPrioritizingConditions(conditions: Array<any>): void
     {
-        if (object instanceof Creep)
+        conditions.push((creep:Creep) =>
         {
-            let creep = <Creep>object;
             return (50 - creep.body.length) / 50;
-        }
+        });
+    }
 
-        return 0;
+    isIdeal(object: RoomObjectLike): boolean
+    {
+        return false;
     }
 
     schedule(object: RoomObjectLike): number

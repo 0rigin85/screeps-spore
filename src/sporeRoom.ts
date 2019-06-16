@@ -33,6 +33,7 @@ declare global
         structures: Structure[];
         nonwalkableStructures: Structure[];
         constructionSites: ConstructionSite[];
+        allySites: ConstructionSite[];
         containers: StructureContainer[];
         extensions: StructureExtension[];
         roads: Structure[];
@@ -67,8 +68,19 @@ declare global
     }
 }
 
-// List of allies, name must be lower case.
-const USERNAME_WHITELIST =
+// List of usernames, name must be lower case.
+const FRIENDLY_WHITELIST =
+    [
+        'pcake0rigin',
+        'barney',      // Mr McBarnabas
+        'pcakecysote', // Jacob
+        'swifty',      // Leigh
+        'yeurch',       // Richard
+        '0xdeadfeed'    // Wes
+    ];
+
+// List of usernames, name must be lower case.
+const ALLY_WHITELIST =
     [
         'barney',      // Mr McBarnabas
         'pcakecysote', // Jacob
@@ -214,7 +226,7 @@ export class SporeRoom extends Room
 
     get sources(): Source[]
     {
-        return Remember.forTick(`${this.name}.sources`, () =>
+        return Remember.byName(`room.${this.name}`, `sources`, function()
         {
             let memory = Memory.rooms[this.name];
             if (memory == null)
@@ -230,7 +242,7 @@ export class SporeRoom extends Room
             {
                 memory.sources = {};
 
-                sources = this.find<Source>(FIND_SOURCES);
+                sources = this.find(FIND_SOURCES);
                 _.forEach(sources, function(source: Source) { memory.sources[source.id] = <SourceMemory>{}; });
             }
             else
@@ -248,14 +260,14 @@ export class SporeRoom extends Room
             }
 
             return sources;
-        });
+        }.bind(this));
     }
 
     get extractor(): StructureExtractor
     {
-        return Remember.forTick(`${this.name}.extractor`, () =>
+        return Remember.byName(`room.${this.name}`, `extractor`, function()
         {
-            let extractors = this.find<StructureExtension>(FIND_STRUCTURES, {
+            let extractors = this.find(FIND_STRUCTURES, {
                 filter: {
                     structureType: STRUCTURE_EXTRACTOR
                 }
@@ -269,7 +281,7 @@ export class SporeRoom extends Room
             }
 
             return extractor;
-        });
+        }.bind(this));
     }
 
     get mySpawns(): Spawn[]
@@ -284,85 +296,87 @@ export class SporeRoom extends Room
 
     get nonwalkableStructures(): Structure[]
     {
-        return Remember.forTick(`${this.name}.nonwalkableStructures`, () =>
+        return Remember.byName(`room.${this.name}`, `nonwalkableStructures`, function ()
         {
-            return _.filter(this.structures, (structure) =>
+            return _.filter(this.structures, function (structure: Structure)
             {
                 return _.includes(OBSTACLE_OBJECT_TYPES, structure.structureType);
-            });
-        });
+            }.bind(this));
+        }.bind(this));
     }
 
     get roads(): Structure[]
     {
-        return Remember.forTick(`${this.name}.roads`, () =>
+        return Remember.byName(`room.${this.name}`, `roads`, function ()
         {
-            return this.find<StructureExtension>(FIND_STRUCTURES, {
+            return this.find(FIND_STRUCTURES, {
                 filter: {
                     structureType: STRUCTURE_ROAD
                 }
             });
-        });
+        }.bind(this));
     }
 
     get extensions(): StructureExtension[]
     {
-        return Remember.forTick(`${this.name}.extensions`, () =>
+        debugger;
+        return Remember.byName(`room.${this.name}`, `extensions`, function()
         {
-            return this.find<StructureExtension>(FIND_STRUCTURES, {
+            debugger;
+            return this.find(FIND_STRUCTURES, {
                 filter: {
                     structureType: STRUCTURE_EXTENSION
                 }
             });
-        });
+        }).bind(this);
     }
 
     get containers(): StructureContainer[]
     {
-        return Remember.forTick(`${this.name}.containers`, () =>
+        return Remember.byName(`room.${this.name}`, `containers`, function ()
         {
-            return this.find<StructureContainer>(FIND_STRUCTURES, {
+            return this.find(FIND_STRUCTURES, {
                 filter: {
                     structureType: STRUCTURE_CONTAINER
                 }
             });
-        });
+        }.bind(this));
     }
 
     get ramparts(): StructureRampart[]
     {
-        return Remember.forTick(`${this.name}.ramparts`, () =>
+        return Remember.byName(`room.${this.name}`, `ramparts`, function ()
         {
-            return this.find<StructureRampart>(FIND_STRUCTURES, {
+            return this.find(FIND_STRUCTURES, {
                 filter: {
                     structureType: STRUCTURE_RAMPART
                 }
             });
-        });
+        }.bind(this));
     }
 
     get towers(): StructureTower[]
     {
-        return Remember.forTick(`${this.name}.towers`, () =>
+        return Remember.byName(`room.${this.name}`, `towers`, function ()
         {
-            return this.find<StructureTower>(FIND_STRUCTURES, {
+            return this.find(FIND_STRUCTURES, {
                 filter: {
                     structureType: STRUCTURE_TOWER
                 }
             });
-        });
+        }.bind(this));
     }
 
     get links(): StructureLink[]
     {
-        return Remember.forTick(`${this.name}.links`, () =>
+        return Remember.byName(`room.${this.name}`, `links`, function ()
         {
-            return this.find<StructureLink>(FIND_STRUCTURES, {
+            return this.find(FIND_STRUCTURES, {
                 filter: {
                     structureType: STRUCTURE_LINK
                 }
             });
-        });
+        }.bind(this));
     }
 
     get resources(): Resource[]
@@ -373,6 +387,20 @@ export class SporeRoom extends Room
     get constructionSites(): ConstructionSite[]
     {
         return this.find<ConstructionSite>(FIND_CONSTRUCTION_SITES);
+    }
+
+    get allySites(): ConstructionSite[]
+    {
+        return Remember.byName(`room.${this.name}`, `allySites`, function ()
+        {
+            return this.find(FIND_CONSTRUCTION_SITES,
+                {
+                    filter: function (site)
+                    {
+                        return ALLY_WHITELIST.indexOf(site.owner.username.toLowerCase()) > -1;
+                    }.bind(this)
+                });
+        }.bind(this));
     }
 
     get creeps(): Creep[]
@@ -387,72 +415,72 @@ export class SporeRoom extends Room
 
     get hostileCreeps(): Creep[]
     {
-        return Remember.forTick(`${this.name}.hostileCreeps`, () =>
+        return Remember.byName(`room.${this.name}`, `hostileCreeps`, function ()
         {
-            return this.find<Creep>(FIND_HOSTILE_CREEPS,
+            return this.find(FIND_HOSTILE_CREEPS,
             {
-                filter: (creep) =>
+                filter: function (creep)
                 {
-                    return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
-                }
+                    return FRIENDLY_WHITELIST.indexOf(creep.owner.username.toLowerCase()) === -1;
+                }.bind(this)
             });
-        });
+        }.bind(this));
     }
 
     get friendlyCreeps() : Creep[]
     {
-        return Remember.forTick(`${this.name}.friendlyCreeps`, () =>
+        return Remember.byName(`room.${this.name}`, `friendlyCreeps`, function ()
         {
-            return this.find<Creep>(FIND_HOSTILE_CREEPS,
+            return this.find(FIND_HOSTILE_CREEPS,
                 {
-                    filter: (creep) =>
+                    filter: function (creep)
                     {
-                        return USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-                    }
+                        return FRIENDLY_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+                    }.bind(this)
                 });
-        });
+        }.bind(this));
     }
 
     get injuredFriendlyCreeps(): Creep[]
     {
-        return Remember.forTick(`${this.name}.injuredFriendlyCreeps`, () =>
+        return Remember.byName(`room.${this.name}`, `injuredFriendlyCreeps`, function ()
         {
-            return this.find<Creep>(FIND_CREEPS,
+            return this.find(FIND_CREEPS,
                 {
-                    filter: (creep) =>
+                    filter: function (creep)
                     {
-                        return creep.hits < creep.hitsMax && USERNAME_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
-                    }
+                        return creep.hits < creep.hitsMax && FRIENDLY_WHITELIST.indexOf(creep.owner.username.toLowerCase()) > -1;
+                    }.bind(this)
                 });
-        });
+        }.bind(this));
     }
 
     get sourceKeepers(): Creep[]
     {
-        return Remember.forTick(`${this.name}.sourceKeepers`, () =>
+        return Remember.byName(`room.${this.name}`, `sourceKeepers`, function ()
         {
-            return this.find<Creep>(FIND_CREEPS,
+            return this.find(FIND_CREEPS,
                 {
-                    filter: (creep) =>
+                    filter: function (creep)
                     {
                         return creep.owner.username === "Source Keeper";
-                    }
+                    }.bind(this)
                 });
-        });
+        }.bind(this));
     }
 
     get invaders(): Creep[]
     {
-        return Remember.forTick(`${this.name}.invaders`, () =>
+        return Remember.byName(`room.${this.name}`, `invaders`, function ()
         {
-            return this.find<Creep>(FIND_CREEPS,
+            return this.find(FIND_CREEPS,
                 {
-                    filter: (creep) =>
+                    filter: function (creep)
                     {
                         return creep.owner.username === "Invader";
-                    }
+                    }.bind(this)
                 });
-        });
+        }.bind(this));
     }
 
     lookForByRadiusAt(type: string, location: RoomObjectLike | RoomPosition, radius: number, asArray?: boolean): LookAtResultMatrix | LookAtResultWithPos[]

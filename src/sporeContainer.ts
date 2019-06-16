@@ -182,7 +182,7 @@ export class SporeContainer extends StructureContainer implements Claimable
 
     private get claims(): Claims
     {
-        return Remember.forTick(`${this.id}.claims`, () =>
+        return Remember.byName(`container.${this.id}`, `claims`, () =>
         {
             return new Claims(this);
         });

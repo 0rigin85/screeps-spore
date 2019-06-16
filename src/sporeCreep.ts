@@ -99,6 +99,7 @@ export interface CreepMemory
     actionTarget: string;
 
     movement: CreepMovementMemory;
+    bodyEfficiency: Dictionary<number>;
 
     claimReceiptTargetId: string;
     claimReceiptTargetType: string;
@@ -442,6 +443,19 @@ export class SporeCreep extends Creep
 
     getEfficiencyAs(bodyDefinition: BodyDefinition) : number
     {
+        let memory = <CreepMemory>this.memory;
+
+        if (memory.bodyEfficiency == null)
+        {
+            memory.bodyEfficiency = {};
+        }
+
+        let existingValue = memory.bodyEfficiency[bodyDefinition.name];
+        if (existingValue != null)
+        {
+            return existingValue;
+        }
+
         let totalRequiredParts = 0;
         let totalMaxRequiredParts = 0;
         let bodyPartsByType = _.groupBy(this.body, function(part: BodyPartDefinition){ return part.type; });
@@ -453,6 +467,7 @@ export class SporeCreep extends Creep
             if (bodyParts == null ||
                 bodyParts.length < requirement.min)
             {
+                memory.bodyEfficiency[bodyDefinition.name] = 0;
                 return 0;
             }
 
@@ -472,6 +487,7 @@ export class SporeCreep extends Creep
 
             if (totalActiveParts < requirement.min)
             {
+                memory.bodyEfficiency[bodyDefinition.name] = 0;
                 return 0;
             }
 
@@ -479,7 +495,9 @@ export class SporeCreep extends Creep
             totalRequiredParts += Math.min(bodyParts.length, requirement.max);
         }
 
-        return totalRequiredParts / totalMaxRequiredParts;
+        let newValue = totalRequiredParts / totalMaxRequiredParts;
+        memory.bodyEfficiency[bodyDefinition.name] = newValue;
+        return newValue;
     }
 
     get type(): string
@@ -598,6 +616,13 @@ export class SporeCreep extends Creep
         else
         {
             memory.taskId = value.id;
+
+            let taskCreeps = Remember.forTick(`${value.id}.creeps`, () => { return []; });
+
+            if (!_.includes(taskCreeps, this.id))
+            {
+                taskCreeps.push(this.id);
+            }
         }
     }
 
@@ -752,7 +777,7 @@ export class SporeCreep extends Creep
     _movement: SporeCreepMovement;
     get movement(): SporeCreepMovement
     {
-        return Remember.forTick(`${this.id}.movement`, () =>
+        return Remember.byName(`creep.${this.id}`, `movement`, () =>
         {
             let memory = <CreepMemory>this.memory;
 
@@ -898,7 +923,7 @@ export class SporeCreep extends Creep
 
                 options.costs.push({ id: 'creeps', cost: creepCost });
                 options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
-                options.costs.push({ id: 'friendlySites', cost: 255 });
+                options.costs.push({ id: 'allySites', cost: 255 });
                 this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: position, range: 0 }, options);
 
                 if (this.movement.improv != null)
@@ -943,7 +968,7 @@ export class SporeCreep extends Creep
 
                 options.costs.push({ id: 'creeps', cost: creepCost });
                 options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
-                options.costs.push({ id: 'friendlySites', cost: 255 });
+                options.costs.push({ id: 'allySites', cost: 255 });
                 this.movement.improv = this.colony.pathFinder.findPathTo(this.pos, { pos: destination, range: navigation.range }, options);
                 this.movement.pathIndex = 0;
             }
@@ -1053,7 +1078,14 @@ export class SporeCreep extends Creep
             }
             else
             {
+                if (this.movement.path != null)
+                {
+                    this.movement.path.needsUpdated = true;
+                }
+
+                this.movement.improv = null;
                 console.log("ERROR: Attempted to move to '" + target + "' but encountered an unexpected end to that path. ");
+                return ERR_CANNOT_PERFORM_TASK;
             }
         }
 

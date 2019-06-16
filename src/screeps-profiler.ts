@@ -63,6 +63,7 @@ function wrapFunction(name, originalFunction)
 {
     return function wrappedFunction()
     {
+        debugger;
         if (Profiler.isProfiling())
         {
             const nameMatchesFilter = name === getFilter();
@@ -100,17 +101,24 @@ function profileObjectInheritance(object, label)
 {
     console.log('[' + label + ']');
 
+    let count = 0;
     while(object != null && object != Object)
     {
         if (_.includes(Object.getOwnPropertySymbols(object), profilingSymbol))
         {
-            console.log('############################################');
+            console.log('    ##########################################');
             break;
+        }
+
+        if (count > 0)
+        {
+            console.log('    ------------------------------------------');
         }
 
         profileObject(object, label);
         object[profilingSymbol] = 'profiling';
         object = Object.getPrototypeOf(object);
+        count++;
     }
 }
 
@@ -136,42 +144,9 @@ function profileObject(object, label)
         "__proto__",
         "constructor",
         "getUsed",
-        "length"
+        "length",
+        "toJSON",
     ];
-
-    // Object.keys(objectToWrap).forEach(functionName =>
-    // {
-    //     let extendedLabel = `    ${label}.${functionName}: `;
-    //
-    //     if (_.includes(skipMembers, functionName))
-    //     {
-    //         console.log(extendedLabel + 'SKIPPED');
-    //         return;
-    //     }
-    //
-    //     try
-    //     {
-    //         let memberType = typeof objectToWrap[functionName];
-    //         extendedLabel += `${memberType} `;
-    //
-    //         if (memberType === 'function')
-    //         {
-    //             const originalFunction = objectToWrap[functionName];
-    //             objectToWrap[functionName] = profileFunction(originalFunction, extendedLabel);
-    //             console.log(extendedLabel + 'DONE');
-    //
-    //         }
-    //         else
-    //         {
-    //             console.log(extendedLabel + 'SKIPPED');
-    //         }
-    //     }
-    //     catch (e)
-    //     {
-    //         console.log(extendedLabel + 'ERROR');
-    //         console.log('profile binding exception occurred: ' + e);
-    //     }
-    // });
 
     let propertyNames = Object.getOwnPropertyNames(object);
 
@@ -188,6 +163,12 @@ function profileObject(object, label)
         let extendedLabel = `${label}.${key}`;
         let progressLog = `    ${label}.${key}: `;
 
+        if (!descriptor.configurable)
+        {
+            console.log(progressLog + ' NON-CONFIGURABLE');
+            continue;
+        }
+
         let newDescriptor: PropertyDescriptor =
             {
                 enumerable: descriptor.enumerable,
@@ -196,14 +177,18 @@ function profileObject(object, label)
 
         if (typeof descriptor.value === 'function')
         {
-            newDescriptor.value = wrapFunction(extendedLabel, descriptor.value);
+            const originalFunction = object[key];
+            object[key] = wrapFunction(key, originalFunction);
+
+            console.log(progressLog + 'FUNC VALUE DONE');
+            continue;
         }
 
         if (descriptor.get != null)
         {
             progressLog += 'GET ';
 
-            newDescriptor.get = () =>
+            newDescriptor.get = function()
             {
                 //console.log('Calling GET ' + label + '.' + key);
                 if (Profiler.isProfiling())
@@ -214,7 +199,7 @@ function profileObject(object, label)
                     {
                         depth++;
                     }
-                    const result = descriptor.get();
+                    const result = descriptor.get.apply(this);
                     if (depth > 0 || !getFilter())
                     {
                         const end = Game.cpu.getUsed();
@@ -227,7 +212,7 @@ function profileObject(object, label)
                     return result;
                 }
 
-                return descriptor.get();
+                return descriptor.get.apply(this);
             };
         }
 
@@ -235,7 +220,7 @@ function profileObject(object, label)
         {
             progressLog += 'SET ';
 
-            newDescriptor.set = (value) =>
+            newDescriptor.set = function (value)
             {
                 //console.log('Calling SET ' + label + '.' + key);
                 if (Profiler.isProfiling())
@@ -246,7 +231,7 @@ function profileObject(object, label)
                     {
                         depth++;
                     }
-                    descriptor.set(value);
+                    descriptor.set.apply(this, value);
                     if (depth > 0 || !getFilter())
                     {
                         const end = Game.cpu.getUsed();
@@ -259,7 +244,7 @@ function profileObject(object, label)
                     return;
                 }
 
-                descriptor.set(value);
+                descriptor.set.apply(this, value);
             };
         }
 
@@ -340,13 +325,13 @@ const Profiler = {
 
     prototypes: [
         {name: 'Game', val: Game},
-        {name: 'Room', val: Room},
-        {name: 'Structure', val: Structure},
-        {name: 'Spawn', val: Spawn},
-        {name: 'Creep', val: Creep},
-        {name: 'RoomPosition', val: RoomPosition},
-        {name: 'Source', val: Source},
-        {name: 'Flag', val: Flag},
+        {name: 'Room', val: Room.prototype},
+        //{name: 'Structure', val: Structure.prototype},
+        //{name: 'Spawn', val: Spawn.prototype},
+        //{name: 'Creep', val: Creep.prototype},
+        //{name: 'RoomPosition', val: RoomPosition.prototype},
+        //{name: 'Source', val: Source.prototype},
+        //{name: 'Flag', val: Flag.prototype},
     ],
 
     record(functionName, time) {
