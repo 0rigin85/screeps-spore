@@ -1,33 +1,8 @@
-///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
-
-import {ClaimReceipt, Claimable} from "./sporeClaimable";
-import {Task, TaskPriority} from "./task";
-import {TransferResource} from "./taskTransferResource";
-import {ScreepsPtr} from "./screepsPtr";
-import {CollectOptions} from "./sporeCreep";
-import {Remember} from "./sporeRemember";
-
-declare global
-{
-    interface StructureTower
-    {
-        attackTarget: Creep;
-        repairTarget: Structure;
-
-        energyCapacityRemaining: number;
-        memory: TowerMemory;
-
-        getTasks(): Task[];
-
-        collect(collector: any, claimReceipt: ClaimReceipt): number;
-        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
-    }
-}
-
-export interface TowerMemory
-{
-    attackTargetId: string;
-}
+import { TransferResource } from "./tasks/taskTransferResource";
+import { TaskPriority } from "./TaskPriority";
+import { Remember } from "./Remember";
+import { Ptr } from "./Ptr";
+import { CollectOptions } from "./CollectOptions";
 
 export class SporeTower extends StructureTower implements Claimable
 {
@@ -92,9 +67,9 @@ export class SporeTower extends StructureTower implements Claimable
 
         if (this.energy < this.energyCapacity)
         {
-            let transferEnergyTask = new TransferResource([ScreepsPtr.from<StructureTower>(this)], RESOURCE_ENERGY, null, new CollectOptions(null, [['near_dropped'], ['link', 'container','storage'], ['dropped']]));
+            let transferEnergyTask = new TransferResource([Ptr.from<StructureTower>(this)], RESOURCE_ENERGY, null, new CollectOptions(null, [['near_dropped'], ['link', 'container','storage'], ['dropped']]));
             transferEnergyTask.priority = TaskPriority.Mandatory;
-            transferEnergyTask.name = "Fill " + ScreepsPtr.from<StructureTower>(this).toHtml();
+            transferEnergyTask.name = "Fill " + Ptr.from<StructureTower>(this).toHtml();
             tasks.push(transferEnergyTask);
         }
 

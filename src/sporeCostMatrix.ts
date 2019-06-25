@@ -1,19 +1,3 @@
-/// <reference path="./../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
-
-import {SporePath} from "./sporePathFinder";
-
-interface RoomObjectLike
-{
-    pos: RoomPosition;
-    room: Room;
-}
-
-export interface SporeCostMatrixOption
-{
-    id: string;
-    cost: number;
-    targets?: RoomPosition | RoomObjectLike | (RoomPosition | RoomObjectLike)[]
-}
 
 export class SporeCostMatrixCache
 {
@@ -31,6 +15,7 @@ export class SporeCostMatrixCache
 
         for (let option of options)
         {
+            let nodeId = `${roomName}:${option.id}`;
             let matchingChild = null;
 
             if (currentNode.children == null)
@@ -40,7 +25,7 @@ export class SporeCostMatrixCache
 
             for (let node of currentNode.children)
             {
-                if (node.id === option.id)
+                if (node.id === nodeId)
                 {
                     matchingChild = node;
                     break;
@@ -53,6 +38,8 @@ export class SporeCostMatrixCache
                 if (newCostMatrix == null)
                 {
                     newCostMatrix = new PathFinder.CostMatrix();
+                } else {
+                    newCostMatrix = currentNode.value.clone();
                 }
 
                 let targets: any = option.targets;
@@ -82,8 +69,8 @@ export class SporeCostMatrixCache
                     }
                 }
 
-                console.log('//////////// New Cost Matrix: ' + option.id);
-                let newChild = new CostMatrixNode(option.id, newCostMatrix);
+                //console.log('//////////// New Cost Matrix: ' + option.id);
+                let newChild = new CostMatrixNode(nodeId, newCostMatrix);
                 currentNode.children.push(newChild);
                 matchingChild = newChild;
             }

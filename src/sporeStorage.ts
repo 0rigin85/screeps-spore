@@ -1,24 +1,5 @@
-///<reference path="../../../../.WebStorm2016.2/config/javascript/extLibs/http_github.com_DefinitelyTyped_DefinitelyTyped_raw_master_lodash_lodash.d.ts"/>
-
-import {ClaimReceipt, Claimable} from "./sporeClaimable";
-import {Remember} from "./sporeRemember";
-
-declare global
-{
-    interface StructureStorage
-    {
-        storeCount: number;
-        storeCapacityRemaining: number;
-
-        collect(collector: any, claimReceipt: ClaimReceipt): number;
-        makeClaim(claimer: any, resourceType: string, amount: number, minAmount: number, isExtended?: boolean): ClaimReceipt;
-    }
-}
-
-export interface StorageMemory
-{
-
-}
+import { ClaimReceipt } from "./ClaimReceipt";
+import {Remember} from "./Remember";
 
 export class SporeStorage extends StructureStorage implements Claimable
 {
@@ -39,7 +20,7 @@ export class SporeStorage extends StructureStorage implements Claimable
 
         if (memory == null)
         {
-            memory = { };
+            memory = { } as StorageMemory;
             roomMemory.storage = memory;
         }
 

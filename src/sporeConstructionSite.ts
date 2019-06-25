@@ -1,61 +1,40 @@
-import {Task} from "./task";
-import {BuildStructure} from "./taskBuildStructure";
-import {ScreepsPtr} from "./screepsPtr";
-import {Remember} from "./sporeRemember";
+import { Task } from "./task";
+import { Ptr } from "./Ptr";
+import { BuildStructure } from "./tasks/taskBuildStructure";
 
-declare global
-{
-    interface ConstructionSite
-    {
-        progressRemaining: number;
-        memory: ConstructionSiteMemory;
+export class SporeConstructionSite extends ConstructionSite {
+  get progressRemaining(): number {
+    return this.progressTotal - this.progress;
+  }
 
-        getTasks(): Task[];
-    }
-}
+  get memory(): ConstructionSiteMemory {
+    let roomMemory = this.room.memory;
 
-export interface ConstructionSiteMemory
-{
-
-}
-
-export class SporeConstructionSite extends ConstructionSite
-{
-    get progressRemaining(): number
-    {
-        return this.progressTotal - this.progress;
+    if (roomMemory.sites == null) {
+      roomMemory.sites = {};
     }
 
-    get memory(): ConstructionSiteMemory
-    {
-        let roomMemory = this.room.memory;
+    let memory = roomMemory.sites[this.id];
 
-        if (roomMemory.sites == null)
-        {
-            roomMemory.sites = {};
-        }
-
-        let memory = roomMemory.sites[this.id];
-
-        if (memory == null)
-        {
-            memory = { };
-            roomMemory.sites[this.id] = memory;
-        }
-
-        return memory;
+    if (memory == null) {
+      memory = {} as ConstructionSiteMemory;
+      roomMemory.sites[this.id] = memory;
     }
 
-    getTasks(): Task[]
-    {
-        let tasks: Task[] = [];
+    return memory;
+  }
 
-        if (this.structureType !== STRUCTURE_RAMPART && this.structureType !== STRUCTURE_WALL)
-        {
-            let task = new BuildStructure(ScreepsPtr.from<ConstructionSite>(this));
-            tasks.push(task);
-        }
+  getTasks(): Task[] {
+    let tasks: Task[] = [];
 
-        return tasks;
+    if (
+      this.structureType !== STRUCTURE_RAMPART &&
+      this.structureType !== STRUCTURE_WALL
+    ) {
+      let task = new BuildStructure(Ptr.from<ConstructionSite>(this));
+      tasks.push(task);
     }
+
+    return tasks;
+  }
 }

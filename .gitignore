@@ -3,6 +3,7 @@
 /.idea
 /js
 /dist
+/bin
 node_modules
 *.log
 /src/*.js
@@ -60,3 +61,4 @@ Temporary Items
 *.log
 *.log
 npm-debug.log
+screeps.grunt

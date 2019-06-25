@@ -1,92 +1,71 @@
-/// <reference path="../node_modules/screeps-typescript-declarations/dist/screeps.d.ts" />
+import { Task } from './task';
+import { DismantleStructure } from './tasks/taskDismantleStructure';
+import { Ptr } from './Ptr';
 
-import {Task, TaskPriority} from './task';
-import {BuildStructure} from "./taskBuildStructure";
-import {DismantleStructure} from "./taskDismantleStructure";
-import {UpgradeRoomController} from "./taskUpgradeRoomController";
-import {ScreepsPtr} from "./screepsPtr";
+export class FlagDismantleStructure extends Task {
+  structureType: string;
 
-export class FlagDismantleStructure extends Task
-{
-    structureType: string;
+  constructor(parentId: string, public flag: Flag) {
+    super(true);
+    this.id =
+      (parentId != null && parentId.length > 0 ? parentId + '>' : '') + 'FlagDismantleStructure[' + flag.name + ']';
 
-    constructor(parentId: string, public flag: Flag)
-    {
-        super(true);
-        this.id = ((parentId != null && parentId.length > 0) ? parentId + ">" : "") + "FlagDismantleStructure[" + flag.name + "]";
-        
-        if (this.flag.secondaryColor == COLOR_RED)
-        {
-            this.structureType = null;
-        }
-        else if (this.flag.secondaryColor == COLOR_GREEN)
-        {
-            this.structureType = STRUCTURE_EXTENSION;
-        }
-        else if (this.flag.secondaryColor == COLOR_YELLOW)
-        {
-            this.structureType = STRUCTURE_CONTAINER;
-        }
+    if (this.flag.secondaryColor == COLOR_RED) {
+      this.structureType = null;
+    } else if (this.flag.secondaryColor == COLOR_GREEN) {
+      this.structureType = STRUCTURE_EXTENSION;
+    } else if (this.flag.secondaryColor == COLOR_YELLOW) {
+      this.structureType = STRUCTURE_CONTAINER;
+    }
+  }
+
+  static deserialize(input: string): FlagDismantleStructure {
+    let parentId = '';
+    let parentSplitIndex = input.lastIndexOf('>');
+
+    if (parentSplitIndex >= 0) {
+      parentId = input.substring(0, parentSplitIndex);
     }
 
-    static deserialize(input: string): FlagDismantleStructure
-    {
-        let parentId = "";
-        let parentSplitIndex = input.lastIndexOf(">");
+    let startingBraceIndex = input.lastIndexOf('[');
+    let flagName = input.substring(startingBraceIndex, input.length - 1);
 
-        if (parentSplitIndex >= 0)
-        {
-            parentId = input.substring(0, parentSplitIndex);
-        }
+    let flag = Game.flags[flagName];
 
-        let startingBraceIndex = input.lastIndexOf("[");
-        let flagName = input.substring(startingBraceIndex, input.length - 1);
-
-        let flag = Game.flags[flagName];
-
-        if (flag == null)
-        {
-            return null;
-        }
-
-        return new FlagDismantleStructure(parentId, flag);
+    if (flag == null) {
+      return null;
     }
 
-    getSteps(): Task[]
-    {
-        let steps: Task[] = [];
+    return new FlagDismantleStructure(parentId, flag);
+  }
 
-        if (this.flag.room != null)
-        {
-            let sitesUnderFlag = this.flag.room.lookForAt<ConstructionSite>(LOOK_CONSTRUCTION_SITES, this.flag.pos);
-            if (sitesUnderFlag != null && sitesUnderFlag.length > 0)
-            {
-                for (var index = 0; index < sitesUnderFlag.length; index++)
-                {
-                    var type = sitesUnderFlag[index].structureType;
+  getSteps(): Task[] {
+    let steps: Task[] = [];
 
-                    if (this.structureType == null || type == this.structureType)
-                    {
-                        sitesUnderFlag[index].remove();
-                    }
-                }
-            }
+    if (this.flag.room != null) {
+      let sitesUnderFlag = this.flag.room.lookForAt(LOOK_CONSTRUCTION_SITES, this.flag.pos);
+      if (sitesUnderFlag != null && sitesUnderFlag.length > 0) {
+        for (let index = 0; index < sitesUnderFlag.length; index++) {
+          let type = sitesUnderFlag[index].structureType;
 
-            let structuresUnderFlag = this.flag.room.lookForAt<Structure>(LOOK_STRUCTURES, this.flag.pos);
-            if (structuresUnderFlag != null)
-            {
-                for (var index = 0; index < structuresUnderFlag.length; index++)
-                {
-                    var type = structuresUnderFlag[index].structureType;
-
-                    if (this.structureType == null || this.structureType == type)
-                    {
-                        steps.push(new DismantleStructure(ScreepsPtr.from<Structure>(structuresUnderFlag[index])));
-                    }
-                }
-            }
+          if (this.structureType == null || type == this.structureType) {
+            sitesUnderFlag[index].remove();
+          }
         }
+      }
 
-        return steps;
+      let structuresUnderFlag = this.flag.room.lookForAt(LOOK_STRUCTURES, this.flag.pos);
+      if (structuresUnderFlag != null) {
+        for (let index = 0; index < structuresUnderFlag.length; index++) {
+          let type = structuresUnderFlag[index].structureType;
+
+          if (this.structureType == null || this.structureType == type) {
+            steps.push(new DismantleStructure(Ptr.from<Structure>(structuresUnderFlag[index])));
+          }
+        }
+      }
     }
+
+    return steps;
+  }
 }
