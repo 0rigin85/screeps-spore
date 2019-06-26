@@ -143,4 +143,11 @@ export class Ptr<T extends RoomObject> implements RoomObject {
     }
     return promise;
   }
+
+  static fromString<T extends RoomObject>(object: string): Ptr<T> {
+    let promise = new Ptr<T>();
+
+
+    return promise;
+  }
 }

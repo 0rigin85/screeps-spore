@@ -1,5 +1,5 @@
 import { ACTION_BUILD, CREEP_TYPE, ACTION_REPAIR, ACTION_MOVE } from '../sporeCreep';
-import { CollectOptions } from "../CollectOptions";
+import { CollectOptions } from '../CollectOptions';
 import { Ptr } from '../Ptr';
 import { SpawnRequest } from '../SpawnRequest';
 import { SpawnAppointment } from '../SpawnAppointment';
@@ -26,6 +26,14 @@ export class BuildBarrier extends Task {
     this.possibleWorkers = -1;
     this.priority = TaskPriority.Medium;
     this.idealCreepBody = CREEP_TYPE.MASON;
+
+    // const memory = Remember.byName(`rooms.${barriers[0].pos.roomName}.tasks`, `buildbarrier`, () => {
+    //   return this.createMemory(barriers);
+    // });
+
+    // if (memory == null || memory.bar == null || Game.time - memory.tick > 100 || memory.barriers.length != this.barriers.length) {
+    //   Memory.rooms[barriers[0].pos.roomName].tasks.buildbarrier = this.createMemory(barriers);
+    // }
 
     let totalHits = 0;
     let total = 0;

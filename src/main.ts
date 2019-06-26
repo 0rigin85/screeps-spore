@@ -1,5 +1,6 @@
 import { Spore } from './spore';
 import { SporeColony } from './sporeColony';
+import { SporeMemory } from './SporeMemory';
 import { Remember } from './Remember';
 import { Ptr } from './Ptr';
 import { SCRIPT_VERSION } from './version';
@@ -28,6 +29,7 @@ Spore.inject();
 import profiler = require('./screepsProfiler');
 profiler.enable();
 
+profiler.registerClass(SporeMemory, 'SporeMemory');
 profiler.registerClass(Remember, 'Remember');
 profiler.registerClass(Ptr, 'Ptr');
 
@@ -55,6 +57,7 @@ profiler.registerClass(Wire, 'Wire');
 module.exports.loop = function() {
   profiler.wrap(function() {
     PathFinder.use(true);
+    SporeMemory.load();
     Remember.beginTick();
 
     if (!Memory.scriptVersion || Memory.scriptVersion != SCRIPT_VERSION) {
@@ -80,5 +83,6 @@ module.exports.loop = function() {
     Spore.colony.run();
 
     Remember.endTick();
+    SporeMemory.save();
   });
 };

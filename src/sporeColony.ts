@@ -10,6 +10,7 @@ import { Ptr } from './Ptr';
 import { RecycleCreep } from './tasks/taskRecycleCreep';
 import { SporePathFinder } from './sporePathFinder';
 import { CollectOptions } from './CollectOptions';
+import { HarvestEnergy } from './tasks/taskHarvestEnergy';
 
 var GATHER_RESOURCE_STORES = {
   source: function(
@@ -435,6 +436,7 @@ export class SporeColony {
 
     let code: number = OK;
     let creepTaskPriority = 0;
+    let scheduledNonIdeal = false;
 
     for (let creep of getCreepsToSchedule(task, creeps)) {
       if (code === ERR_NO_WORK) {
@@ -457,6 +459,7 @@ export class SporeColony {
           creepTaskPriority++;
         } else {
           creep.task = null;
+          scheduledNonIdeal = true;
         }
 
         // remove creep now that it's been scheduled
@@ -521,7 +524,7 @@ export class SporeColony {
     //     }
     // }
 
-    if (code !== NO_MORE_WORK && code !== ERR_NO_WORK) {
+    if (scheduledNonIdeal || (code !== NO_MORE_WORK && code !== ERR_NO_WORK)) {
       this.calculateLaborPool(task, scheduledCreeps);
     }
   }
@@ -538,7 +541,7 @@ export class SporeColony {
     }
 
     let log = false;
-    // if (task instanceof UpgradeRoomController)
+    // if (task instanceof HarvestEnergy)
     // {
     //     log = true;
     // }
@@ -562,7 +565,9 @@ export class SporeColony {
       }
 
       if (type.min > typePool.count) {
-        //console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
+        if (log) {
+          console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
+        }
         doSpawn = true;
       }
 

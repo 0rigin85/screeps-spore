@@ -65,6 +65,18 @@ declare class SpawnAppointment extends SpawnRequest {
   );
 }
 
+interface RawMemory {
+  _parsed: Memory;
+}
+
+interface TaskMemory { }
+
+interface BuildBarrierMemory {
+  tick: number;
+  barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[];
+  averageHits: number;
+}
+
 declare class Task {
   id: string;
   name: string;
@@ -555,6 +567,7 @@ interface RoomMemory {
   spawns: SpawnMemory[];
   structures: Record<string, StructureMemory>;
   sites: Record<string, ConstructionSiteMemory>;
+  tasks: Record<string, TaskMemory>,
   controller: ControllerMemory;
   storage: StorageMemory;
   budget: Budget;

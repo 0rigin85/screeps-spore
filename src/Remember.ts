@@ -35,7 +35,7 @@ export class Remember {
   private static tickData = {};
   private static groupData = {};
 
-  private static getData(obj, dataPath, getter, reset) {
+  private static getData(obj, dataPath: string, getter, reset?: boolean) {
     let pathArr = dataPath.split('.');
     let pathNum = pathArr.length;
     for (let idx = 0; idx < pathNum - 1; idx++) {

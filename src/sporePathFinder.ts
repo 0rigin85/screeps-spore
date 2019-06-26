@@ -313,15 +313,10 @@ export class SporePathFinder {
     }
 
     let value = '';
-    value += OFFSETS_DIRECTION[path[0].x - start.x + 1][path[0].y - start.y + 1];
- 
-    let doPrint = false;
-    for (let index = 0; index < path.length; ++index) {
-      if (path[index].roomName !== start.roomName) {
-        doPrint = true;
-        break;
-      }
-    }
+    value +=
+      OFFSETS_DIRECTION[Math.min(Math.max(path[0].x - start.x, -1), 1) + 1][
+        Math.min(Math.max(path[0].y - start.y, -1), 1) + 1
+      ];
 
     for (let index = 1; index < path.length; ++index) {
       // 49 -> 0
