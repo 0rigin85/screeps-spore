@@ -218,17 +218,26 @@ export class SporeRoom extends Room {
     return this.find<Structure>(FIND_STRUCTURES);
   }
 
-  get nonwalkableStructures(): Structure[] {
+  get nonwalkableStructures(): Structure | ConstructionSite[] {
     return Remember.byName(
       `room.${this.name}`,
       `nonwalkableStructures`,
       function() {
-        return _.filter(
+        const structs = _.filter(
           this.structures,
           function(structure: Structure) {
             return _.includes(OBSTACLE_OBJECT_TYPES, structure.structureType);
           }.bind(this)
         );
+
+        const sites = _.filter(
+          this.constructionSites,
+          function(site: ConstructionSite) {
+            return site.my && _.includes(OBSTACLE_OBJECT_TYPES, site.structureType);
+          }.bind(this)
+        );
+
+        return _.merge(structs, sites);
       }.bind(this)
     );
   }
@@ -349,7 +358,7 @@ export class SporeRoom extends Room {
 
   get wires(): Flag[] {
     return this.find(FIND_FLAGS, {
-      filter: function(flag:Flag) {
+      filter: function(flag: Flag) {
         return flag.color === COLOR_WHITE;
       }.bind(this)
     });
@@ -554,6 +563,11 @@ export class SporeRoom extends Room {
 
         if (this.isReserved) {
           task.idealCreepBody = CREEP_TYPE.REMOTE_MINER;
+
+          const reservedBy = this.memory.reservedBy;
+          if (reservedBy != null) {
+            task.roomName = reservedBy;
+          }
         }
 
         tasks.push(task);
@@ -700,7 +714,7 @@ export class SporeRoom extends Room {
 
     //////////////////////////////////////////////////////////////////////////////
     // Reinforce barriers
-    if (!this.isReserved && this.controller.level >= 2) {
+    if (!this.isReserved && this.controller.level >= 1) {
       let sites = _.filter(this.constructionSites, function(site: ConstructionSite) {
         if ((!site.doIgnore && site.structureType === STRUCTURE_RAMPART) || site.structureType === STRUCTURE_WALL) {
           return true;
@@ -907,8 +921,11 @@ export class SporeRoom extends Room {
             let repairTask = new RepairStructure(Ptr.from<Structure>(structure));
             repairTask.priority = structureValue.regular.priority;
 
-            if (structure.dire == true || structure.hits < structureValue.dire.threshold) {
+            if (structure.hits < structureValue.dire.threshold) {
               structure.dire = true;
+            }
+
+            if (structure.dire === true) {
               repairTask.priority = structureValue.dire.priority;
               repairTask.name = 'Repair ' + structure;
             }
@@ -917,7 +934,10 @@ export class SporeRoom extends Room {
           }
         } else {
           structure.needsRepair = false;
-          structure.dire = false;
+
+          if (structure.dire === true) {
+            structure.dire = false;
+          }
         }
       }
     }

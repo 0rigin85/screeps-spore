@@ -23,7 +23,7 @@ export class SporeMemory {
   static save() {
     //import('fast-stringify')
     //  .then(stringify => {
-     //   RawMemory.set((stringify as any)(Memory));
+    //    RawMemory.set((stringify as any)(Memory));
     //  })
     //  .catch(() => {
         RawMemory.set(JSON.stringify(Memory));

@@ -2,7 +2,7 @@ import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK } from '../task';
 import { TaskPriority } from '../TaskPriority';
 import { Ptr } from '../Ptr';
 import { ACTION_REPAIR, CREEP_TYPE, ACTION_MOVE } from '../sporeCreep';
-import { CollectOptions } from "../CollectOptions";
+import { CollectOptions } from '../CollectOptions';
 import { BodyDefinition } from '../BodyDefinition';
 
 export class RepairStructure extends Task {
@@ -10,14 +10,12 @@ export class RepairStructure extends Task {
 
   constructor(public structure: Ptr<Structure>) {
     super(false);
-    this.id = 'Repair [structure (' + structure.lookTypeModifier + ') {room ' + this.structure.pos.roomName + '}]';
-    this.name = 'Repair ' + structure.toHtml();
+    this.id = `Repair [${structure}]`;
+    this.name = `Repair ${structure.toHtml()}`;
     this.priority = TaskPriority.MediumHigh;
     this.possibleWorkers = 2;
     this.idealCreepBody = CREEP_TYPE.CITIZEN;
     this.near = structure;
-
-    this.roomName = 'E1N49';
   }
 
   getPrioritizingConditions(conditions: Array<any>): void {

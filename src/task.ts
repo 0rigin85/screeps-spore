@@ -16,7 +16,7 @@ export class Task {
   priority: number = 50;
   roomName: string;
   labor: LaborDemand = new LaborDemand();
-  near: RoomObject = null;
+  near: RoomObject | Ptr<RoomObject> = null;
 
   constructor(public isComplex: boolean) {}
 
@@ -34,7 +34,7 @@ export class Task {
   protected createBasicAppointment(
     spawn: StructureSpawn,
     request: SpawnRequest,
-    near: RoomObject | RoomPosition
+    near: RoomObject | RoomPosition | Ptr<RoomObject>
   ): SpawnAppointment {
     let spawnPriority: number = -1;
     let ticksTillRequired: number = 0;
@@ -104,7 +104,7 @@ export class Task {
 
   protected getBasicPrioritizingConditions(
     conditions: Array<any>,
-    near: RoomObject | RoomPosition,
+    near: RoomObject | RoomPosition | Ptr<RoomObject>,
     idealBody: BodyDefinition
   ): void {
     let target = <RoomPosition>near;

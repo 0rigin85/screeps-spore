@@ -460,7 +460,7 @@ export class SporeCreep extends Creep {
     });
   }
 
-  goMoveTo(target: RoomObject | RoomPosition, navigation?: NavigationRules): number {
+  goMoveTo(target: RoomObject | RoomPosition | Ptr<RoomObject>, navigation?: NavigationRules): number {
     if (target == null) {
       return ERR_NO_WORK;
     }
@@ -647,6 +647,14 @@ export class SporeCreep extends Creep {
 
       this.room.visual.text('\u{1F463}', this.pos);
     } else if (movement.improv != null && movement.improv.needsUpdated) {
+      // if we've already spent all our path finding CPU...
+      if (this.colony.cpuSpentPathing > this.colony.pathingCpuLimit) {
+        // then early out
+        this.action = ACTION_MOVE;
+        this.actionTarget = target.toString();
+        return OK;
+      }
+      
       let options = new SporePathOptions([]);
       let creepCost = 4;
 

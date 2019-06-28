@@ -58,7 +58,6 @@ export class SporeFlag extends Flag {
             new ClaimRoom(
               Ptr.fromPosition<StructureController>(
                 this.pos,
-                LOOK_STRUCTURES,
                 STRUCTURE_CONTROLLER
               )
             )
@@ -82,12 +81,15 @@ export class SporeFlag extends Flag {
           let task = new ReserveRoom(
             Ptr.fromPosition<StructureController>(
               this.pos,
-              LOOK_STRUCTURES,
               STRUCTURE_CONTROLLER
             )
           );
-          task.roomName = "E1N49";
+          task.roomName = this.name.split(':')[0];
           tasks.push(task);
+
+          if (this.room != null) {
+            this.room.memory.reservedBy = task.roomName;
+          }
         } else if (
           this.room != null &&
           this.room.controller.owner.username == "PCake0rigin"

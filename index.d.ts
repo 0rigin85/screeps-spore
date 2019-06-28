@@ -69,11 +69,11 @@ interface RawMemory {
   _parsed: Memory;
 }
 
-interface TaskMemory { }
+interface TaskMemory {}
 
 interface BuildBarrierMemory {
   tick: number;
-  barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[];
+  barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[] | string[];
   averageHits: number;
 }
 
@@ -84,7 +84,7 @@ declare class Task {
   priority: number;
   roomName: string;
   labor: LaborDemand;
-  near: RoomObject;
+  near: RoomObject | Ptr<RoomObject>;
   isComplex: boolean;
   getSteps(): Task[];
   createAppointment(spawn: StructureSpawn, request: SpawnRequest): SpawnAppointment;
@@ -96,22 +96,38 @@ declare class Task {
   endScheduling(): void;
 }
 
-interface PtrCache<T> {
-  instance: T;
-  isValid: boolean;
-}
+type OBJECT_CREEP = "creep";
+type OBJECT_SOURCE = "source";
+type OBJECT_FLAG = "flag";
+type OBJECT_CONSTRUCTION_SITE = "site";
+type OBJECT_NUKE = "nuke";
+type OBJECT_TOMBSTONE = "tombstone";
+type OBJECT_POWER_CREEP = "powerCreep";
 
-declare class Ptr<T extends RoomObject> implements RoomObject {
-  doIgnore: boolean;
-  doFavor: boolean;
-  doTrack: boolean;
-  memory: RoomObjectMemory;
-  prototype: RoomObject;
-  effects: RoomObjectEffect[];
+declare const OBJECT_CREEP: "creep";
+declare const OBJECT_SOURCE: "source";
+declare const OBJECT_FLAG: "flag";
+declare const OBJECT_CONSTRUCTION_SITE: "site";
+declare const OBJECT_NUKE: "nuke";
+declare const OBJECT_TOMBSTONE: "tombstone";
+declare const OBJECT_POWER_CREEP: "powerCreep";
+
+type PtrTypeConstant =
+  | StructureConstant
+  | ResourceConstant
+  | OBJECT_CREEP
+  | OBJECT_SOURCE
+  | OBJECT_FLAG
+  | OBJECT_CONSTRUCTION_SITE
+  | OBJECT_NUKE
+  | OBJECT_TOMBSTONE
+  | OBJECT_POWER_CREEP;
+
+declare class Ptr<T extends RoomObject> {
   pos: RoomPosition;
-  lookType: LookConstant;
-  lookTypeModifier: string;
   id: string;
+  type: PtrTypeConstant;
+  modifier: string;
 
   toString(): string;
   toHtml(): string;
@@ -120,8 +136,6 @@ declare class Ptr<T extends RoomObject> implements RoomObject {
   readonly isValid: boolean;
   readonly isShrouded: boolean;
   readonly instance: T;
-
-  resolve(): PtrCache<T>;
 
   static fromPosition<T extends RoomObject>(
     pos: RoomPosition,
@@ -215,7 +229,7 @@ interface Creep {
 
   getEfficiencyAs(bodyDefinition: BodyDefinition): number;
 
-  goMoveTo(target: RoomObject | RoomPosition, navigation?: NavigationRules): number;
+  goMoveTo(target: RoomObject | RoomPosition | Ptr<RoomObject>, navigation?: NavigationRules): number;
   goHarvest(source: Ptr<Source>, navigation?: NavigationRules): number;
   goTransfer(
     resourceType: ResourceConstant,
@@ -567,11 +581,12 @@ interface RoomMemory {
   spawns: SpawnMemory[];
   structures: Record<string, StructureMemory>;
   sites: Record<string, ConstructionSiteMemory>;
-  tasks: Record<string, TaskMemory>,
+  tasks: Record<string, TaskMemory>;
   controller: ControllerMemory;
   storage: StorageMemory;
   budget: Budget;
   energyHarvestedSinceLastInvasion: number;
+  reservedBy?: string;
 }
 
 declare class CollectOptions {
@@ -618,7 +633,7 @@ interface Room {
   extractor: StructureExtractor;
   links: StructureLink[];
   structures: Structure[];
-  nonwalkableStructures: Structure[];
+  nonwalkableStructures: Structure | ConstructionSite[];
   constructionSites: ConstructionSite[];
   allySites: ConstructionSite[];
   containers: StructureContainer[];

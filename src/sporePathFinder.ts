@@ -395,7 +395,7 @@ export class SporePathFinder {
       transitionedRooms = true;
     }
 
-    if (transitionedRooms) {
+    if (transitionedRooms && roomName !== 'sim') {
       let horizontalRoomDirection = pos.roomName[0];
 
       let verticalRoomDirectionIndex = pos.roomName.indexOf('N');

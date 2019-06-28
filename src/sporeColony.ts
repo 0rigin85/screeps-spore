@@ -566,7 +566,7 @@ export class SporeColony {
 
       if (type.min > typePool.count) {
         if (log) {
-          console.log(task.name + ' -> ' + name + ': '+ type.min + ' > ' + typePool.count);
+          console.log(task.name + ' -> ' + name + ': ' + type.min + ' > ' + typePool.count);
         }
         doSpawn = true;
       }
@@ -928,8 +928,16 @@ export class SporeColony {
       this.sortAppointments(appointmentsBySpawn[spawn.name]);
 
       for (let appointment of appointmentsBySpawn[spawn.name]) {
+        let priority = appointment.task ? appointment.task.priority : 'NONE';
+
+        if (appointment.replacingCreep != null) {
+          priority = appointment.replacingCreep.task ? appointment.replacingCreep.task.priority : 'NONE';
+        }
+
         console.log(
-          'Appointment: ' + appointment.id + ' ' + appointment.creepBody.name + ' ' + appointment.ticksTillRequired
+          `Appointment:[${appointment.spawnPriority}][${priority}] ${appointment.id} ${appointment.creepBody.name} ${
+            appointment.ticksTillRequired
+          }`
         );
       }
 
@@ -971,7 +979,17 @@ export class SporeColony {
       return;
     }
 
-    let body = spawn.getBody(creepBody);
+    let energyCapacityAvailable = undefined;
+    if (_.isEmpty(Memory.creeps)) {
+      energyCapacityAvailable = spawn.energy;
+
+      let extensions = spawn.room.extensions;
+      for (let extension of extensions) {
+        energyCapacityAvailable += extension.energy;
+      }
+    }
+
+    let body = spawn.getBody(creepBody, energyCapacityAvailable);
     let name = `${spawn.room.name}-${creepBody.name}-${Game.time}`;
 
     let taskId = appointment.task != null ? appointment.task.id : null;

@@ -2,12 +2,12 @@ import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORK
 import { LaborDemandType } from '../LaborDemandType';
 import { TaskPriority } from '../TaskPriority';
 import { ACTION_BUILD, CREEP_TYPE, ACTION_MOVE } from '../sporeCreep';
-import { CollectOptions } from "../CollectOptions";
+import { CollectOptions } from '../CollectOptions';
 import { Ptr } from '../Ptr';
 import { SpawnRequest } from '../SpawnRequest';
 import { SpawnAppointment } from '../SpawnAppointment';
 import { BodyDefinition } from '../BodyDefinition';
-import { ClaimReceipt } from "../ClaimReceipt";
+import { ClaimReceipt } from '../ClaimReceipt';
 
 let STRUCTURE_BUILD_PRIORITY = {
   spawn: function(site: Ptr<ConstructionSite>) {
@@ -65,10 +65,10 @@ export class BuildStructure extends Task {
   constructor(public site: Ptr<ConstructionSite>) {
     super(false);
 
-    this.id = 'Build [structure (' + site.lookTypeModifier + ') {room ' + this.site.pos.roomName + '}]';
-    this.name = 'Build ' + site.toHtml();
+    this.id = `Build [${site}]`;
+    this.name = `Build ${site.toHtml()}`;
     this.possibleWorkers = -1;
-    this.priority = STRUCTURE_BUILD_PRIORITY[site.lookTypeModifier](site);
+    this.priority = STRUCTURE_BUILD_PRIORITY[site.instance.structureType](site);
     this.idealCreepBody = CREEP_TYPE.CITIZEN;
     this.scheduledWork = 0;
     this.desiredWork = 5;

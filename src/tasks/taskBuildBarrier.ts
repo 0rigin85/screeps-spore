@@ -1,12 +1,13 @@
 import { ACTION_BUILD, CREEP_TYPE, ACTION_REPAIR, ACTION_MOVE } from '../sporeCreep';
 import { CollectOptions } from '../CollectOptions';
-import { Ptr } from '../Ptr';
+import { Ptr, OBJECT_CONSTRUCTION_SITE } from '../Ptr';
 import { SpawnRequest } from '../SpawnRequest';
 import { SpawnAppointment } from '../SpawnAppointment';
 import { BodyDefinition } from '../BodyDefinition';
 import { TaskPriority } from '../TaskPriority';
 import { Task, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK, NO_MORE_WORK } from '../task';
 import { LaborDemandType } from '../LaborDemandType';
+import { Remember } from '../Remember';
 
 export class BuildBarrier extends Task {
   idealCreepBody: BodyDefinition;
@@ -18,45 +19,63 @@ export class BuildBarrier extends Task {
   averageDelta: number = 1000;
   requiredCarryPerBarrier: number = 0.15;
 
-  constructor(public barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[]) {
+  memory: BuildBarrierMemory;
+
+  constructor(barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[]) {
     super(false);
 
-    this.id = 'Reinforce barriers ' + barriers[0].pos.roomName;
-    this.name = 'Reinforce barriers ' + barriers[0].pos.roomName;
+    this.roomName = barriers[0].pos.roomName;
+    this.id = 'Reinforce barriers ' + this.roomName;
+    this.name = 'Reinforce barriers ' + this.roomName;
     this.possibleWorkers = -1;
     this.priority = TaskPriority.Medium;
     this.idealCreepBody = CREEP_TYPE.MASON;
 
-    // const memory = Remember.byName(`rooms.${barriers[0].pos.roomName}.tasks`, `buildbarrier`, () => {
-    //   return this.createMemory(barriers);
-    // });
+    this.memory = Remember.forever(`rooms.${this.roomName}.tasks.buildbarrier`, () => {
+      return BuildBarrier.createMemory(barriers);
+    });
 
-    // if (memory == null || memory.bar == null || Game.time - memory.tick > 100 || memory.barriers.length != this.barriers.length) {
-    //   Memory.rooms[barriers[0].pos.roomName].tasks.buildbarrier = this.createMemory(barriers);
-    // }
-
-    let totalHits = 0;
-    let total = 0;
-    for (let barrier of barriers) {
-      if (barrier.isValid && !barrier.isShrouded && barrier.lookType === LOOK_STRUCTURES) {
-        total++;
-        totalHits += (<Structure>(<any>barrier.instance)).hits;
-      }
+    if (
+      this.memory == null ||
+      this.memory.barriers == null ||
+      this.memory.barriers.length != barriers.length ||
+      Game.time - this.memory.tick > 100
+    ) {
+      this.memory = Memory.rooms[this.roomName].tasks.buildbarrier = BuildBarrier.createMemory(barriers);
     }
-
-    this.averageHits = totalHits / total;
 
     this.labor.types[this.idealCreepBody.name] = new LaborDemandType(
       {
-        carry: Math.floor(this.requiredCarryPerBarrier * this.barriers.length)
+        carry: Math.floor(this.requiredCarryPerBarrier * barriers.length)
       },
       1,
       10
     );
   }
 
-  sortBarriers(): void {
-    this.barriers.sort(
+  private static createMemory(
+    barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[]
+  ): BuildBarrierMemory {
+    let totalHits = 0;
+    let total = 0;
+    for (let barrier of barriers) {
+      if (barrier.isValid && !barrier.isShrouded && barrier.type !== OBJECT_CONSTRUCTION_SITE) {
+        total++;
+        totalHits += (<Structure>(<any>barrier.instance)).hits;
+      }
+    }
+
+    BuildBarrier.sortBarriers(barriers);
+
+    return {
+      tick: Game.time,
+      barriers: barriers,
+      averageHits: totalHits / total
+    };
+  }
+
+  private static sortBarriers(barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[]): void {
+    barriers.sort(
       function(a, b) {
         const aIsRampart = a.lookTypeModifier === STRUCTURE_RAMPART;
         const bIsRampart = b.lookTypeModifier === STRUCTURE_RAMPART;
@@ -78,7 +97,7 @@ export class BuildBarrier extends Task {
           const bHits = (<Structure>(<any>bInstance)).hits;
 
           if (aHits === bHits) {
-            return this.comparePosition(a, b);
+            return BuildBarrier.comparePosition(a, b);
           }
 
           if (aHits < bHits) {
@@ -97,7 +116,7 @@ export class BuildBarrier extends Task {
         }
 
         if (!aIsStructure && !bIsStructure) {
-          return this.comparePosition(a, b);
+          return BuildBarrier.comparePosition(a, b);
         }
 
         if (aIsStructure && !bIsStructure) {
@@ -109,7 +128,7 @@ export class BuildBarrier extends Task {
         }
 
         if (aIsShrouded && bIsShrouded) {
-          return this.comparePosition(a, b);
+          return BuildBarrier.comparePosition(a, b);
         }
 
         if (!aIsShrouded && bIsShrouded) {
@@ -128,7 +147,7 @@ export class BuildBarrier extends Task {
         let bIsIdeal = bHits >= ideal;
 
         if (aIsIdeal && bIsIdeal) {
-          return this.comparePosition(a, b);
+          return BuildBarrier.comparePosition(a, b);
         }
 
         if (!aIsIdeal && bIsIdeal) {
@@ -147,17 +166,17 @@ export class BuildBarrier extends Task {
           return 1;
         }
 
-        return this.comparePosition(a, b);
+        return BuildBarrier.comparePosition(a, b);
       }.bind(this)
     );
 
-    // for (let ptr of this.barriers)
+    // for (let ptr of barriers)
     // {
     //     console.log(ptr);
     // }
   }
 
-  comparePosition(a: RoomObject, b: RoomObject): number {
+  private static comparePosition(a: RoomObject, b: RoomObject): number {
     if (a.pos.x === b.pos.x) {
       if (a.pos.y === b.pos.y) {
         return 0;
@@ -210,7 +229,6 @@ export class BuildBarrier extends Task {
   }
 
   beginScheduling(): void {
-    this.sortBarriers();
     this.scheduledWorkers = 0;
     this.scheduledCarry = 0;
   }
@@ -251,12 +269,25 @@ export class BuildBarrier extends Task {
       return ERR_NO_WORK;
     }
 
+    var rememberedBarrier = this.memory.barriers[nextBarrier];
+
+    let barrierObject: Ptr<ConstructionSite | StructureWall | StructureRampart>;
+    if (!(rememberedBarrier instanceof Ptr)) {
+      barrierObject = Ptr.fromString(rememberedBarrier as string);
+    } else {
+      barrierObject = rememberedBarrier;
+    }
+
+    if (barrierObject == null) {
+      return ERR_INVALID_TARGET;
+    }
+
     if (
       creep.carry[RESOURCE_ENERGY] === creep.carryCapacity ||
       ((creep.action === ACTION_BUILD || creep.action === ACTION_REPAIR || creep.action === ACTION_MOVE) &&
         creep.carry[RESOURCE_ENERGY] > 0)
     ) {
-      code = this.goReinforce(creep, nextBarrier);
+      code = this.goReinforce(creep, barrierObject);
     } else {
       creep.taskMetadata = { type: 'BuildBarrier', target: null };
       let amount = creep.carryCapacityRemaining;
@@ -266,21 +297,21 @@ export class BuildBarrier extends Task {
         amount,
         amount,
         false,
-        this.barriers[nextBarrier].pos,
+        barrierObject.pos,
         new CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]),
         {}
       );
 
       if (code === ERR_NO_WORK) {
         if (creep.carry[RESOURCE_ENERGY] > 0) {
-          code = this.goReinforce(creep, nextBarrier);
+          code = this.goReinforce(creep, barrierObject);
         } else {
           code = creep.goCollect(
             RESOURCE_ENERGY,
             amount,
             0,
             false,
-            this.barriers[nextBarrier].pos,
+            barrierObject.pos,
             new CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]),
             {}
           );
@@ -304,26 +335,25 @@ export class BuildBarrier extends Task {
     return code;
   }
 
-  private goReinforce(creep: Creep, barrierIndex: number): number {
+  private goReinforce(creep: Creep, barrierObject: Ptr<ConstructionSite | StructureWall | StructureRampart>): number {
     let code;
-    let barrier = this.barriers[barrierIndex];
 
     if (creep.taskMetadata != null && creep.taskMetadata.type === 'BuildBarrier' && creep.taskMetadata.target != null) {
       let barrierId = creep.taskMetadata.target;
       let object = Game.getObjectById(barrierId);
 
       if (object != null) {
-        barrier = Ptr.from<any>(object);
+        barrierObject = Ptr.from<any>(object);
       }
     }
 
-    if (this.barriers[barrierIndex].lookType === LOOK_CONSTRUCTION_SITES) {
-      code = creep.goBuild(<Ptr<ConstructionSite>>barrier);
+    if (barrierObject.type === OBJECT_CONSTRUCTION_SITE) {
+      code = creep.goBuild(<Ptr<ConstructionSite>>barrierObject);
     } else {
-      code = creep.goRepair(<Ptr<Structure>>(<any>barrier));
+      code = creep.goRepair(<Ptr<Structure>>(<any>barrierObject));
     }
 
-    creep.taskMetadata = { type: 'BuildBarrier', target: barrier.id };
+    creep.taskMetadata = { type: 'BuildBarrier', target: barrierObject.id };
 
     return code;
   }
