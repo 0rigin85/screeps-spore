@@ -2,6 +2,9 @@ import { CREEP_TYPE } from "../sporeCreep";
 import { TaskPriority } from "../TaskPriority";
 import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK } from "../task";
 import { LaborDemandType } from '../LaborDemandType';
+import { SpawnRequest } from '../SpawnRequest';
+import { SpawnAppointment } from '../SpawnAppointment';
+import { BodyDefinition } from '../BodyDefinition';
 
 export class ClaimRoom extends Task {
   idealCreepBody: BodyDefinition;

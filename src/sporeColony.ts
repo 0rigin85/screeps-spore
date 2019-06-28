@@ -833,8 +833,15 @@ export class SporeColony {
       if (task == null && request.replacingCreep != null) {
         task = request.replacingCreep.task;
       }
-
+      
       if (task != null) {
+        let capacity = spawn.room.energyCapacityAvailable;
+        let cost = request.creepBody.minEnergyCost;
+        if (spawn.room.energyCapacityAvailable < request.creepBody.minEnergyCost) {
+          console.log('Skipping Appointment[0]: ' + request.id + ' ' + request.creepBody.name + ' ' + capacity + ' >= ' + cost);
+          continue;
+        }
+
         appointment = task.createAppointment(spawn, request);
 
         if (appointment == null || appointment.spawnPriority === -1) {

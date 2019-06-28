@@ -237,7 +237,7 @@ export class SporeRoom extends Room {
           }.bind(this)
         );
 
-        return _.merge(structs, sites);
+        return structs.concat(sites);
       }.bind(this)
     );
   }
@@ -808,6 +808,8 @@ export class SporeRoom extends Room {
       let sitesOrderedByProgress = _.sortBy(this.constructionSites, function(site: ConstructionSite) {
         return site.progressRemaining;
       });
+
+      let count = 0;
       for (let site of sitesOrderedByProgress) {
         if (site.doIgnore || !site.my) {
           continue;
@@ -822,6 +824,11 @@ export class SporeRoom extends Room {
         }
 
         tasks.push.apply(tasks, siteTasks);
+
+        count++;
+        if (count > 5) {
+          break;
+        }
       }
     }
 

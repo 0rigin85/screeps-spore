@@ -924,7 +924,7 @@ export class SporeCreep extends Creep {
     return ERR_CANNOT_PERFORM_TASK;
   }
 
-  goBuild(site: Ptr<ConstructionSite>, navigation?: NavigationRules): number {
+  goBuild(site: Ptr<ConstructionSite>, navigation: NavigationRules = { range: 3 }): number {
     if (!site.isValid) {
       return ERR_NO_WORK;
     }
@@ -1020,7 +1020,7 @@ export class SporeCreep extends Creep {
     return ERR_CANNOT_PERFORM_TASK;
   }
 
-  goRepair(structure: Ptr<Structure>, navigation?: NavigationRules): number {
+  goRepair(structure: Ptr<Structure>, navigation: NavigationRules = { range: 3 }): number {
     if (!structure.isValid) {
       return ERR_NO_WORK;
     }
