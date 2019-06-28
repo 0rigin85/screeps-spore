@@ -1,6 +1,4 @@
 // //
-// //
-// //
 // // Attack  ✊[82c411ff7efad8de8e9f84c3]
 // // AttackController ⚔[82c411ff7efad8de8e9f84c3]
 // // Build ⛪[82c411ff7efad8de8e9f84c3]
@@ -28,39 +26,50 @@
 // //
 // //
 // //
-// // 
+// //
 // // ✥ᑅ82c411ff7efad8de8e9f84c3ᑀ☒ᑅ82c411ff7efad8de8e9f84c3᎒energyᑀ✥ᑅ66666666667766877666455444ᑀ⚠ᑅ[resource (energy) #7a32f382c0a109da36a46a10]ᑀ
 
 // // [C|82c411ff7efad8de8e9f84c3|E12S45|43|42]
 // // [structure (container) #7a32f382c0a109da36a46a10 {43,42,E14S35}], [resource (energy) #7a32f382c0a109da36a46a10]
 
-// // 
+// //
 
+import { flatbuffers } from 'flatbuffers';
+import { Screeps } from './generated/actions_generated';
 
-// class FakeGameLoop
-// {
-//     run() {
-//         let reader = new ActionStreamReader();
-    
-//         let actionStreams: ActionStream[] = [];
-//         for (let stream of actionStreams) {
-//             reader.read(stream);
-//         }
-    
-//     }
-// }
+export class ActionProcessor {}
+
+export class ActionWriter {
+  f() {
+    let source;
+    let creep;
+    let container;
+    Screeps.Creep.
+
+    ActionWriter.encode([
+        { moveTo: source, actor: creep },
+        { untilFailure: [
+            { harvest: source, actor: creep },
+            { isNearBy: STRUCTURE_CONTAINER, 
+                yes: { transfer: RESOURCE_ENERGY, actor: container },
+                no: { drop: RESOURCE_ENERGY }
+            }
+        ]}
+    ]);
+
+    let buffer = writer.end();
+  }
+}
 
 // export interface ActionStream {
 //     data: string,
 //     stakeholders: string[];
-    
+
 // }
 
 // export class Action {
 //     constructor(public key: ActionKeyConstant, public meta: any[]) { }
 // }
-
-// export class 
 
 // export class CreepAttackAction extends Action {
 //     constructor(attacker: Creep, target: Ptr<Creep | Structure>) {
@@ -74,7 +83,7 @@
 //     }
 // }
 
-// type ActionKeyConstant = 
+// type ActionKeyConstant =
 //     | ACTION_CREEP_ATTACK_KEY;
 
 // type ACTION_CREEP_ATTACK_KEY = '✊'; // \u270A

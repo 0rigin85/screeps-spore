@@ -1,6 +1,6 @@
 import { Remember } from './Remember';
 import { PriorityQueue } from './priority-queue';
-import { ERR_NO_WORK, NO_MORE_WORK, ERR_CANNOT_PERFORM_TASK, ERR_SKIP_WORKER } from './task';
+import { ERR_NO_WORK, NO_MORE_WORK, ERR_CANNOT_PERFORM_TASK, ERR_SKIP_WORKER } from './tasks/task';
 import { CREEP_TYPE, ACTION_MOVE } from './sporeCreep';
 import { LaborPool } from './LaborPool';
 import { LaborPoolType } from './LaborPoolType';

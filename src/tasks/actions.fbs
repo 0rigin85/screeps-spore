@@ -1,0 +1,33 @@
+namespace Screeps.Creep;
+
+union Action { Harvest, MoveTo, untilFailure }
+
+table Harvest {
+    index: short;
+    next: Action;
+    source: Actor;
+    target: Actor;
+}
+
+table MoveTo {
+    index: short;
+    next: Action;
+    source: Actor;
+    target: Actor;
+}
+
+table untilFailure {
+    index: short;
+    do: [Action];
+}
+
+table Actor {
+    ref: string;
+}
+
+table ActionStream {
+    data: [Action];
+    actors: [Actor];
+}
+
+root_type ActionStream;

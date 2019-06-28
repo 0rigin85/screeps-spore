@@ -8,7 +8,7 @@ import { SporePathFinder, SporePath } from './sporePathFinder';
 import { SporeCreepMovement } from './SporeCreepMovement';
 import { SporeCostMatrixCache } from './sporeCostMatrix';
 
-import { Task } from './task';
+import { Task } from './tasks/task';
 import { BuildBarrier } from './tasks/taskBuildBarrier';
 import { BuildStructure } from './tasks/taskBuildStructure';
 import { ClaimRoom } from './tasks/taskClaimRoom';

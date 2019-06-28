@@ -238,6 +238,10 @@ export class Ptr<T extends RoomObject> {
     return pointer;
   }
 
+  static fromProto<T extends RoomObject>(proto: any): Ptr<T> {
+    return null;
+  }
+
   static fromString<T extends RoomObject>(value: string): Ptr<T> {
     let type: PtrTypeConstant;
     let id: string;

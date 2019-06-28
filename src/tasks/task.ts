@@ -1,8 +1,8 @@
-import { LaborDemand } from './LaborDemand';
-import { LaborDemandType } from './LaborDemandType';
-import { BodyDefinition } from './BodyDefinition';
-import { SpawnRequest } from './SpawnRequest';
-import { SpawnAppointment } from './SpawnAppointment';
+import { LaborDemand } from '../LaborDemand';
+import { LaborDemandType } from '../LaborDemandType';
+import { BodyDefinition } from '../BodyDefinition';
+import { SpawnRequest } from '../SpawnRequest';
+import { SpawnAppointment } from '../SpawnAppointment';
 
 export var NO_MORE_WORK: number = 123;
 export var ERR_NO_WORK: number = -400;

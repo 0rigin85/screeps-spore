@@ -1,5 +1,5 @@
-import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK } from '../task';
-import { TaskPriority } from '../TaskPriority';
+import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK } from './task';
+import { TaskPriority } from './TaskPriority';
 import { Ptr } from '../Ptr';
 import { ACTION_REPAIR, CREEP_TYPE, ACTION_MOVE } from '../sporeCreep';
 import { CollectOptions } from '../CollectOptions';

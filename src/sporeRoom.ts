@@ -1,5 +1,5 @@
-import { Task } from './task';
-import { TaskPriority } from './TaskPriority';
+import { Task } from './tasks/task';
+import { TaskPriority } from './tasks/TaskPriority';
 import { Ptr } from './Ptr';
 import { CREEP_TYPE } from './sporeCreep';
 import { CollectOptions } from './CollectOptions';

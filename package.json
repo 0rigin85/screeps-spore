@@ -5,9 +5,11 @@
     "private": true,
     "types": "./index.d.ts",
     "dependencies": {
+        "@types/flatbuffers": "^1.9.1",
         "@types/screeps": "^2.5.4",
         "@types/screeps-profiler": "^1.2.2",
         "fast-stringify": "^1.1.1",
+        "flatbuffers": "^1.11.0",
         "screeps-profiler": "^2.0.1"
     },
     "devDependencies": {

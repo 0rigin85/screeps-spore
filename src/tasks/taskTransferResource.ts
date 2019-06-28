@@ -1,4 +1,4 @@
-import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORKER } from '../task';
+import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORKER } from './task';
 import { LaborDemandType } from '../LaborDemandType';
 import { Ptr } from '../Ptr';
 import { ACTION_COLLECT, ACTION_TRANSFER, CREEP_TYPE, ACTION_MOVE } from '../sporeCreep';

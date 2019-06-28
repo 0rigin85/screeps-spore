@@ -144,6 +144,8 @@ declare class Ptr<T extends RoomObject> {
   ): Ptr<T>;
 
   static from<T extends RoomObject>(object: T): Ptr<T>;
+
+  static fromProto<T extends RoomObject>(proto: any): Ptr<T>;
 }
 
 interface SporeCostMatrixOption {

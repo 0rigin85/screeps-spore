@@ -2,7 +2,7 @@ import { Remember } from './Remember';
 import { SporePathFinder, FORWARD } from './sporePathFinder';
 import { SporePathOptions } from './SporePathOptions';
 import { SporeCreepMovement } from './SporeCreepMovement';
-import { ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK } from './task';
+import { ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK } from './tasks/task';
 import { BodyDefinition } from './BodyDefinition';
 import { SpawnRequest } from './SpawnRequest';
 import { BodyPartRequirements } from './BodyPartRequirements';

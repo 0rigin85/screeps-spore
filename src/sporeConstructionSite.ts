@@ -1,4 +1,4 @@
-import { Task } from "./task";
+import { Task } from "./tasks/task";
 import { Ptr } from "./Ptr";
 import { BuildStructure } from "./tasks/taskBuildStructure";
 

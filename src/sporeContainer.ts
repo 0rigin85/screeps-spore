@@ -3,7 +3,7 @@ import { Ptr } from "./Ptr";
 import { CollectOptions } from "./CollectOptions";
 import { Remember } from "./Remember";
 import { TransferResource } from "./tasks/taskTransferResource";
-import { TaskPriority } from "./TaskPriority";
+import { TaskPriority } from "./tasks/TaskPriority";
 
 export class SporeContainer extends StructureContainer implements Claimable {
   get storeCount(): number {

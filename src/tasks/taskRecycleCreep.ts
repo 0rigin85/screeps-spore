@@ -1,5 +1,5 @@
-import { Task, ERR_NO_WORK } from '../task';
-import { TaskPriority } from '../TaskPriority';
+import { Task, ERR_NO_WORK } from './task';
+import { TaskPriority } from './TaskPriority';
 import { Ptr } from '../Ptr';
 
 export class RecycleCreep extends Task {

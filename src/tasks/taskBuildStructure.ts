@@ -1,6 +1,6 @@
-import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORKER } from '../task';
+import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK, ERR_SKIP_WORKER } from './task';
 import { LaborDemandType } from '../LaborDemandType';
-import { TaskPriority } from '../TaskPriority';
+import { TaskPriority } from './TaskPriority';
 import { ACTION_BUILD, CREEP_TYPE, ACTION_MOVE } from '../sporeCreep';
 import { CollectOptions } from '../CollectOptions';
 import { Ptr } from '../Ptr';

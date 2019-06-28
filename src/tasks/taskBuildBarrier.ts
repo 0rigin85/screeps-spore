@@ -4,8 +4,8 @@ import { Ptr, OBJECT_CONSTRUCTION_SITE } from '../Ptr';
 import { SpawnRequest } from '../SpawnRequest';
 import { SpawnAppointment } from '../SpawnAppointment';
 import { BodyDefinition } from '../BodyDefinition';
-import { TaskPriority } from '../TaskPriority';
-import { Task, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK, NO_MORE_WORK } from '../task';
+import { TaskPriority } from './TaskPriority';
+import { Task, ERR_CANNOT_PERFORM_TASK, ERR_NO_WORK, NO_MORE_WORK } from './task';
 import { LaborDemandType } from '../LaborDemandType';
 import { Remember } from '../Remember';
 

@@ -1,6 +1,6 @@
-import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK } from '../task';
+import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK, NO_MORE_WORK } from './task';
 import { LaborDemandType } from '../LaborDemandType';
-import { TaskPriority } from '../TaskPriority';
+import { TaskPriority } from './TaskPriority';
 import { CREEP_TYPE } from '../sporeCreep';
 import { SpawnRequest } from '../SpawnRequest';
 import { SpawnAppointment } from '../SpawnAppointment';

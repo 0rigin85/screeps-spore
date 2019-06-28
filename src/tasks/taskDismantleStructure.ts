@@ -1,4 +1,4 @@
-import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK } from '../task';
+import { Task, ERR_NO_WORK, ERR_CANNOT_PERFORM_TASK } from './task';
 import { Ptr } from '../Ptr';
 import { CREEP_TYPE } from '../sporeCreep';
 import { BodyDefinition } from '../BodyDefinition';
