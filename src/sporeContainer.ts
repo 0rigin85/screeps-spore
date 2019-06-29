@@ -107,15 +107,17 @@ export class SporeContainer extends StructureContainer implements Claimable {
     }
 
     if (closestSource == null && !nearExtractor) {
+      let container = Ptr.from<StoreContainerLike>(this);
       let transferEnergyTask = new TransferResource(
-        [Ptr.from<StoreContainerLike>(this)],
+        [container],
         RESOURCE_ENERGY,
         null,
-        new CollectOptions(null, [["near_dropped"], ["container"], ["dropped"]])
+        new CollectOptions(null, [["near_dropped"], ["container"], ["dropped"]]),
+        container
       );
       transferEnergyTask.priority = TaskPriority.Low;
       transferEnergyTask.name =
-        "Fill " + Ptr.from<StructureContainer>(this).toHtml();
+        "Fill " + container.toHtml();
       tasks.push(transferEnergyTask);
     }
 
