@@ -527,7 +527,7 @@ export class SporeCreep extends Creep {
     }
 
     // if the current paths don't lead to the destination...
-    if (currentPath != null && !currentPath.leadsTo(destination, navigation.direction, navigation.range)) {
+    if (currentPath != null && !currentPath.incomplete && !currentPath.leadsTo(destination, navigation.direction, navigation.range)) {
       // then clear them so we can get new ones
       movement.path = null;
       movement.improv = null;
@@ -559,7 +559,6 @@ export class SporeCreep extends Creep {
         let explicitPathPositions = movement.path.getPositions(this.pos.roomName);
 
         let options = new SporePathOptions([]);
-        let creepCost = 4;
 
         if (this.speed >= 5) {
           // this creep moves full speed on swamp
@@ -574,7 +573,6 @@ export class SporeCreep extends Creep {
           // this creep moves full speed off-road
           options.plainCost = 2;
           options.swampCost = 10;
-          creepCost = 20;
           options.costs.push({
             id: 'path',
             cost: 1,
@@ -584,8 +582,6 @@ export class SporeCreep extends Creep {
           // this creep moves slowly off-road
           options.plainCost = 4;
           options.swampCost = 20;
-          creepCost = 40;
-
           options.costs.push({
             id: 'path',
             cost: 1,
@@ -614,23 +610,19 @@ export class SporeCreep extends Creep {
         }
       } else {
         let options = new SporePathOptions([]);
-        let creepCost = 4;
 
         if (this.speed >= 5) {
           // this creep moves full speed on swamp
           options.plainCost = 1;
           options.swampCost = 1;
-          creepCost = 2;
         } else if (this.speed >= 1) {
           // this creep moves full speed off-road
           //options.plainCost = 1;
           //options.swampCost = 5;
-          creepCost = 10;
         } else {
           // this creep moves slowly off-road
           options.plainCost = 2;
           options.swampCost = 10;
-          creepCost = 20;
           options.costs.push({ id: 'roads', cost: 1 });
         }
 
@@ -656,27 +648,23 @@ export class SporeCreep extends Creep {
       }
       
       let options = new SporePathOptions([]);
-      let creepCost = 4;
 
       if (this.speed >= 5) {
         // this creep moves full speed on swamp
         options.plainCost = 1;
         options.swampCost = 1;
-        creepCost = 2;
       } else if (this.speed >= 1) {
         // this creep moves full speed off-road
         //options.plainCost = 1;
         //options.swampCost = 5;
-        creepCost = 10;
       } else {
         // this creep moves slowly off-road
         options.plainCost = 2;
         options.swampCost = 10;
-        creepCost = 20;
         options.costs.push({ id: 'roads', cost: 1 });
       }
 
-      options.costs.push({ id: 'creeps', cost: creepCost });
+      options.costs.push({ id: 'creeps', cost: 255 });
       options.costs.push({ id: 'nonwalkableStructures', cost: 255 });
       options.costs.push({ id: 'wires', cost: 255 });
       options.costs.push({ id: 'allySites', cost: 255 });
@@ -924,7 +912,7 @@ export class SporeCreep extends Creep {
     return ERR_CANNOT_PERFORM_TASK;
   }
 
-  goBuild(site: Ptr<ConstructionSite>, navigation?: NavigationRules): number {
+  goBuild(site: Ptr<ConstructionSite>, navigation: NavigationRules = { range: 3 }): number {
     if (!site.isValid) {
       return ERR_NO_WORK;
     }
@@ -1020,7 +1008,7 @@ export class SporeCreep extends Creep {
     return ERR_CANNOT_PERFORM_TASK;
   }
 
-  goRepair(structure: Ptr<Structure>, navigation?: NavigationRules): number {
+  goRepair(structure: Ptr<Structure>, navigation: NavigationRules = { range: 3 }): number {
     if (!structure.isValid) {
       return ERR_NO_WORK;
     }

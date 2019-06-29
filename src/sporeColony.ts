@@ -207,38 +207,52 @@ interface CreepPriorityGroup {
 }
 
 function* getCreepsToSchedule(task: Task, creeps: Record<string, Creep>): IterableIterator<Creep> {
-  //console.log('[spawn requests]');
+  let doPrint = false;
+  // if (task.roomName === 'E52S37') {
+  //   doPrint = true;
+  // }
+
   let spawnedCreeps = Remember.forTick(`${task.id}.spawnedCreeps`, () => {
     return [];
   });
 
   if (spawnedCreeps != null) {
+    if (doPrint) {
+      console.log('[spawn requests]');
+    }
+
     for (let index = 0; index < spawnedCreeps.length; index++) {
       let creep = Game.getObjectById<Creep>(spawnedCreeps[index]);
       if (creep != null && creeps[creep.name] != null) {
-        //console.log(`    ${creep.name}`);
+        if (doPrint) {
+          console.log(`    ${creep.name}`);
+        }
         yield creep;
       }
     }
   }
 
   // start returning the previously used creeps in order
-  //console.log('[previous workers]');
   let taskCreeps = Remember.lastTick(`${task.id}.creeps`);
 
   if (taskCreeps != null) {
+    if (doPrint) {
+      console.log('[previous workers]');
+    }
+
     for (let taskIndex = 0; taskIndex < taskCreeps.length; taskIndex++) {
       let creep = Game.getObjectById<Creep>(taskCreeps[taskIndex]);
 
       if (creep != null && creeps[creep.name] != null) {
-        //console.log(`    ${creep.name}`);
+        if (doPrint) {
+          console.log(`    ${creep.name}`);
+        }
         yield creep;
       }
     }
   }
 
   // once exhausted
-  //console.log('[prioritized]');
   let conditions = [];
   task.getPrioritizingConditions(conditions);
 
@@ -248,6 +262,10 @@ function* getCreepsToSchedule(task: Task, creeps: Record<string, Creep>): Iterab
       return b.value - a.value;
     }
   );
+
+  if (collection.length > 0 && doPrint) {
+    console.log('[prioritized]');
+  }
 
   while (collection.length > 0) {
     let group = collection.pop();
@@ -260,7 +278,9 @@ function* getCreepsToSchedule(task: Task, creeps: Record<string, Creep>): Iterab
 
     if (conditions.length <= group.conditionIndex) {
       for (let index = 0; index < group.elements.length; index++) {
-        //console.log(`    ${group.elements[index].name}`);
+        if (doPrint) {
+          console.log(`    ${group.elements[index].name}`);
+        }
         yield group.elements[index];
       }
       continue;
@@ -302,7 +322,9 @@ function* getCreepsToSchedule(task: Task, creeps: Record<string, Creep>): Iterab
     }
   }
 
-  //console.log('[done]');
+  if (doPrint) {
+    console.log('[done]');
+  }
 }
 
 export class SporeColony {
@@ -438,6 +460,7 @@ export class SporeColony {
     let creepTaskPriority = 0;
     let scheduledNonIdeal = false;
 
+    //console.log(`[task] ${task.name}`);
     for (let creep of getCreepsToSchedule(task, creeps)) {
       if (code === ERR_NO_WORK) {
         break;
@@ -445,9 +468,11 @@ export class SporeColony {
 
       code = task.schedule(creep);
 
-      // if (task instanceof TransferResource)
+      //console.log(`    ${creep.name} ${code}` + task.name + ' ' + code);
+
+      //if (task instanceof TransferResource)
       // {
-      //     console.log('    ' + code);
+      //   console.log('    ' + code);
       // }
 
       if (code >= 0 || (creep.spawnRequest != null && creep.spawnRequest.task == task)) {
@@ -835,6 +860,15 @@ export class SporeColony {
       }
 
       if (task != null) {
+        let capacity = spawn.room.energyCapacityAvailable;
+        let cost = request.creepBody.minEnergyCost;
+        if (spawn.room.energyCapacityAvailable < request.creepBody.minEnergyCost) {
+          console.log(
+            'Skipping Appointment[0]: ' + request.id + ' ' + request.creepBody.name + ' ' + capacity + ' >= ' + cost
+          );
+          continue;
+        }
+
         appointment = task.createAppointment(spawn, request);
 
         if (appointment == null || appointment.spawnPriority === -1) {
@@ -935,9 +969,9 @@ export class SporeColony {
         }
 
         console.log(
-          `Appointment:[${appointment.spawnPriority}][${priority}] ${appointment.id} ${appointment.creepBody.name} ${
-            appointment.ticksTillRequired
-          }`
+         `Appointment:[${appointment.spawnPriority}][${priority}] ${appointment.id} ${appointment.creepBody.name} ${
+           appointment.ticksTillRequired
+         }`
         );
       }
 

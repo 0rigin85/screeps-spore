@@ -25,7 +25,8 @@ export class TransferResource extends Task {
     public resourceType: ResourceConstant,
     public source: Ptr<Source>,
     //public resourcesPerTick: number, //resource per tick
-    public options: CollectOptions
+    public options: CollectOptions,
+    public anchor?: Ptr<RoomObject>
   ) {
     super(false);
 
@@ -38,6 +39,7 @@ export class TransferResource extends Task {
     if (source != null) {
       this.id += ' ' + source;
       this.roomName = source.pos.roomName;
+      this.anchor = source;
     } else {
       this.id += ' ';
       for (let index = 0; index < (<any[]>options.storePriorities).length; index++) {
@@ -49,6 +51,7 @@ export class TransferResource extends Task {
 
     this.name = `Transfer ${resourceType} to ${targets.length} objects`;
     this.near = source;
+    this.possibleWorkers = -1;
 
     // this.toDropOff = this.colony.pathFinder.findPathTo(this.source, targets[0], new SporePathOptions(
     //     [
@@ -166,7 +169,7 @@ export class TransferResource extends Task {
       return 0;
     });
 
-    super.getBasicPrioritizingConditions(conditions, this.source, this.idealCreepBody);
+    super.getBasicPrioritizingConditions(conditions, this.anchor, this.idealCreepBody);
   }
 
   isIdeal(object: RoomObject): boolean {

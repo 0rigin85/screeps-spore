@@ -39,7 +39,7 @@ export class BuildBarrier extends Task {
       this.memory == null ||
       this.memory.barriers == null ||
       this.memory.barriers.length != barriers.length ||
-      Game.time - this.memory.tick > 100
+      Game.time - this.memory.tick > 10
     ) {
       this.memory = Memory.rooms[this.roomName].tasks.buildbarrier = BuildBarrier.createMemory(barriers);
     }

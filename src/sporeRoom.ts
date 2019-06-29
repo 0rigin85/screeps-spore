@@ -237,7 +237,7 @@ export class SporeRoom extends Room {
           }.bind(this)
         );
 
-        return _.merge(structs, sites);
+        return structs.concat(sites);
       }.bind(this)
     );
   }
@@ -550,6 +550,12 @@ export class SporeRoom extends Room {
       }
     }
 
+    if (this.name === 'E52S37') {
+      let defendTask = new DefendRoom(this.name);
+      defendTask.roomName = 'E51S39';
+      tasks.push(defendTask);
+    }
+
     //////////////////////////////////////////////////////////////////////////////
     // Harvest energy
     {
@@ -588,7 +594,8 @@ export class SporeRoom extends Room {
         targets,
         RESOURCE_ENERGY,
         null,
-        new CollectOptions([this.name], [['near_dropped'], ['link', 'container', 'storage'], ['dropped']])
+        new CollectOptions([this.name], [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]),
+        targets[0]
       );
 
       task.priority = TaskPriority.High + 300;
@@ -605,6 +612,11 @@ export class SporeRoom extends Room {
 
       if (this.energyHarvestedSinceLastInvasion > 70000 || this.invaders.length > 0) {
         let defendTask = new DefendRoom(this.name);
+
+        if (this.memory.reservedBy != null) {
+          defendTask.roomName = this.memory.reservedBy;
+        }
+
         tasks.push(defendTask);
       }
 
@@ -666,14 +678,16 @@ export class SporeRoom extends Room {
             transferTargets,
             RESOURCE_ENERGY,
             null,
-            new CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']])
+            new CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped']]),
+            transferTargets[0]
           );
         } else {
           task = new TransferResource(
             transferTargets,
             RESOURCE_ENERGY,
             null,
-            new CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped'], ['source']])
+            new CollectOptions(null, [['near_dropped'], ['link', 'container', 'storage'], ['dropped'], ['source']]),
+            transferTargets[0]
           );
         }
 
@@ -681,7 +695,7 @@ export class SporeRoom extends Room {
         task.id = 'Fill Spawns and Extensions ' + this;
         task.name = task.id;
         //task.capacityCap = this.energyCapacityAvailable;
-        //task.reserveWorkers = true;
+        task.reserveWorkers = true;
 
         tasks.push(task);
       }
@@ -691,11 +705,14 @@ export class SporeRoom extends Room {
     // Fill storage
     {
       if (this.storage != null && this.storage.storeCapacityRemaining) {
+        let storagePtr = Ptr.from<StructureStorage>(this.storage);
+
         let transferEnergyTask = new TransferResource(
-          [Ptr.from<StructureStorage>(this.storage)],
+          [storagePtr],
           RESOURCE_ENERGY,
           null,
-          new CollectOptions(null, [['near_dropped'], ['link', 'container'], ['dropped']])
+          new CollectOptions(null, [['near_dropped'], ['link', 'container'], ['dropped']]),
+          storagePtr
         );
         transferEnergyTask.priority = TaskPriority.High;
         transferEnergyTask.name = 'Transfer energy to ' + Ptr.from<StructureStorage>(this.storage).toHtml();
@@ -808,6 +825,8 @@ export class SporeRoom extends Room {
       let sitesOrderedByProgress = _.sortBy(this.constructionSites, function(site: ConstructionSite) {
         return site.progressRemaining;
       });
+
+      let count = 0;
       for (let site of sitesOrderedByProgress) {
         if (site.doIgnore || !site.my) {
           continue;
@@ -822,6 +841,11 @@ export class SporeRoom extends Room {
         }
 
         tasks.push.apply(tasks, siteTasks);
+
+        count++;
+        if (count > 5) {
+          break;
+        }
       }
     }
 
