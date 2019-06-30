@@ -13,13 +13,11 @@ export class BuildBarrier extends Task {
   idealCreepBody: BodyDefinition;
   scheduledWorkers: number = 0;
   scheduledCarry: number = 0;
-
-  direRampartHits: number = RAMPART_DECAY_AMOUNT * 10;
-  averageHits: number = 0;
-  averageDelta: number = 1000;
   requiredCarryPerBarrier: number = 0.15;
-
   memory: BuildBarrierMemory;
+
+  static direRampartHits: number = RAMPART_DECAY_AMOUNT * 10;
+  static averageDelta: number = 1000;
 
   constructor(barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[]) {
     super(false);
@@ -65,23 +63,24 @@ export class BuildBarrier extends Task {
       }
     }
 
-    BuildBarrier.sortBarriers(barriers);
+    const averageHits = totalHits / total;
+    BuildBarrier.sortBarriers(barriers, averageHits);
 
     return {
       tick: Game.time,
       barriers: barriers,
-      averageHits: totalHits / total
+      averageHits: averageHits
     };
   }
 
-  private static sortBarriers(barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[]): void {
+  private static sortBarriers(barriers: Ptr<ConstructionSite | StructureWall | StructureRampart>[], averageHits: number): void {
     barriers.sort(
-      function(a, b) {
-        const aIsRampart = a.lookTypeModifier === STRUCTURE_RAMPART;
-        const bIsRampart = b.lookTypeModifier === STRUCTURE_RAMPART;
+      function(a: Ptr<ConstructionSite | StructureWall | StructureRampart>, b: Ptr<ConstructionSite | StructureWall | StructureRampart>) {
+        const aIsRampart = a.type === STRUCTURE_RAMPART;
+        const bIsRampart = b.type === STRUCTURE_RAMPART;
 
-        const aIsStructure = a.lookType === LOOK_STRUCTURES;
-        const bIsStructure = b.lookType === LOOK_STRUCTURES;
+        const aIsStructure = a.type !== OBJECT_CONSTRUCTION_SITE;
+        const bIsStructure = b.type !== OBJECT_CONSTRUCTION_SITE;
 
         const aIsShrouded = a.isShrouded;
         const bIsShrouded = b.isShrouded;
@@ -89,15 +88,15 @@ export class BuildBarrier extends Task {
         const aInstance = a.instance;
         const bInstance = b.instance;
 
-        const aIsDireRampart = aIsRampart && !aIsShrouded && (<Structure>(<any>aInstance)).hits < this.direRampartHits;
-        const bIsDireRampart = bIsRampart && !bIsShrouded && (<Structure>(<any>bInstance)).hits < this.direRampartHits;
+        const aIsDireRampart = aIsRampart && !aIsShrouded && (<Structure>(<any>aInstance)).hits < BuildBarrier.direRampartHits;
+        const bIsDireRampart = bIsRampart && !bIsShrouded && (<Structure>(<any>bInstance)).hits < BuildBarrier.direRampartHits;
 
         if (aIsDireRampart && bIsDireRampart) {
           const aHits = (<Structure>(<any>aInstance)).hits;
           const bHits = (<Structure>(<any>bInstance)).hits;
 
           if (aHits === bHits) {
-            return BuildBarrier.comparePosition(a, b);
+            return BuildBarrier.comparePosition(a.pos, b.pos);
           }
 
           if (aHits < bHits) {
@@ -116,7 +115,7 @@ export class BuildBarrier extends Task {
         }
 
         if (!aIsStructure && !bIsStructure) {
-          return BuildBarrier.comparePosition(a, b);
+          return BuildBarrier.comparePosition(a.pos, b.pos);
         }
 
         if (aIsStructure && !bIsStructure) {
@@ -128,7 +127,7 @@ export class BuildBarrier extends Task {
         }
 
         if (aIsShrouded && bIsShrouded) {
-          return BuildBarrier.comparePosition(a, b);
+          return BuildBarrier.comparePosition(a.pos, b.pos);
         }
 
         if (!aIsShrouded && bIsShrouded) {
@@ -142,12 +141,12 @@ export class BuildBarrier extends Task {
         let aHits = (<Structure>(<any>aInstance)).hits;
         let bHits = (<Structure>(<any>bInstance)).hits;
 
-        let ideal = this.averageHits + this.averageDelta;
+        let ideal = averageHits + BuildBarrier.averageDelta;
         let aIsIdeal = aHits >= ideal;
         let bIsIdeal = bHits >= ideal;
 
         if (aIsIdeal && bIsIdeal) {
-          return BuildBarrier.comparePosition(a, b);
+          return BuildBarrier.comparePosition(a.pos, b.pos);
         }
 
         if (!aIsIdeal && bIsIdeal) {
@@ -166,8 +165,8 @@ export class BuildBarrier extends Task {
           return 1;
         }
 
-        return BuildBarrier.comparePosition(a, b);
-      }.bind(this)
+        return BuildBarrier.comparePosition(a.pos, b.pos);
+      }
     );
 
     // for (let ptr of barriers)
@@ -176,20 +175,20 @@ export class BuildBarrier extends Task {
     // }
   }
 
-  private static comparePosition(a: RoomObject, b: RoomObject): number {
-    if (a.pos.x === b.pos.x) {
-      if (a.pos.y === b.pos.y) {
+  private static comparePosition(a: RoomPosition, b: RoomPosition): number {
+    if (a.x === b.x) {
+      if (a.y === b.y) {
         return 0;
       }
 
-      if (a.pos.y < b.pos.y) {
+      if (a.y < b.y) {
         return -1;
       }
 
       return 1;
     }
 
-    if (a.pos.x < b.pos.x) {
+    if (a.x < b.x) {
       return -1;
     }
 
@@ -256,7 +255,7 @@ export class BuildBarrier extends Task {
       return ERR_CANNOT_PERFORM_TASK;
     }
 
-    let nextBarrier = 0; //Math.min(this.workers, this.barriers.length);
+    let nextBarrier = -1; //Math.min(this.workers, this.barriers.length);
     let creep = <Creep>object;
     let code;
 
@@ -269,17 +268,36 @@ export class BuildBarrier extends Task {
       return ERR_NO_WORK;
     }
 
-    var rememberedBarrier = this.memory.barriers[nextBarrier];
+    let ideal = this.memory.averageHits + BuildBarrier.averageDelta;
 
     let barrierObject: Ptr<ConstructionSite | StructureWall | StructureRampart>;
-    if (!(rememberedBarrier instanceof Ptr)) {
-      barrierObject = Ptr.fromString(rememberedBarrier as string);
-    } else {
-      barrierObject = rememberedBarrier;
-    }
+    while (barrierObject == null) {
+      nextBarrier++;
+      if (nextBarrier >= this.memory.barriers.length) {
+        delete Memory.rooms[this.roomName].tasks.buildbarrier;
+        console.log('/////////////////////// NO WORK ' + nextBarrier);
+        return ERR_NO_WORK;
+      }
 
-    if (barrierObject == null) {
-      return ERR_INVALID_TARGET;
+      var rememberedBarrier = this.memory.barriers[nextBarrier];
+
+      if (!(rememberedBarrier instanceof Ptr)) {
+        barrierObject = Ptr.fromString(rememberedBarrier as string);
+      } else {
+        barrierObject = rememberedBarrier;
+      }
+  
+      if (barrierObject == null) {
+        continue;
+      }
+  
+      let hits = (<Structure>(<any>barrierObject.instance)).hits;
+
+      if (hits >= ideal)
+      {
+        barrierObject = null;
+        continue;
+      }
     }
 
     if (

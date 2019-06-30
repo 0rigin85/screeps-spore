@@ -50,7 +50,7 @@ export class FlagBuildStructure extends Task {
   getSteps(): Task[] {
     let steps: Task[] = [];
 
-    if (this.structureType == null) {
+    if (this.structureType == null || this.flag.room == null) {
       return steps;
     }
 

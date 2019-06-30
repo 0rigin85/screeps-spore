@@ -531,7 +531,7 @@ export class SporeRoom extends Room {
     //////////////////////////////////////////////////////////////////////////////
     // Activate safe mode
     {
-      if (this.controller.safeModeAvailable > 0 && this.controller.safeMode == null && this.hostileCreeps.length > 0) {
+      if (this.controller.safeModeAvailable > 0 && this.controller.safeMode == null && this.hostileCreeps.length - this.invaders.length > 0) {
         let structures = _.filter(this.structures, function(structure: Structure) {
           return !!(
             structure.structureType !== STRUCTURE_RAMPART &&
@@ -548,12 +548,6 @@ export class SporeRoom extends Room {
           }
         }
       }
-    }
-
-    if (this.name === 'E52S37') {
-      let defendTask = new DefendRoom(this.name);
-      defendTask.roomName = 'E51S39';
-      tasks.push(defendTask);
     }
 
     //////////////////////////////////////////////////////////////////////////////

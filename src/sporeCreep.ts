@@ -1109,7 +1109,7 @@ export class SporeCreep extends Creep {
     return ERR_CANNOT_PERFORM_TASK;
   }
 
-  goUpgrade(controller: Ptr<StructureController>, navigation?: NavigationRules): number {
+  goUpgrade(controller: Ptr<StructureController>, navigation: NavigationRules = { range: 3 }): number {
     if (!controller.isValid) {
       return ERR_NO_WORK;
     }
