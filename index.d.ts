@@ -96,21 +96,21 @@ declare class Task {
   endScheduling(): void;
 }
 
-type OBJECT_CREEP = "creep";
-type OBJECT_SOURCE = "source";
-type OBJECT_FLAG = "flag";
-type OBJECT_CONSTRUCTION_SITE = "site";
-type OBJECT_NUKE = "nuke";
-type OBJECT_TOMBSTONE = "tombstone";
-type OBJECT_POWER_CREEP = "powerCreep";
+type OBJECT_CREEP = 'creep';
+type OBJECT_SOURCE = 'source';
+type OBJECT_FLAG = 'flag';
+type OBJECT_CONSTRUCTION_SITE = 'site';
+type OBJECT_NUKE = 'nuke';
+type OBJECT_TOMBSTONE = 'tombstone';
+type OBJECT_POWER_CREEP = 'powerCreep';
 
-declare const OBJECT_CREEP: "creep";
-declare const OBJECT_SOURCE: "source";
-declare const OBJECT_FLAG: "flag";
-declare const OBJECT_CONSTRUCTION_SITE: "site";
-declare const OBJECT_NUKE: "nuke";
-declare const OBJECT_TOMBSTONE: "tombstone";
-declare const OBJECT_POWER_CREEP: "powerCreep";
+declare const OBJECT_CREEP: 'creep';
+declare const OBJECT_SOURCE: 'source';
+declare const OBJECT_FLAG: 'flag';
+declare const OBJECT_CONSTRUCTION_SITE: 'site';
+declare const OBJECT_NUKE: 'nuke';
+declare const OBJECT_TOMBSTONE: 'tombstone';
+declare const OBJECT_POWER_CREEP: 'powerCreep';
 
 type PtrTypeConstant =
   | StructureConstant
@@ -137,14 +137,8 @@ declare class Ptr<T extends RoomObject> {
   readonly isShrouded: boolean;
   readonly instance: T;
 
-  static fromPosition<T extends RoomObject>(
-    pos: RoomPosition,
-    lookType: LookConstant,
-    lookTypeModifier: string
-  ): Ptr<T>;
-
+  static fromPosition<T extends RoomObject>(pos: RoomPosition, type: PtrTypeConstant, modifier?: string): Ptr<T>;
   static from<T extends RoomObject>(object: T): Ptr<T>;
-
   static fromProto<T extends RoomObject>(proto: any): Ptr<T>;
 }
 

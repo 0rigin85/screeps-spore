@@ -204,6 +204,10 @@ export class Ptr<T extends RoomObject> {
   }
 
   static from<T extends RoomObject>(object: T): Ptr<T> {
+    if (object == null) {
+      return null;
+    }
+
     let pointer = new Ptr<T>();
     pointer.id = (<any>object).id;
     pointer.pos = object.pos;
@@ -243,6 +247,10 @@ export class Ptr<T extends RoomObject> {
   }
 
   static fromString<T extends RoomObject>(value: string): Ptr<T> {
+    if (value == null || value.length === 0) {
+      return null;
+    }
+
     let type: PtrTypeConstant;
     let id: string;
     let modifier: string;

@@ -1,5 +1,5 @@
 import { TransferResource } from './tasks/taskTransferResource';
-import { TaskPriority } from './TaskPriority';
+import { TaskPriority } from './tasks/TaskPriority';
 import { Remember } from './Remember';
 import { Ptr } from './Ptr';
 import { CollectOptions } from './CollectOptions';

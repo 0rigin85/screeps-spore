@@ -2,17 +2,22 @@ namespace Screeps.Creep;
 
 union Action { Harvest, MoveTo, untilFailure }
 
+struct NextAction {
+    code: short;
+    action: short;
+}
+
 table Harvest {
     index: short;
-    next: Action;
-    source: Actor;
+    next: [NextAction];
+    actor: Actor;
     target: Actor;
 }
 
 table MoveTo {
     index: short;
-    next: Action;
-    source: Actor;
+    next: [NextAction];
+    actor: Actor;
     target: Actor;
 }
 
@@ -22,6 +27,7 @@ table untilFailure {
 }
 
 table Actor {
+    hash: uint32;
     ref: string;
 }
 

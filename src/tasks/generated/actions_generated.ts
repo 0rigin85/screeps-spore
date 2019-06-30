@@ -15,6 +15,54 @@ export enum Action{
  * @constructor
  */
 export namespace Screeps.Creep{
+export class NextAction {
+  bb: flatbuffers.ByteBuffer|null = null;
+
+  bb_pos:number = 0;
+/**
+ * @param number i
+ * @param flatbuffers.ByteBuffer bb
+ * @returns NextAction
+ */
+__init(i:number, bb:flatbuffers.ByteBuffer):NextAction {
+  this.bb_pos = i;
+  this.bb = bb;
+  return this;
+};
+
+/**
+ * @returns number
+ */
+code():number {
+  return this.bb!.readInt16(this.bb_pos);
+};
+
+/**
+ * @returns number
+ */
+action():number {
+  return this.bb!.readInt16(this.bb_pos + 2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number code
+ * @param number action
+ * @returns flatbuffers.Offset
+ */
+static createNextAction(builder:flatbuffers.Builder, code: number, action: number):flatbuffers.Offset {
+  builder.prep(2, 4);
+  builder.writeInt16(action);
+  builder.writeInt16(code);
+  return builder.offset();
+};
+
+}
+}
+/**
+ * @constructor
+ */
+export namespace Screeps.Creep{
 export class Harvest {
   bb: flatbuffers.ByteBuffer|null = null;
 
@@ -48,28 +96,29 @@ index():number {
 };
 
 /**
- * @returns Screeps.Creep.Action
+ * @param number index
+ * @param Screeps.Creep.NextAction= obj
+ * @returns Screeps.Creep.NextAction
  */
-nextType():Screeps.Creep.Action {
+next(index: number, obj?:Screeps.Creep.NextAction):Screeps.Creep.NextAction|null {
   var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? /**  */ (this.bb!.readUint8(this.bb_pos + offset)) : Screeps.Creep.Action.NONE;
+  return offset ? (obj || new Screeps.Creep.NextAction).__init(this.bb!.__vector(this.bb_pos + offset) + index * 4, this.bb!) : null;
 };
 
 /**
- * @param flatbuffers.Table obj
- * @returns ?flatbuffers.Table
+ * @returns number
  */
-next<T extends flatbuffers.Table>(obj:T):T|null {
-  var offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? this.bb!.__union(obj, this.bb_pos + offset) : null;
+nextLength():number {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 };
 
 /**
  * @param Screeps.Creep.Actor= obj
  * @returns Screeps.Creep.Actor|null
  */
-source(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 10);
+actor(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
+  var offset = this.bb!.__offset(this.bb_pos, 8);
   return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 };
 
@@ -78,7 +127,7 @@ source(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
  * @returns Screeps.Creep.Actor|null
  */
 target(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 12);
+  var offset = this.bb!.__offset(this.bb_pos, 10);
   return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 };
 
@@ -86,7 +135,7 @@ target(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
  * @param flatbuffers.Builder builder
  */
 static startHarvest(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(4);
 };
 
 /**
@@ -99,26 +148,26 @@ static addIndex(builder:flatbuffers.Builder, index:number) {
 
 /**
  * @param flatbuffers.Builder builder
- * @param Screeps.Creep.Action nextType
- */
-static addNextType(builder:flatbuffers.Builder, nextType:Screeps.Creep.Action) {
-  builder.addFieldInt8(1, nextType, Screeps.Creep.Action.NONE);
-};
-
-/**
- * @param flatbuffers.Builder builder
  * @param flatbuffers.Offset nextOffset
  */
 static addNext(builder:flatbuffers.Builder, nextOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(2, nextOffset, 0);
+  builder.addFieldOffset(1, nextOffset, 0);
 };
 
 /**
  * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset sourceOffset
+ * @param number numElems
  */
-static addSource(builder:flatbuffers.Builder, sourceOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(3, sourceOffset, 0);
+static startNextVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset actorOffset
+ */
+static addActor(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(2, actorOffset, 0);
 };
 
 /**
@@ -126,7 +175,7 @@ static addSource(builder:flatbuffers.Builder, sourceOffset:flatbuffers.Offset) {
  * @param flatbuffers.Offset targetOffset
  */
 static addTarget(builder:flatbuffers.Builder, targetOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(4, targetOffset, 0);
+  builder.addFieldOffset(3, targetOffset, 0);
 };
 
 /**
@@ -138,12 +187,11 @@ static endHarvest(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 };
 
-static createHarvest(builder:flatbuffers.Builder, index:number, nextType:Screeps.Creep.Action, nextOffset:flatbuffers.Offset, sourceOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createHarvest(builder:flatbuffers.Builder, index:number, nextOffset:flatbuffers.Offset, actorOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset):flatbuffers.Offset {
   Harvest.startHarvest(builder);
   Harvest.addIndex(builder, index);
-  Harvest.addNextType(builder, nextType);
   Harvest.addNext(builder, nextOffset);
-  Harvest.addSource(builder, sourceOffset);
+  Harvest.addActor(builder, actorOffset);
   Harvest.addTarget(builder, targetOffset);
   return Harvest.endHarvest(builder);
 }
@@ -186,28 +234,29 @@ index():number {
 };
 
 /**
- * @returns Screeps.Creep.Action
+ * @param number index
+ * @param Screeps.Creep.NextAction= obj
+ * @returns Screeps.Creep.NextAction
  */
-nextType():Screeps.Creep.Action {
+next(index: number, obj?:Screeps.Creep.NextAction):Screeps.Creep.NextAction|null {
   var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? /**  */ (this.bb!.readUint8(this.bb_pos + offset)) : Screeps.Creep.Action.NONE;
+  return offset ? (obj || new Screeps.Creep.NextAction).__init(this.bb!.__vector(this.bb_pos + offset) + index * 4, this.bb!) : null;
 };
 
 /**
- * @param flatbuffers.Table obj
- * @returns ?flatbuffers.Table
+ * @returns number
  */
-next<T extends flatbuffers.Table>(obj:T):T|null {
-  var offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? this.bb!.__union(obj, this.bb_pos + offset) : null;
+nextLength():number {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 };
 
 /**
  * @param Screeps.Creep.Actor= obj
  * @returns Screeps.Creep.Actor|null
  */
-source(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 10);
+actor(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
+  var offset = this.bb!.__offset(this.bb_pos, 8);
   return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 };
 
@@ -216,7 +265,7 @@ source(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
  * @returns Screeps.Creep.Actor|null
  */
 target(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 12);
+  var offset = this.bb!.__offset(this.bb_pos, 10);
   return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 };
 
@@ -224,7 +273,7 @@ target(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
  * @param flatbuffers.Builder builder
  */
 static startMoveTo(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(4);
 };
 
 /**
@@ -237,26 +286,26 @@ static addIndex(builder:flatbuffers.Builder, index:number) {
 
 /**
  * @param flatbuffers.Builder builder
- * @param Screeps.Creep.Action nextType
- */
-static addNextType(builder:flatbuffers.Builder, nextType:Screeps.Creep.Action) {
-  builder.addFieldInt8(1, nextType, Screeps.Creep.Action.NONE);
-};
-
-/**
- * @param flatbuffers.Builder builder
  * @param flatbuffers.Offset nextOffset
  */
 static addNext(builder:flatbuffers.Builder, nextOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(2, nextOffset, 0);
+  builder.addFieldOffset(1, nextOffset, 0);
 };
 
 /**
  * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset sourceOffset
+ * @param number numElems
  */
-static addSource(builder:flatbuffers.Builder, sourceOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(3, sourceOffset, 0);
+static startNextVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset actorOffset
+ */
+static addActor(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(2, actorOffset, 0);
 };
 
 /**
@@ -264,7 +313,7 @@ static addSource(builder:flatbuffers.Builder, sourceOffset:flatbuffers.Offset) {
  * @param flatbuffers.Offset targetOffset
  */
 static addTarget(builder:flatbuffers.Builder, targetOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(4, targetOffset, 0);
+  builder.addFieldOffset(3, targetOffset, 0);
 };
 
 /**
@@ -276,12 +325,11 @@ static endMoveTo(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 };
 
-static createMoveTo(builder:flatbuffers.Builder, index:number, nextType:Screeps.Creep.Action, nextOffset:flatbuffers.Offset, sourceOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createMoveTo(builder:flatbuffers.Builder, index:number, nextOffset:flatbuffers.Offset, actorOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset):flatbuffers.Offset {
   MoveTo.startMoveTo(builder);
   MoveTo.addIndex(builder, index);
-  MoveTo.addNextType(builder, nextType);
   MoveTo.addNext(builder, nextOffset);
-  MoveTo.addSource(builder, sourceOffset);
+  MoveTo.addActor(builder, actorOffset);
   MoveTo.addTarget(builder, targetOffset);
   return MoveTo.endMoveTo(builder);
 }
@@ -486,13 +534,21 @@ static getRootAsActor(bb:flatbuffers.ByteBuffer, obj?:Actor):Actor {
 };
 
 /**
+ * @returns number
+ */
+hash():number {
+  var offset = this.bb!.__offset(this.bb_pos, 4);
+  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
+};
+
+/**
  * @param flatbuffers.Encoding= optionalEncoding
  * @returns string|Uint8Array|null
  */
 ref():string|null
 ref(optionalEncoding:flatbuffers.Encoding):string|Uint8Array|null
 ref(optionalEncoding?:any):string|Uint8Array|null {
-  var offset = this.bb!.__offset(this.bb_pos, 4);
+  var offset = this.bb!.__offset(this.bb_pos, 6);
   return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
 };
 
@@ -500,7 +556,15 @@ ref(optionalEncoding?:any):string|Uint8Array|null {
  * @param flatbuffers.Builder builder
  */
 static startActor(builder:flatbuffers.Builder) {
-  builder.startObject(1);
+  builder.startObject(2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number hash
+ */
+static addHash(builder:flatbuffers.Builder, hash:number) {
+  builder.addFieldInt32(0, hash, 0);
 };
 
 /**
@@ -508,7 +572,7 @@ static startActor(builder:flatbuffers.Builder) {
  * @param flatbuffers.Offset refOffset
  */
 static addRef(builder:flatbuffers.Builder, refOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(0, refOffset, 0);
+  builder.addFieldOffset(1, refOffset, 0);
 };
 
 /**
@@ -520,8 +584,9 @@ static endActor(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 };
 
-static createActor(builder:flatbuffers.Builder, refOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createActor(builder:flatbuffers.Builder, hash:number, refOffset:flatbuffers.Offset):flatbuffers.Offset {
   Actor.startActor(builder);
+  Actor.addHash(builder, hash);
   Actor.addRef(builder, refOffset);
   return Actor.endActor(builder);
 }
