@@ -1,39 +1,43 @@
-namespace Screeps.Creep;
-
-union Action { Harvest, MoveTo, untilFailure }
-
-struct NextAction {
-    code: short;
-    action: short;
-}
-
-table Harvest {
-    index: short;
-    next: [NextAction];
-    actor: Actor;
-    target: Actor;
-}
-
-table MoveTo {
-    index: short;
-    next: [NextAction];
-    actor: Actor;
-    target: Actor;
-}
-
-table untilFailure {
-    index: short;
-    do: [Action];
-}
+namespace Actions;
 
 table Actor {
     hash: uint32;
     ref: string;
 }
 
-table ActionStream {
-    data: [Action];
+struct NextAction {
+    code: short;
+    action: short;
+}
+
+namespace Actions;
+union Action { Harvest, MoveTo, Loop }
+
+attribute "default";
+
+table Loop {
+    index: short;
+    next: [NextAction];
+    loop: [Action] (default);
+}
+
+table Harvest {
+    index: short;
+    next: [NextAction];
+    actor: Actor;
+    harvest: Actor (default);
+}
+
+table MoveTo {
+    index: short;
+    next: [NextAction];
+    actor: Actor;
+    moveTo: Actor;
+}
+
+table Stream {
+    actions: [Action];
     actors: [Actor];
 }
 
-root_type ActionStream;
+root_type Stream;

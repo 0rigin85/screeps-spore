@@ -3,512 +3,18 @@
 /**
  * @enum {number}
  */
-export namespace Screeps.Creep{
+export namespace Actions{
 export enum Action{
   NONE= 0,
   Harvest= 1,
   MoveTo= 2,
-  untilFailure= 3
+  Loop= 3
 }};
 
 /**
  * @constructor
  */
-export namespace Screeps.Creep{
-export class NextAction {
-  bb: flatbuffers.ByteBuffer|null = null;
-
-  bb_pos:number = 0;
-/**
- * @param number i
- * @param flatbuffers.ByteBuffer bb
- * @returns NextAction
- */
-__init(i:number, bb:flatbuffers.ByteBuffer):NextAction {
-  this.bb_pos = i;
-  this.bb = bb;
-  return this;
-};
-
-/**
- * @returns number
- */
-code():number {
-  return this.bb!.readInt16(this.bb_pos);
-};
-
-/**
- * @returns number
- */
-action():number {
-  return this.bb!.readInt16(this.bb_pos + 2);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number code
- * @param number action
- * @returns flatbuffers.Offset
- */
-static createNextAction(builder:flatbuffers.Builder, code: number, action: number):flatbuffers.Offset {
-  builder.prep(2, 4);
-  builder.writeInt16(action);
-  builder.writeInt16(code);
-  return builder.offset();
-};
-
-}
-}
-/**
- * @constructor
- */
-export namespace Screeps.Creep{
-export class Harvest {
-  bb: flatbuffers.ByteBuffer|null = null;
-
-  bb_pos:number = 0;
-/**
- * @param number i
- * @param flatbuffers.ByteBuffer bb
- * @returns Harvest
- */
-__init(i:number, bb:flatbuffers.ByteBuffer):Harvest {
-  this.bb_pos = i;
-  this.bb = bb;
-  return this;
-};
-
-/**
- * @param flatbuffers.ByteBuffer bb
- * @param Harvest= obj
- * @returns Harvest
- */
-static getRootAsHarvest(bb:flatbuffers.ByteBuffer, obj?:Harvest):Harvest {
-  return (obj || new Harvest).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-};
-
-/**
- * @returns number
- */
-index():number {
-  var offset = this.bb!.__offset(this.bb_pos, 4);
-  return offset ? this.bb!.readInt16(this.bb_pos + offset) : 0;
-};
-
-/**
- * @param number index
- * @param Screeps.Creep.NextAction= obj
- * @returns Screeps.Creep.NextAction
- */
-next(index: number, obj?:Screeps.Creep.NextAction):Screeps.Creep.NextAction|null {
-  var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? (obj || new Screeps.Creep.NextAction).__init(this.bb!.__vector(this.bb_pos + offset) + index * 4, this.bb!) : null;
-};
-
-/**
- * @returns number
- */
-nextLength():number {
-  var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
-};
-
-/**
- * @param Screeps.Creep.Actor= obj
- * @returns Screeps.Creep.Actor|null
- */
-actor(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
-};
-
-/**
- * @param Screeps.Creep.Actor= obj
- * @returns Screeps.Creep.Actor|null
- */
-target(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 10);
-  return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
-};
-
-/**
- * @param flatbuffers.Builder builder
- */
-static startHarvest(builder:flatbuffers.Builder) {
-  builder.startObject(4);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number index
- */
-static addIndex(builder:flatbuffers.Builder, index:number) {
-  builder.addFieldInt16(0, index, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset nextOffset
- */
-static addNext(builder:flatbuffers.Builder, nextOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(1, nextOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number numElems
- */
-static startNextVector(builder:flatbuffers.Builder, numElems:number) {
-  builder.startVector(4, numElems, 2);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset actorOffset
- */
-static addActor(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(2, actorOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset targetOffset
- */
-static addTarget(builder:flatbuffers.Builder, targetOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(3, targetOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @returns flatbuffers.Offset
- */
-static endHarvest(builder:flatbuffers.Builder):flatbuffers.Offset {
-  var offset = builder.endObject();
-  return offset;
-};
-
-static createHarvest(builder:flatbuffers.Builder, index:number, nextOffset:flatbuffers.Offset, actorOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset):flatbuffers.Offset {
-  Harvest.startHarvest(builder);
-  Harvest.addIndex(builder, index);
-  Harvest.addNext(builder, nextOffset);
-  Harvest.addActor(builder, actorOffset);
-  Harvest.addTarget(builder, targetOffset);
-  return Harvest.endHarvest(builder);
-}
-}
-}
-/**
- * @constructor
- */
-export namespace Screeps.Creep{
-export class MoveTo {
-  bb: flatbuffers.ByteBuffer|null = null;
-
-  bb_pos:number = 0;
-/**
- * @param number i
- * @param flatbuffers.ByteBuffer bb
- * @returns MoveTo
- */
-__init(i:number, bb:flatbuffers.ByteBuffer):MoveTo {
-  this.bb_pos = i;
-  this.bb = bb;
-  return this;
-};
-
-/**
- * @param flatbuffers.ByteBuffer bb
- * @param MoveTo= obj
- * @returns MoveTo
- */
-static getRootAsMoveTo(bb:flatbuffers.ByteBuffer, obj?:MoveTo):MoveTo {
-  return (obj || new MoveTo).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-};
-
-/**
- * @returns number
- */
-index():number {
-  var offset = this.bb!.__offset(this.bb_pos, 4);
-  return offset ? this.bb!.readInt16(this.bb_pos + offset) : 0;
-};
-
-/**
- * @param number index
- * @param Screeps.Creep.NextAction= obj
- * @returns Screeps.Creep.NextAction
- */
-next(index: number, obj?:Screeps.Creep.NextAction):Screeps.Creep.NextAction|null {
-  var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? (obj || new Screeps.Creep.NextAction).__init(this.bb!.__vector(this.bb_pos + offset) + index * 4, this.bb!) : null;
-};
-
-/**
- * @returns number
- */
-nextLength():number {
-  var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
-};
-
-/**
- * @param Screeps.Creep.Actor= obj
- * @returns Screeps.Creep.Actor|null
- */
-actor(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
-};
-
-/**
- * @param Screeps.Creep.Actor= obj
- * @returns Screeps.Creep.Actor|null
- */
-target(obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
-  var offset = this.bb!.__offset(this.bb_pos, 10);
-  return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
-};
-
-/**
- * @param flatbuffers.Builder builder
- */
-static startMoveTo(builder:flatbuffers.Builder) {
-  builder.startObject(4);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number index
- */
-static addIndex(builder:flatbuffers.Builder, index:number) {
-  builder.addFieldInt16(0, index, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset nextOffset
- */
-static addNext(builder:flatbuffers.Builder, nextOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(1, nextOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number numElems
- */
-static startNextVector(builder:flatbuffers.Builder, numElems:number) {
-  builder.startVector(4, numElems, 2);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset actorOffset
- */
-static addActor(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(2, actorOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset targetOffset
- */
-static addTarget(builder:flatbuffers.Builder, targetOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(3, targetOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @returns flatbuffers.Offset
- */
-static endMoveTo(builder:flatbuffers.Builder):flatbuffers.Offset {
-  var offset = builder.endObject();
-  return offset;
-};
-
-static createMoveTo(builder:flatbuffers.Builder, index:number, nextOffset:flatbuffers.Offset, actorOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset):flatbuffers.Offset {
-  MoveTo.startMoveTo(builder);
-  MoveTo.addIndex(builder, index);
-  MoveTo.addNext(builder, nextOffset);
-  MoveTo.addActor(builder, actorOffset);
-  MoveTo.addTarget(builder, targetOffset);
-  return MoveTo.endMoveTo(builder);
-}
-}
-}
-/**
- * @constructor
- */
-export namespace Screeps.Creep{
-export class untilFailure {
-  bb: flatbuffers.ByteBuffer|null = null;
-
-  bb_pos:number = 0;
-/**
- * @param number i
- * @param flatbuffers.ByteBuffer bb
- * @returns untilFailure
- */
-__init(i:number, bb:flatbuffers.ByteBuffer):untilFailure {
-  this.bb_pos = i;
-  this.bb = bb;
-  return this;
-};
-
-/**
- * @param flatbuffers.ByteBuffer bb
- * @param untilFailure= obj
- * @returns untilFailure
- */
-static getRootAsuntilFailure(bb:flatbuffers.ByteBuffer, obj?:untilFailure):untilFailure {
-  return (obj || new untilFailure).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-};
-
-/**
- * @returns number
- */
-index():number {
-  var offset = this.bb!.__offset(this.bb_pos, 4);
-  return offset ? this.bb!.readInt16(this.bb_pos + offset) : 0;
-};
-
-/**
- * @param number index
- * @returns Screeps.Creep.Action
- */
-doType(index: number):Screeps.Creep.Action|null {
-  var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? /**  */ (this.bb!.readUint8(this.bb!.__vector(this.bb_pos + offset) + index)) : /**  */ (0);
-};
-
-/**
- * @returns number
- */
-doTypeLength():number {
-  var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
-};
-
-/**
- * @returns Uint8Array
- */
-doTypeArray():Uint8Array|null {
-  var offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? new Uint8Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
-};
-
-/**
- * @param number index
- * @param flatbuffers.Table= obj
- * @returns ?flatbuffers.Table
- */
-do<T extends flatbuffers.Table>(index: number, obj:T):T|null {
-  var offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? this.bb!.__union(obj, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;
-};
-
-/**
- * @returns number
- */
-doLength():number {
-  var offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
-};
-
-/**
- * @param flatbuffers.Builder builder
- */
-static startuntilFailure(builder:flatbuffers.Builder) {
-  builder.startObject(3);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number index
- */
-static addIndex(builder:flatbuffers.Builder, index:number) {
-  builder.addFieldInt16(0, index, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset doTypeOffset
- */
-static addDoType(builder:flatbuffers.Builder, doTypeOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(1, doTypeOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param Array.<Screeps.Creep.Action> data
- * @returns flatbuffers.Offset
- */
-static createDoTypeVector(builder:flatbuffers.Builder, data:Screeps.Creep.Action[]):flatbuffers.Offset {
-  builder.startVector(1, data.length, 1);
-  for (var i = data.length - 1; i >= 0; i--) {
-    builder.addInt8(data[i]);
-  }
-  return builder.endVector();
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number numElems
- */
-static startDoTypeVector(builder:flatbuffers.Builder, numElems:number) {
-  builder.startVector(1, numElems, 1);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset doOffset
- */
-static addDo(builder:flatbuffers.Builder, doOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(2, doOffset, 0);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param Array.<flatbuffers.Offset> data
- * @returns flatbuffers.Offset
- */
-static createDoVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
-  builder.startVector(4, data.length, 4);
-  for (var i = data.length - 1; i >= 0; i--) {
-    builder.addOffset(data[i]);
-  }
-  return builder.endVector();
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @param number numElems
- */
-static startDoVector(builder:flatbuffers.Builder, numElems:number) {
-  builder.startVector(4, numElems, 4);
-};
-
-/**
- * @param flatbuffers.Builder builder
- * @returns flatbuffers.Offset
- */
-static enduntilFailure(builder:flatbuffers.Builder):flatbuffers.Offset {
-  var offset = builder.endObject();
-  return offset;
-};
-
-static createuntilFailure(builder:flatbuffers.Builder, index:number, doTypeOffset:flatbuffers.Offset, doOffset:flatbuffers.Offset):flatbuffers.Offset {
-  untilFailure.startuntilFailure(builder);
-  untilFailure.addIndex(builder, index);
-  untilFailure.addDoType(builder, doTypeOffset);
-  untilFailure.addDo(builder, doOffset);
-  return untilFailure.enduntilFailure(builder);
-}
-}
-}
-/**
- * @constructor
- */
-export namespace Screeps.Creep{
+export namespace Actions{
 export class Actor {
   bb: flatbuffers.ByteBuffer|null = null;
 
@@ -595,17 +101,65 @@ static createActor(builder:flatbuffers.Builder, hash:number, refOffset:flatbuffe
 /**
  * @constructor
  */
-export namespace Screeps.Creep{
-export class ActionStream {
+export namespace Actions{
+export class NextAction {
   bb: flatbuffers.ByteBuffer|null = null;
 
   bb_pos:number = 0;
 /**
  * @param number i
  * @param flatbuffers.ByteBuffer bb
- * @returns ActionStream
+ * @returns NextAction
  */
-__init(i:number, bb:flatbuffers.ByteBuffer):ActionStream {
+__init(i:number, bb:flatbuffers.ByteBuffer):NextAction {
+  this.bb_pos = i;
+  this.bb = bb;
+  return this;
+};
+
+/**
+ * @returns number
+ */
+code():number {
+  return this.bb!.readInt16(this.bb_pos);
+};
+
+/**
+ * @returns number
+ */
+action():number {
+  return this.bb!.readInt16(this.bb_pos + 2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number code
+ * @param number action
+ * @returns flatbuffers.Offset
+ */
+static createNextAction(builder:flatbuffers.Builder, code: number, action: number):flatbuffers.Offset {
+  builder.prep(2, 4);
+  builder.writeInt16(action);
+  builder.writeInt16(code);
+  return builder.offset();
+};
+
+}
+}
+/**
+ * @constructor
+ */
+export namespace Actions{
+export class Loop {
+  bb: flatbuffers.ByteBuffer|null = null;
+
+  bb_pos:number = 0;
+/**
+ * @param number i
+ * @param flatbuffers.ByteBuffer bb
+ * @returns Loop
+ */
+__init(i:number, bb:flatbuffers.ByteBuffer):Loop {
   this.bb_pos = i;
   this.bb = bb;
   return this;
@@ -613,18 +167,499 @@ __init(i:number, bb:flatbuffers.ByteBuffer):ActionStream {
 
 /**
  * @param flatbuffers.ByteBuffer bb
- * @param ActionStream= obj
- * @returns ActionStream
+ * @param Loop= obj
+ * @returns Loop
  */
-static getRootAsActionStream(bb:flatbuffers.ByteBuffer, obj?:ActionStream):ActionStream {
-  return (obj || new ActionStream).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+static getRootAsLoop(bb:flatbuffers.ByteBuffer, obj?:Loop):Loop {
+  return (obj || new Loop).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+};
+
+/**
+ * @returns number
+ */
+index():number {
+  var offset = this.bb!.__offset(this.bb_pos, 4);
+  return offset ? this.bb!.readInt16(this.bb_pos + offset) : 0;
 };
 
 /**
  * @param number index
- * @returns Screeps.Creep.Action
+ * @param Actions.NextAction= obj
+ * @returns Actions.NextAction
  */
-dataType(index: number):Screeps.Creep.Action|null {
+next(index: number, obj?:Actions.NextAction):Actions.NextAction|null {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? (obj || new Actions.NextAction).__init(this.bb!.__vector(this.bb_pos + offset) + index * 4, this.bb!) : null;
+};
+
+/**
+ * @returns number
+ */
+nextLength():number {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+};
+
+/**
+ * @param number index
+ * @returns Actions.Action
+ */
+loopType(index: number):Actions.Action|null {
+  var offset = this.bb!.__offset(this.bb_pos, 8);
+  return offset ? /**  */ (this.bb!.readUint8(this.bb!.__vector(this.bb_pos + offset) + index)) : /**  */ (0);
+};
+
+/**
+ * @returns number
+ */
+loopTypeLength():number {
+  var offset = this.bb!.__offset(this.bb_pos, 8);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+};
+
+/**
+ * @returns Uint8Array
+ */
+loopTypeArray():Uint8Array|null {
+  var offset = this.bb!.__offset(this.bb_pos, 8);
+  return offset ? new Uint8Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
+};
+
+/**
+ * @param number index
+ * @param flatbuffers.Table= obj
+ * @returns ?flatbuffers.Table
+ */
+loop<T extends flatbuffers.Table>(index: number, obj:T):T|null {
+  var offset = this.bb!.__offset(this.bb_pos, 10);
+  return offset ? this.bb!.__union(obj, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;
+};
+
+/**
+ * @returns number
+ */
+loopLength():number {
+  var offset = this.bb!.__offset(this.bb_pos, 10);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ */
+static startLoop(builder:flatbuffers.Builder) {
+  builder.startObject(4);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number index
+ */
+static addIndex(builder:flatbuffers.Builder, index:number) {
+  builder.addFieldInt16(0, index, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset nextOffset
+ */
+static addNext(builder:flatbuffers.Builder, nextOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(1, nextOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number numElems
+ */
+static startNextVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset loopTypeOffset
+ */
+static addLoopType(builder:flatbuffers.Builder, loopTypeOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(2, loopTypeOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param Array.<Actions.Action> data
+ * @returns flatbuffers.Offset
+ */
+static createLoopTypeVector(builder:flatbuffers.Builder, data:Actions.Action[]):flatbuffers.Offset {
+  builder.startVector(1, data.length, 1);
+  for (var i = data.length - 1; i >= 0; i--) {
+    builder.addInt8(data[i]);
+  }
+  return builder.endVector();
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number numElems
+ */
+static startLoopTypeVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(1, numElems, 1);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset loopOffset
+ */
+static addLoop(builder:flatbuffers.Builder, loopOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(3, loopOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param Array.<flatbuffers.Offset> data
+ * @returns flatbuffers.Offset
+ */
+static createLoopVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (var i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]);
+  }
+  return builder.endVector();
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number numElems
+ */
+static startLoopVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @returns flatbuffers.Offset
+ */
+static endLoop(builder:flatbuffers.Builder):flatbuffers.Offset {
+  var offset = builder.endObject();
+  return offset;
+};
+
+static createLoop(builder:flatbuffers.Builder, index:number, nextOffset:flatbuffers.Offset, loopTypeOffset:flatbuffers.Offset, loopOffset:flatbuffers.Offset):flatbuffers.Offset {
+  Loop.startLoop(builder);
+  Loop.addIndex(builder, index);
+  Loop.addNext(builder, nextOffset);
+  Loop.addLoopType(builder, loopTypeOffset);
+  Loop.addLoop(builder, loopOffset);
+  return Loop.endLoop(builder);
+}
+}
+}
+/**
+ * @constructor
+ */
+export namespace Actions{
+export class Harvest {
+  bb: flatbuffers.ByteBuffer|null = null;
+
+  bb_pos:number = 0;
+/**
+ * @param number i
+ * @param flatbuffers.ByteBuffer bb
+ * @returns Harvest
+ */
+__init(i:number, bb:flatbuffers.ByteBuffer):Harvest {
+  this.bb_pos = i;
+  this.bb = bb;
+  return this;
+};
+
+/**
+ * @param flatbuffers.ByteBuffer bb
+ * @param Harvest= obj
+ * @returns Harvest
+ */
+static getRootAsHarvest(bb:flatbuffers.ByteBuffer, obj?:Harvest):Harvest {
+  return (obj || new Harvest).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+};
+
+/**
+ * @returns number
+ */
+index():number {
+  var offset = this.bb!.__offset(this.bb_pos, 4);
+  return offset ? this.bb!.readInt16(this.bb_pos + offset) : 0;
+};
+
+/**
+ * @param number index
+ * @param Actions.NextAction= obj
+ * @returns Actions.NextAction
+ */
+next(index: number, obj?:Actions.NextAction):Actions.NextAction|null {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? (obj || new Actions.NextAction).__init(this.bb!.__vector(this.bb_pos + offset) + index * 4, this.bb!) : null;
+};
+
+/**
+ * @returns number
+ */
+nextLength():number {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+};
+
+/**
+ * @param Actions.Actor= obj
+ * @returns Actions.Actor|null
+ */
+actor(obj?:Actions.Actor):Actions.Actor|null {
+  var offset = this.bb!.__offset(this.bb_pos, 8);
+  return offset ? (obj || new Actions.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+};
+
+/**
+ * @param Actions.Actor= obj
+ * @returns Actions.Actor|null
+ */
+harvest(obj?:Actions.Actor):Actions.Actor|null {
+  var offset = this.bb!.__offset(this.bb_pos, 10);
+  return offset ? (obj || new Actions.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ */
+static startHarvest(builder:flatbuffers.Builder) {
+  builder.startObject(4);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number index
+ */
+static addIndex(builder:flatbuffers.Builder, index:number) {
+  builder.addFieldInt16(0, index, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset nextOffset
+ */
+static addNext(builder:flatbuffers.Builder, nextOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(1, nextOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number numElems
+ */
+static startNextVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset actorOffset
+ */
+static addActor(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(2, actorOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset harvestOffset
+ */
+static addHarvest(builder:flatbuffers.Builder, harvestOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(3, harvestOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @returns flatbuffers.Offset
+ */
+static endHarvest(builder:flatbuffers.Builder):flatbuffers.Offset {
+  var offset = builder.endObject();
+  return offset;
+};
+
+static createHarvest(builder:flatbuffers.Builder, index:number, nextOffset:flatbuffers.Offset, actorOffset:flatbuffers.Offset, harvestOffset:flatbuffers.Offset):flatbuffers.Offset {
+  Harvest.startHarvest(builder);
+  Harvest.addIndex(builder, index);
+  Harvest.addNext(builder, nextOffset);
+  Harvest.addActor(builder, actorOffset);
+  Harvest.addHarvest(builder, harvestOffset);
+  return Harvest.endHarvest(builder);
+}
+}
+}
+/**
+ * @constructor
+ */
+export namespace Actions{
+export class MoveTo {
+  bb: flatbuffers.ByteBuffer|null = null;
+
+  bb_pos:number = 0;
+/**
+ * @param number i
+ * @param flatbuffers.ByteBuffer bb
+ * @returns MoveTo
+ */
+__init(i:number, bb:flatbuffers.ByteBuffer):MoveTo {
+  this.bb_pos = i;
+  this.bb = bb;
+  return this;
+};
+
+/**
+ * @param flatbuffers.ByteBuffer bb
+ * @param MoveTo= obj
+ * @returns MoveTo
+ */
+static getRootAsMoveTo(bb:flatbuffers.ByteBuffer, obj?:MoveTo):MoveTo {
+  return (obj || new MoveTo).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+};
+
+/**
+ * @returns number
+ */
+index():number {
+  var offset = this.bb!.__offset(this.bb_pos, 4);
+  return offset ? this.bb!.readInt16(this.bb_pos + offset) : 0;
+};
+
+/**
+ * @param number index
+ * @param Actions.NextAction= obj
+ * @returns Actions.NextAction
+ */
+next(index: number, obj?:Actions.NextAction):Actions.NextAction|null {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? (obj || new Actions.NextAction).__init(this.bb!.__vector(this.bb_pos + offset) + index * 4, this.bb!) : null;
+};
+
+/**
+ * @returns number
+ */
+nextLength():number {
+  var offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+};
+
+/**
+ * @param Actions.Actor= obj
+ * @returns Actions.Actor|null
+ */
+actor(obj?:Actions.Actor):Actions.Actor|null {
+  var offset = this.bb!.__offset(this.bb_pos, 8);
+  return offset ? (obj || new Actions.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+};
+
+/**
+ * @param Actions.Actor= obj
+ * @returns Actions.Actor|null
+ */
+moveTo(obj?:Actions.Actor):Actions.Actor|null {
+  var offset = this.bb!.__offset(this.bb_pos, 10);
+  return offset ? (obj || new Actions.Actor).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ */
+static startMoveTo(builder:flatbuffers.Builder) {
+  builder.startObject(4);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number index
+ */
+static addIndex(builder:flatbuffers.Builder, index:number) {
+  builder.addFieldInt16(0, index, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset nextOffset
+ */
+static addNext(builder:flatbuffers.Builder, nextOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(1, nextOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param number numElems
+ */
+static startNextVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 2);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset actorOffset
+ */
+static addActor(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(2, actorOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @param flatbuffers.Offset moveToOffset
+ */
+static addMoveTo(builder:flatbuffers.Builder, moveToOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(3, moveToOffset, 0);
+};
+
+/**
+ * @param flatbuffers.Builder builder
+ * @returns flatbuffers.Offset
+ */
+static endMoveTo(builder:flatbuffers.Builder):flatbuffers.Offset {
+  var offset = builder.endObject();
+  return offset;
+};
+
+static createMoveTo(builder:flatbuffers.Builder, index:number, nextOffset:flatbuffers.Offset, actorOffset:flatbuffers.Offset, moveToOffset:flatbuffers.Offset):flatbuffers.Offset {
+  MoveTo.startMoveTo(builder);
+  MoveTo.addIndex(builder, index);
+  MoveTo.addNext(builder, nextOffset);
+  MoveTo.addActor(builder, actorOffset);
+  MoveTo.addMoveTo(builder, moveToOffset);
+  return MoveTo.endMoveTo(builder);
+}
+}
+}
+/**
+ * @constructor
+ */
+export namespace Actions{
+export class Stream {
+  bb: flatbuffers.ByteBuffer|null = null;
+
+  bb_pos:number = 0;
+/**
+ * @param number i
+ * @param flatbuffers.ByteBuffer bb
+ * @returns Stream
+ */
+__init(i:number, bb:flatbuffers.ByteBuffer):Stream {
+  this.bb_pos = i;
+  this.bb = bb;
+  return this;
+};
+
+/**
+ * @param flatbuffers.ByteBuffer bb
+ * @param Stream= obj
+ * @returns Stream
+ */
+static getRootAsStream(bb:flatbuffers.ByteBuffer, obj?:Stream):Stream {
+  return (obj || new Stream).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+};
+
+/**
+ * @param number index
+ * @returns Actions.Action
+ */
+actionsType(index: number):Actions.Action|null {
   var offset = this.bb!.__offset(this.bb_pos, 4);
   return offset ? /**  */ (this.bb!.readUint8(this.bb!.__vector(this.bb_pos + offset) + index)) : /**  */ (0);
 };
@@ -632,7 +667,7 @@ dataType(index: number):Screeps.Creep.Action|null {
 /**
  * @returns number
  */
-dataTypeLength():number {
+actionsTypeLength():number {
   var offset = this.bb!.__offset(this.bb_pos, 4);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 };
@@ -640,7 +675,7 @@ dataTypeLength():number {
 /**
  * @returns Uint8Array
  */
-dataTypeArray():Uint8Array|null {
+actionsTypeArray():Uint8Array|null {
   var offset = this.bb!.__offset(this.bb_pos, 4);
   return offset ? new Uint8Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
 };
@@ -650,7 +685,7 @@ dataTypeArray():Uint8Array|null {
  * @param flatbuffers.Table= obj
  * @returns ?flatbuffers.Table
  */
-data<T extends flatbuffers.Table>(index: number, obj:T):T|null {
+actions<T extends flatbuffers.Table>(index: number, obj:T):T|null {
   var offset = this.bb!.__offset(this.bb_pos, 6);
   return offset ? this.bb!.__union(obj, this.bb!.__vector(this.bb_pos + offset) + index * 4) : null;
 };
@@ -658,19 +693,19 @@ data<T extends flatbuffers.Table>(index: number, obj:T):T|null {
 /**
  * @returns number
  */
-dataLength():number {
+actionsLength():number {
   var offset = this.bb!.__offset(this.bb_pos, 6);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 };
 
 /**
  * @param number index
- * @param Screeps.Creep.Actor= obj
- * @returns Screeps.Creep.Actor
+ * @param Actions.Actor= obj
+ * @returns Actions.Actor
  */
-actors(index: number, obj?:Screeps.Creep.Actor):Screeps.Creep.Actor|null {
+actors(index: number, obj?:Actions.Actor):Actions.Actor|null {
   var offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? (obj || new Screeps.Creep.Actor).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+  return offset ? (obj || new Actions.Actor).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
 };
 
 /**
@@ -684,24 +719,24 @@ actorsLength():number {
 /**
  * @param flatbuffers.Builder builder
  */
-static startActionStream(builder:flatbuffers.Builder) {
+static startStream(builder:flatbuffers.Builder) {
   builder.startObject(3);
 };
 
 /**
  * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset dataTypeOffset
+ * @param flatbuffers.Offset actionsTypeOffset
  */
-static addDataType(builder:flatbuffers.Builder, dataTypeOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(0, dataTypeOffset, 0);
+static addActionsType(builder:flatbuffers.Builder, actionsTypeOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(0, actionsTypeOffset, 0);
 };
 
 /**
  * @param flatbuffers.Builder builder
- * @param Array.<Screeps.Creep.Action> data
+ * @param Array.<Actions.Action> data
  * @returns flatbuffers.Offset
  */
-static createDataTypeVector(builder:flatbuffers.Builder, data:Screeps.Creep.Action[]):flatbuffers.Offset {
+static createActionsTypeVector(builder:flatbuffers.Builder, data:Actions.Action[]):flatbuffers.Offset {
   builder.startVector(1, data.length, 1);
   for (var i = data.length - 1; i >= 0; i--) {
     builder.addInt8(data[i]);
@@ -713,16 +748,16 @@ static createDataTypeVector(builder:flatbuffers.Builder, data:Screeps.Creep.Acti
  * @param flatbuffers.Builder builder
  * @param number numElems
  */
-static startDataTypeVector(builder:flatbuffers.Builder, numElems:number) {
+static startActionsTypeVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(1, numElems, 1);
 };
 
 /**
  * @param flatbuffers.Builder builder
- * @param flatbuffers.Offset dataOffset
+ * @param flatbuffers.Offset actionsOffset
  */
-static addData(builder:flatbuffers.Builder, dataOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(1, dataOffset, 0);
+static addActions(builder:flatbuffers.Builder, actionsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(1, actionsOffset, 0);
 };
 
 /**
@@ -730,7 +765,7 @@ static addData(builder:flatbuffers.Builder, dataOffset:flatbuffers.Offset) {
  * @param Array.<flatbuffers.Offset> data
  * @returns flatbuffers.Offset
  */
-static createDataVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+static createActionsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
   builder.startVector(4, data.length, 4);
   for (var i = data.length - 1; i >= 0; i--) {
     builder.addOffset(data[i]);
@@ -742,7 +777,7 @@ static createDataVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):
  * @param flatbuffers.Builder builder
  * @param number numElems
  */
-static startDataVector(builder:flatbuffers.Builder, numElems:number) {
+static startActionsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 };
 
@@ -779,7 +814,7 @@ static startActorsVector(builder:flatbuffers.Builder, numElems:number) {
  * @param flatbuffers.Builder builder
  * @returns flatbuffers.Offset
  */
-static endActionStream(builder:flatbuffers.Builder):flatbuffers.Offset {
+static endStream(builder:flatbuffers.Builder):flatbuffers.Offset {
   var offset = builder.endObject();
   return offset;
 };
@@ -788,16 +823,16 @@ static endActionStream(builder:flatbuffers.Builder):flatbuffers.Offset {
  * @param flatbuffers.Builder builder
  * @param flatbuffers.Offset offset
  */
-static finishActionStreamBuffer(builder:flatbuffers.Builder, offset:flatbuffers.Offset) {
+static finishStreamBuffer(builder:flatbuffers.Builder, offset:flatbuffers.Offset) {
   builder.finish(offset);
 };
 
-static createActionStream(builder:flatbuffers.Builder, dataTypeOffset:flatbuffers.Offset, dataOffset:flatbuffers.Offset, actorsOffset:flatbuffers.Offset):flatbuffers.Offset {
-  ActionStream.startActionStream(builder);
-  ActionStream.addDataType(builder, dataTypeOffset);
-  ActionStream.addData(builder, dataOffset);
-  ActionStream.addActors(builder, actorsOffset);
-  return ActionStream.endActionStream(builder);
+static createStream(builder:flatbuffers.Builder, actionsTypeOffset:flatbuffers.Offset, actionsOffset:flatbuffers.Offset, actorsOffset:flatbuffers.Offset):flatbuffers.Offset {
+  Stream.startStream(builder);
+  Stream.addActionsType(builder, actionsTypeOffset);
+  Stream.addActions(builder, actionsOffset);
+  Stream.addActors(builder, actorsOffset);
+  return Stream.endStream(builder);
 }
 }
 }

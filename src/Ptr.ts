@@ -12,6 +12,7 @@ interface LOOK_DECODER {
 }
 
 const LOOK_DECODER: Record<string, LOOK_DECODER> = {};
+
 LOOK_DECODER[STRUCTURE_CONTAINER] = { type: LOOK_STRUCTURES, modifier: 'container' };
 LOOK_DECODER[STRUCTURE_CONTROLLER] = { type: LOOK_STRUCTURES, modifier: 'controller' };
 LOOK_DECODER[STRUCTURE_EXTENSION] = { type: LOOK_STRUCTURES, modifier: 'extension' };
@@ -52,13 +53,15 @@ interface PtrResolution<T> {
 export class Ptr<T extends RoomObject> {
   prototype: RoomObject;
 
-  pos: RoomPosition;
-  id: string;
-  type: PtrTypeConstant;
-  modifier: string;
-
   private _string: string;
   private _resolution: PtrResolution<T>;
+
+  constructor(
+    readonly id: string,
+    readonly type: PtrTypeConstant,
+    readonly modifier: string,
+    readonly pos: RoomPosition
+  ) {}
 
   public toJSON = (key: string): string => {
     return this.toString();
@@ -195,12 +198,7 @@ export class Ptr<T extends RoomObject> {
   }
 
   static fromPosition<T extends RoomObject>(pos: RoomPosition, type: PtrTypeConstant, modifier?: string): Ptr<T> {
-    let pointer = new Ptr<T>();
-    pointer.pos = pos;
-    pointer.type = type;
-    pointer.modifier = modifier;
-
-    return pointer;
+    return new Ptr<T>(null, type, modifier, pos);
   }
 
   static from<T extends RoomObject>(object: T): Ptr<T> {
@@ -208,42 +206,38 @@ export class Ptr<T extends RoomObject> {
       return null;
     }
 
-    let pointer = new Ptr<T>();
-    pointer.id = (<any>object).id;
-    pointer.pos = object.pos;
-    pointer._resolution = { instance: object, isValid: true };
-
+    let type;
+    let modifier;
     if (object instanceof Creep) {
-      pointer.type = OBJECT_CREEP;
+      type = OBJECT_CREEP;
     } else if (object instanceof Resource) {
-      pointer.type = (object as Resource).resourceType;
+      type = (object as Resource).resourceType;
     } else if (object instanceof Source) {
-      pointer.type = OBJECT_SOURCE;
+      type = OBJECT_SOURCE;
     } else if (object instanceof Structure) {
-      pointer.type = (object as Structure).structureType;
+      type = (object as Structure).structureType;
     } else if (object instanceof Flag) {
-      pointer.type = OBJECT_FLAG;
-      pointer.modifier = (object as Flag).name;
+      type = OBJECT_FLAG;
+      modifier = (object as Flag).name;
     } else if (object instanceof ConstructionSite) {
-      pointer.type = OBJECT_CONSTRUCTION_SITE;
-      pointer.modifier = (object as ConstructionSite).structureType;
+      type = OBJECT_CONSTRUCTION_SITE;
+      modifier = (object as ConstructionSite).structureType;
     } else if (object instanceof Source) {
-      pointer.type = OBJECT_SOURCE;
+      type = OBJECT_SOURCE;
     } else if (object instanceof Tombstone) {
-      pointer.type = OBJECT_TOMBSTONE;
+      type = OBJECT_TOMBSTONE;
     } else if (object instanceof PowerCreep) {
-      pointer.type = OBJECT_POWER_CREEP;
+      type = OBJECT_POWER_CREEP;
     } else if (object instanceof Nuke) {
-      pointer.type = OBJECT_NUKE;
+      type = OBJECT_NUKE;
     } else {
       return null;
     }
 
-    return pointer;
-  }
+    let pointer = new Ptr<T>((<any>object).id, type, modifier, object.pos);
+    pointer._resolution = { instance: object, isValid: true };
 
-  static fromProto<T extends RoomObject>(proto: any): Ptr<T> {
-    return null;
+    return pointer;
   }
 
   static fromString<T extends RoomObject>(value: string): Ptr<T> {
@@ -343,11 +337,7 @@ export class Ptr<T extends RoomObject> {
       return null;
     }
 
-    let pointer = new Ptr<T>();
-    pointer.id = id;
-    pointer.type = type;
-    pointer.modifier = modifier;
-    pointer.pos = new RoomPosition(x, y, roomName);
+    let pointer = new Ptr<T>(id, type, modifier, new RoomPosition(x, y, roomName));
     pointer._string = value;
 
     return pointer;
