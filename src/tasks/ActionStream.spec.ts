@@ -81,11 +81,11 @@ describe('ActionStream', () => {
         let array = builder.asUint8Array();
 
         let result = ActionStream.encode([
-            { moveTo: source },
-            { loop: [
-                { harvest: source }
+            { MoveTo: source },
+            { Loop: [
+                { Harvest: source }
             ]}
-        ], { creep: creep });
+        ], { Creep: creep });
 
         expect(result).toStrictEqual(array);
     });
@@ -102,81 +102,81 @@ describe('ActionStream', () => {
 
 //       const globals = { creep: creep };
 
-//       ActionStream.encode([
-//         { moveTo: source,
-//           while: [
-//             { heal: creep },
-//             { on: STRUCTURE_ROAD,
-//                 yes: { repair: '$.on.road' } }
-//           ]
-//         },
-//         { if: source,
-//             isEmpty: [
-//                 { lookNearBy: LOOK_STRUCTURES, name: 'nearBy' },
-//                 { forEach: '$.nearBy', name: 'struct',
-//                     do: [
-//                         { if: '$.struct', 
-//                             isDamaged: { repair: '$.struct' }
-//                         },
-//                         { if: source, isNotEmpty: { goTo: 'nearBy' } }
-//                     ]
-//                 },
-//                 { waitTill: { if: source, isNotEmpty: { goTo: 'nearBy' } } }
-//             ],
-//             else: { lookNearBy: LOOK_STRUCTURES, name: 'nearBy',
-//                 STRUCTURE_STORAGE: {
-//                     loop: [
-//                         { harvest: source, 
-//                             ERR_NOT_ENOUGH_RESOURCES: OK
-//                         },
-//                         { transfer: RESOURCE_ENERGY, 
-//                             to: '$.nearBy.container',
-//                             ERR_INVALID_TARGET: { goTo: 'nearBy' },
-//                             ERR_NOT_IN_RANGE: { goTo: 'nearBy' },
-//                             ERR_NOT_ENOUGH_RESOURCES: OK,
-//                             ERR_FULL: OK
-//                         }
-//                     ]},
-//                 STRUCTURE_LINK: { 
-//                     loop: [
-//                         { harvest: source, 
-//                             ERR_NOT_ENOUGH_RESOURCES: OK
-//                         },
-//                         { transfer: RESOURCE_ENERGY, 
-//                             to: '$.nearBy.link',
-//                             ERR_INVALID_TARGET: { goTo: 'nearBy' },
-//                             ERR_NOT_IN_RANGE: { goTo: 'nearBy' },
-//                             ERR_NOT_ENOUGH_RESOURCES: OK,
-//                             ERR_FULL: OK
-//                         }
-//                     ]},
-//                 STRUCTURE_CONTAINER: { 
-//                     loop: [
-//                         { harvest: source, 
-//                             ERR_NOT_ENOUGH_RESOURCES: OK
-//                         },
-//                         { transfer: RESOURCE_ENERGY, 
-//                             to: '$.nearBy.container',
-//                             ERR_INVALID_TARGET: { goTo: 'nearBy' },
-//                             ERR_NOT_IN_RANGE: { goTo: 'nearBy' },
-//                             ERR_NOT_ENOUGH_RESOURCES: OK,
-//                             ERR_FULL: OK
-//                         }
-//                     ]},
-//                 else : [{
-//                     loop: [
-//                         { harvest: source, 
-//                             ERR_NOT_ENOUGH_RESOURCES: OK
-//                         },
-//                         { 
-//                             drop: RESOURCE_ENERGY,
-//                                 ERR_NOT_ENOUGH_RESOURCES: OK,
-//                         }
-//                     ], count: 10 },
-//                     { goTo: 'nearBy' }
-//                 ]
-//             }
-//         }], globals);
+      ActionStream.encode([
+        { moveTo: source,
+          while: [
+            { heal: creep },
+            { on: STRUCTURE_ROAD,
+                yes: { repair: '$.on.road' } }
+          ]
+        },
+        { if: source,
+            isEmpty: [
+                { lookNearBy: LOOK_STRUCTURES, name: 'nearBy' },
+                { forEach: '$.nearBy', name: 'struct',
+                    do: [
+                        { if: '$.struct', 
+                            isDamaged: { repair: '$.struct' }
+                        },
+                        { if: source, isNotEmpty: { goTo: 'nearBy' } }
+                    ]
+                },
+                { waitTill: { if: source, isNotEmpty: { goTo: 'nearBy' } } }
+            ],
+            else: { lookNearBy: LOOK_STRUCTURES, name: 'nearBy',
+                STRUCTURE_STORAGE: {
+                    loop: [
+                        { harvest: source, 
+                            ERR_NOT_ENOUGH_RESOURCES: OK
+                        },
+                        { transfer: RESOURCE_ENERGY, 
+                            to: '$.nearBy.container',
+                            ERR_INVALID_TARGET: { goTo: 'nearBy' },
+                            ERR_NOT_IN_RANGE: { goTo: 'nearBy' },
+                            ERR_NOT_ENOUGH_RESOURCES: OK,
+                            ERR_FULL: OK
+                        }
+                    ]},
+                STRUCTURE_LINK: { 
+                    loop: [
+                        { harvest: source, 
+                            ERR_NOT_ENOUGH_RESOURCES: OK
+                        },
+                        { transfer: RESOURCE_ENERGY, 
+                            to: '$.nearBy.link',
+                            ERR_INVALID_TARGET: { goTo: 'nearBy' },
+                            ERR_NOT_IN_RANGE: { goTo: 'nearBy' },
+                            ERR_NOT_ENOUGH_RESOURCES: OK,
+                            ERR_FULL: OK
+                        }
+                    ]},
+                STRUCTURE_CONTAINER: { 
+                    loop: [
+                        { harvest: source, 
+                            ERR_NOT_ENOUGH_RESOURCES: OK
+                        },
+                        { transfer: RESOURCE_ENERGY, 
+                            to: '$.nearBy.container',
+                            ERR_INVALID_TARGET: { goTo: 'nearBy' },
+                            ERR_NOT_IN_RANGE: { goTo: 'nearBy' },
+                            ERR_NOT_ENOUGH_RESOURCES: OK,
+                            ERR_FULL: OK
+                        }
+                    ]},
+                else : [{
+                    loop: [
+                        { harvest: source, 
+                            ERR_NOT_ENOUGH_RESOURCES: OK
+                        },
+                        { 
+                            drop: RESOURCE_ENERGY,
+                                ERR_NOT_ENOUGH_RESOURCES: OK,
+                        }
+                    ], count: 10 },
+                    { goTo: 'nearBy' }
+                ]
+            }
+        }], globals);
 
 //       ActionStream.encode(
 //         [

@@ -7,7 +7,8 @@ table Actor {
 
 struct NextAction {
     code: short;
-    action: short;
+    translate: short;
+    action: Action;
 }
 
 namespace Actions;
@@ -18,14 +19,14 @@ attribute "default";
 table Loop {
     index: short;
     next: [NextAction];
-    loop: [Action] (default);
+    loop: [Action];
 }
 
 table Harvest {
     index: short;
     next: [NextAction];
     actor: Actor;
-    harvest: Actor (default);
+    harvest: Actor;
 }
 
 table MoveTo {

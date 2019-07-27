@@ -51,8 +51,6 @@ interface PtrResolution<T> {
 }
 
 export class Ptr<T extends RoomObject> {
-  prototype: RoomObject;
-
   private _string: string;
   private _resolution: PtrResolution<T>;
 
